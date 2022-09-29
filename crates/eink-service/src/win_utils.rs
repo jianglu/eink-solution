@@ -24,7 +24,7 @@ use winapi::um::processthreadsapi::OpenProcess;
 use winapi::um::processthreadsapi::OpenProcessToken;
 use winapi::um::processthreadsapi::STARTUPINFOW;
 use winapi::um::securitybaseapi::DuplicateTokenEx;
-use winapi::um::winbase::CREATE_NEW_CONSOLE;
+use winapi::um::winbase::CREATE_NO_WINDOW;
 use winapi::um::winbase::NORMAL_PRIORITY_CLASS;
 use winapi::um::winnt::MAXIMUM_ALLOWED;
 use winapi::um::winnt::TOKEN_ADJUST_PRIVILEGES;
@@ -111,7 +111,7 @@ pub unsafe fn run_system_privilege_unsafe(
     use winapi::um::winnt::TokenPrimary;
     use winapi::um::winnt::TokenSessionId;
 
-    let mut creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE;
+    let mut creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW; // CREATE_NEW_CONSOLE;
     let winlogon_pid = get_process_pid("winlogon.exe")?;
 
     let mut process: HANDLE = NULL;
