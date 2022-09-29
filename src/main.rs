@@ -15,22 +15,26 @@ extern crate windows_service;
 
 use anyhow::Result;
 use comet_eventbus::*;
-use log::{error, info, warn};
+use eink::EinkServiceManager;
+use log::{error, info};
 use std::{ffi::OsString, sync::mpsc::channel, time::Duration};
+use vmon::VirtualMonitorManager;
 use windows_service::{
     service::*,
     service_control_handler::{self, *},
     service_dispatcher,
 };
 
-use crate::global::{MessageA, EVENTBUS, GENERIC_TOPIC};
+use crate::global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC};
 
 //
 // Modules
 //
 
+mod eink;
 mod global;
 mod logger;
+mod vmon;
 
 //
 // Globals
@@ -49,13 +53,20 @@ fn my_service_main(arguments: Vec<OsString>) {
     }
 }
 
+// 服务运行在独立的后台线程中
 fn run_service(arguments: Vec<OsString>) -> Result<()> {
-    // The entry point where execution will start on a background thread after a call to
-    // `service_dispatcher::start` from `main`.
+    // DEBUG
     for arg in arguments {
         println!("Arg: {:?}", &arg);
     }
 
+    // 创建虚拟显示器管理器
+    let _vmon_mgr = VirtualMonitorManager::new();
+
+    // 创建 EINK 服务管理器
+    let _eink_mgr = EinkServiceManager::new();
+
+    // 本地消息通道，将异步事件递交至本地执行上下文
     let (tx, rx) = channel::<ServiceStatus>();
 
     // 处理服务控制事件
@@ -69,10 +80,14 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
             }
             ServiceControl::Continue => {
                 info!("{} ControlEvent: Continue", EINK_SERVICE_NAME);
-                // 更新服务状态
-                let event_a = Event::new(GENERIC_TOPIC.clone(), MessageA { id: 1 });
 
-                EVENTBUS.post(&event_a);
+                // 更新服务状态
+
+                // 将服务控制消息发送至消息总线
+                EVENTBUS.post(&Event::new(
+                    GENERIC_TOPIC.clone(),
+                    ServiceControlMessage { control_event },
+                ));
 
                 ServiceControlHandlerResult::NoError
             }
@@ -110,20 +125,14 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     // 注册服务事件处理程序
     let status_handle = service_control_handler::register(EINK_SERVICE_NAME, event_handler)?;
 
+    // 当前状态为 Running
     let next_status = ServiceStatus {
-        // 服务在当前进程内启动，需要和注册表项匹配
         service_type: ServiceType::OWN_PROCESS,
-        // 正在运行
         current_state: ServiceState::Running,
-        // 可以接受服务 STOP 命令
         controls_accepted: ServiceControlAccept::STOP,
-        // 发生错误时的状态汇报
         exit_code: ServiceExitCode::Win32(0),
-        // 仅用于 Pending states，设置 0
         checkpoint: 0,
-        // 仅用于 Pending states，设置 0
         wait_hint: Duration::default(),
-        // 未使用参数
         process_id: None,
     };
 
@@ -138,6 +147,8 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
             break;
         }
     }
+
+    // TODO: 其他清理工作
 
     Ok(())
 }

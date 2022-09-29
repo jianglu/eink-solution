@@ -10,21 +10,11 @@
 // All rights reserved.
 //
 
-use comet_eventbus::*;
-use static_init::dynamic;
-use windows_service::service::ServiceControl;
+// 虚拟显示器控制器
+pub struct VirtualMonitorManager {}
 
-#[dynamic]
-pub static EVENTBUS: Eventbus = Eventbus::new();
-
-// Topics
-#[dynamic]
-pub static GENERIC_TOPIC: TopicKey = TopicKey::from("EinkService");
-
-// Application Messages
-
-// 服务控制消息
-#[derive(Debug)]
-pub struct ServiceControlMessage {
-    pub control_event: ServiceControl,
+impl VirtualMonitorManager {
+    pub fn new() -> Self {
+        Self {}
+    }
 }

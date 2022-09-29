@@ -11,20 +11,18 @@
 //
 
 use comet_eventbus::*;
-use static_init::dynamic;
-use windows_service::service::ServiceControl;
 
-#[dynamic]
-pub static EVENTBUS: Eventbus = Eventbus::new();
+use crate::global::ServiceControlMessage;
 
-// Topics
-#[dynamic]
-pub static GENERIC_TOPIC: TopicKey = TopicKey::from("EinkService");
+/// 服务控制中心
+pub struct EinkServiceManager {}
 
-// Application Messages
+impl EinkServiceManager {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
-// 服务控制消息
-#[derive(Debug)]
-pub struct ServiceControlMessage {
-    pub control_event: ServiceControl,
+impl Listener<ServiceControlMessage> for EinkServiceManager {
+    fn handle(&self, evt: &Event<ServiceControlMessage>) {}
 }
