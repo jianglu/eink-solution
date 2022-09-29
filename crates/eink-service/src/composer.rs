@@ -19,6 +19,9 @@ use std::{
 use anyhow::Result;
 use log::{debug, info};
 
+use winapi::shared::ntdef::NULL;
+use winapi::shared::{minwindef::DWORD, ntdef::HANDLE};
+
 use crate::{composer, eink, logger::output_debug_string, win_utils};
 
 const EINK_COMPOSER_NAME: &str = "eink-composer.exe";
@@ -26,13 +29,19 @@ const EINK_COMPOSER_NAME: &str = "eink-composer.exe";
 /// 合成器管理服务
 /// 当前无论哪种模式，合成器都需要开启
 /// TODO: 需要对合成器进行更深入的管理
-struct ComposerServiceImpl {}
+struct ComposerServiceImpl {
+    pid: Arc<Mutex<DWORD>>,
+}
 
 impl ComposerServiceImpl {
     pub fn new() -> Result<Self> {
         let eink_stable_id = eink::find_eink_display_stable_id()?;
         info!("Eink Stable Monitor Id: {}", eink_stable_id);
 
+        let pid = Arc::new(Mutex::new(0));
+        let pid_clone = pid.clone();
+
+        // 创建 eink-composer 进程，并通过匿名管道和 eink-composer 进程建立双向通讯
         std::thread::spawn(move || {
             // cmd_lib::spawn_with_output!(eink-composer.exe --monitor-id $eink_stable_id  --test-background true --test-layer true)
             //     .unwrap()
@@ -56,7 +65,9 @@ impl ComposerServiceImpl {
             info!("proc_dir: {}", proc_dir);
             info!("proc_cmd: {}", proc_cmd);
 
-            win_utils::run_system_privilege(proc_name, proc_dir, proc_cmd).unwrap();
+            let pid = win_utils::run_system_privilege(proc_name, proc_dir, proc_cmd).unwrap();
+
+            *pid_clone.lock().unwrap() = pid;
 
             // let mut composer = Command::new(EINK_COMPOSER_NAME)
             //     .arg("--monitor-id")
@@ -91,7 +102,14 @@ impl ComposerServiceImpl {
             // });
         });
 
-        Ok(Self {})
+        Ok(Self { pid })
+    }
+}
+
+impl Drop for ComposerServiceImpl {
+    fn drop(&mut self) {
+        let pid = *self.pid.lock().unwrap();
+        win_utils::kill_process_by_pid(pid, 0);
     }
 }
 

@@ -10,13 +10,16 @@
 // All rights reserved.
 //
 
-use std::sync::atomic::AtomicBool;
 use std::thread::JoinHandle;
 
 use anyhow::Result;
 use log::info;
 use winreg::enums::HKEY_LOCAL_MACHINE;
 use winreg::RegKey;
+
+use eink_eventbus::Event;
+
+use crate::global::{ModeSwitchMessage, EVENTBUS, GENERIC_TOPIC};
 
 pub struct RegistryManagerService {
     _th: Option<JoinHandle<()>>,
@@ -42,6 +45,12 @@ impl RegistryManagerService {
 
                 let mode: u32 = reg_key.get_value("Mode").unwrap();
                 info!("Current Mode: {}", mode);
+
+                // 将热键消息发送至消息总线
+                EVENTBUS.post(&Event::new(
+                    GENERIC_TOPIC.clone(),
+                    ModeSwitchMessage { mode },
+                ));
             }
         });
 

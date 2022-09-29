@@ -26,7 +26,7 @@ use windows_service::{
 use eink::EinkService;
 use eink_eventbus::*;
 
-use crate::composer::ComposerService;
+use crate::{composer::ComposerService, capturer::CapturerService};
 use crate::global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC};
 use crate::reg::RegistryManagerService;
 
@@ -45,6 +45,7 @@ mod reg;
 mod vmon;
 mod winrt;
 mod win_utils;
+mod capturer;
 
 //
 // Globals
@@ -94,6 +95,10 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     // 创建合成器服务
     info!("ComposerService::new");
     let _composer_srv = ComposerService::new()?;
+
+    // 创建捕获器
+    info!("CapturerService::new");
+    let _capturer_srv = CapturerService::new()?;
 
     // 本地消息通道，将异步事件递交至本地执行上下文
     let (tx, rx) = channel::<ServiceStatus>();

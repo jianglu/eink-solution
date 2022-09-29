@@ -11,6 +11,7 @@
 //
 
 use log::info;
+use winapi::shared::minwindef::DWORD;
 use std::mem::size_of;
 use std::mem::zeroed;
 use widestring::U16CStr;
@@ -27,6 +28,7 @@ use winapi::um::securitybaseapi::DuplicateTokenEx;
 use winapi::um::winbase::CREATE_NO_WINDOW;
 use winapi::um::winbase::NORMAL_PRIORITY_CLASS;
 use winapi::um::winnt::MAXIMUM_ALLOWED;
+use winapi::um::winnt::PROCESS_ALL_ACCESS;
 use winapi::um::winnt::TOKEN_ADJUST_PRIVILEGES;
 use winapi::um::winnt::TOKEN_ADJUST_SESSIONID;
 use winapi::um::winnt::TOKEN_ASSIGN_PRIMARY;
@@ -90,7 +92,7 @@ pub unsafe fn get_process_pid_unsafe(name: &str) -> Result<u32> {
     Ok(pid)
 }
 
-pub fn run_system_privilege(proc_name: &str, proc_dir: &str, proc_cmd: &str) -> Result<()> {
+pub fn run_system_privilege(proc_name: &str, proc_dir: &str, proc_cmd: &str) -> Result<DWORD> {
     unsafe { run_system_privilege_unsafe(proc_name, proc_dir, proc_cmd) }
 }
 
@@ -98,7 +100,7 @@ pub unsafe fn run_system_privilege_unsafe(
     proc_name: &str,
     proc_dir: &str,
     proc_cmd: &str,
-) -> Result<()> {
+) -> Result<DWORD> {
     use winapi::shared::minwindef::DWORD;
     use winapi::shared::minwindef::LPVOID;
     use winapi::um::minwinbase::LPSECURITY_ATTRIBUTES;
@@ -120,6 +122,8 @@ pub unsafe fn run_system_privilege_unsafe(
     let mut user_token_dup: HANDLE = NULL;
 
     let mut error_code = 0;
+
+    let mut pi: PROCESS_INFORMATION = zeroed();
 
     loop {
         if winlogon_pid == 0 {
@@ -212,8 +216,6 @@ pub unsafe fn run_system_privilege_unsafe(
         let proc_dir16 = U16CString::from_str(proc_dir)?;
         let mut proc_cmd16 = U16CString::from_str(proc_cmd)?;
 
-        let pi: PROCESS_INFORMATION = zeroed();
-
         let ret = CreateProcessAsUserW(
             user_token_dup,
             proc_name16.as_ptr(),
@@ -257,7 +259,7 @@ pub unsafe fn run_system_privilege_unsafe(
         CloseHandle(process);
     }
 
-    Ok(())
+    Ok(pi.dwProcessId)
 }
 
 #[test]
@@ -267,5 +269,21 @@ fn test_eink() {
     let pid = unsafe { get_process_pid_unsafe("lsass.exe").unwrap() };
     info!("PID: {}", pid);
 
-    unsafe { run_system_privilege_unsafe("a") };
+    unsafe { run_system_privilege_unsafe("a", "", "") };
+}
+
+pub fn kill_process_by_pid(pid: DWORD, exit_code: u32) -> bool {
+    unsafe {
+        let hprocess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+        kill_process(hprocess, exit_code)
+    }
+}
+
+pub fn kill_process(hprocess: HANDLE, exit_code: u32) -> bool {
+    unsafe {
+        use winapi::shared::minwindef::TRUE;
+        use winapi::shared::minwindef::UINT;
+        use winapi::um::processthreadsapi::TerminateProcess;
+        TerminateProcess(hprocess, exit_code as UINT) == TRUE
+    }
 }
