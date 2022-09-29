@@ -12,6 +12,7 @@
 
 use eink_eventbus::*;
 use static_init::dynamic;
+use windows_hotkeys::keys::{ModKey, VKey};
 use windows_service::service::ServiceControl;
 
 #[dynamic]
@@ -27,4 +28,11 @@ pub static GENERIC_TOPIC: TopicKey = TopicKey::from("EinkService");
 #[derive(Debug)]
 pub struct ServiceControlMessage {
     pub control_event: ServiceControl,
+}
+
+// 热键消息
+#[derive(Debug)]
+pub struct HotKeyMessage<'a> {
+    pub key: VKey,
+    pub key_modifiers: &'a [ModKey],
 }

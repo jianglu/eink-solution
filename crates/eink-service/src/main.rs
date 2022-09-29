@@ -14,16 +14,17 @@
 extern crate windows_service;
 
 use anyhow::Result;
-use log::{error, info};
+use hotkey::HotkeyService;
+use log::{debug, error, info};
 use std::{ffi::OsString, sync::mpsc::channel, time::Duration};
-use vmon::VirtualMonitorManager;
+use vmon::VirtualMonitorService;
 use windows_service::{
     service::*,
     service_control_handler::{self, *},
     service_dispatcher,
 };
 
-use eink::EinkServiceManager;
+use eink::EinkService;
 use eink_eventbus::*;
 
 use crate::global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC};
@@ -36,6 +37,7 @@ mod eink;
 mod global;
 mod logger;
 mod vmon;
+mod reg;
 
 //
 // Globals
@@ -43,9 +45,9 @@ mod vmon;
 
 const EINK_SERVICE_NAME: &str = "Eink Service";
 
-define_windows_service!(ffi_service_main, my_service_main);
+define_windows_service!(ffi_service_main, eink_service_main);
 
-fn my_service_main(arguments: Vec<OsString>) {
+fn eink_service_main(arguments: Vec<OsString>) {
     info!("{} Started", EINK_SERVICE_NAME);
 
     if let Err(e) = run_service(arguments) {
@@ -62,10 +64,13 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     }
 
     // 创建虚拟显示器管理器
-    let _vmon_mgr = VirtualMonitorManager::new();
+    let _vmon_srv = VirtualMonitorService::new();
 
     // 创建 EINK 服务管理器
-    let _eink_mgr = EinkServiceManager::new();
+    let _eink_srv = EinkService::new();
+
+    // 创建热键管理器
+    let _hotkey_srv = HotkeyService::new()?;
 
     // 本地消息通道，将异步事件递交至本地执行上下文
     let (tx, rx) = channel::<ServiceStatus>();
@@ -116,8 +121,10 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
                     }
                 }
             }
+            // 设备发生变化
+            // SERVICE_CONTROL_DEVICEEVENT
             _ => {
-                println!("Other Control Event Not Implemented");
+                debug!("Other Control Event Not Implemented");
                 ServiceControlHandlerResult::NotImplemented
             }
         }

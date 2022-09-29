@@ -1,20 +1,13 @@
 [package]
-name = "eink-service"
-version = "0.1.0"
+name = "eink-watchreg"
+version = "0.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0"
-log = { version = "0.4", features = ["kv_unstable"] }
-windows-service = "0.5"
-static_init = "1.0"
-reg-watcher = "0.1.1"
-winreg = "0.5.1"
-
-eink-eventbus = { path = "../eink-eventbus" }
-
+winreg = "0.10.1"
+uuid = "1.1.2"
 
 
 [dependencies.windows]

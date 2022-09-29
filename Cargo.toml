@@ -1,2 +1,6 @@
 [workspace]
-members = ["crates/eink-eventbus", "crates/eink-service"]
+members = [
+    "crates/eink-eventbus",
+    # "crates/eink-watchreg",
+    "crates/eink-service",
+]

@@ -15,14 +15,14 @@ use eink_eventbus::*;
 use crate::global::ServiceControlMessage;
 
 /// 服务控制中心
-pub struct EinkServiceManager {}
+pub struct EinkService {}
 
-impl EinkServiceManager {
+impl EinkService {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl Listener<ServiceControlMessage> for EinkServiceManager {
+impl Listener<ServiceControlMessage> for EinkService {
     fn handle(&self, evt: &Event<ServiceControlMessage>) {}
 }
