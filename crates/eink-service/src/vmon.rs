@@ -25,6 +25,7 @@ use crate::{
 // 虚拟显示器控制器
 pub struct VirtMonServiceImpl {
     dev_path: String,
+    curr_mode: u32,
     monitor_id: Option<u32>,
 }
 
@@ -38,9 +39,11 @@ impl VirtMonServiceImpl {
 
         // 查找虚拟显示器设备路径
         let dev_path = get_iddcx_device_path()?;
+        info!("VirtMonServiceImpl dev_path: {}", &dev_path);
 
         Ok(Self {
             dev_path,
+            curr_mode: 0,
             monitor_id: None,
         })
     }
@@ -49,9 +52,12 @@ impl VirtMonServiceImpl {
     pub fn on_mode_switch(&mut self, new_mode: u32) {
         info!("VirtMonServiceImpl::on_mode_switch({})", new_mode);
 
-        if new_mode == 1 && new_mode == 2 {
-            // 模式 1，2 需要创建虚拟显示器
-            self.monitor_id = Some(crate::iddcx::add_monitor(&self.dev_path, 2560, 1600).unwrap());
+        if new_mode == 1 || new_mode == 2 {
+            if self.curr_mode == 0 {
+                // 模式 1，2 需要创建虚拟显示器
+                self.monitor_id =
+                    Some(crate::iddcx::add_monitor(&self.dev_path, 2560, 1600).unwrap());
+            }
         } else if self.monitor_id.is_some() {
             let monitor_id = self.monitor_id.take();
             // 模式 0 不需要创建虚拟显示器

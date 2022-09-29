@@ -16,7 +16,7 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use log::{debug, info};
+use log::{debug, info, kv::Value};
 
 use crate::winrt;
 
@@ -311,6 +311,7 @@ pub fn get_iddcx_device_path() -> Result<String> {
         if let Ok(dev_path) = get_iddcx_device_path_internal() {
             return Ok(dev_path);
         }
+        std::thread::sleep(std::time::Duration::from_millis(10));
     }
     bail!("Cannot find iddcx device path")
 }
@@ -331,7 +332,18 @@ pub fn add_monitor(dev_path: &str, width: u32, height: u32) -> anyhow::Result<u3
 
     let resp = send_request_to_device(dev_path, &request_str)?;
 
-    Ok(0)
+    // "{\"monitor_id\":1}"
+
+    use serde_derive::Deserialize;
+
+    #[derive(Deserialize, Debug)]
+    struct AddMonitorResponse {
+        monitor_id: u32,
+    }
+
+    let resp = serde_json::from_str::<AddMonitorResponse>(&resp)?;
+
+    Ok(resp.monitor_id)
 }
 
 pub fn remove_monitor(dev_path: &str, monitor_id: u32) -> anyhow::Result<()> {
