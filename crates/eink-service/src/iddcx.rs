@@ -16,7 +16,7 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use log::info;
+use log::{debug, info};
 
 use crate::winrt;
 
@@ -26,13 +26,15 @@ unsafe extern "system" fn creation_callback(
     context: *const c_void,
     _device_instance_id: winrt::PCWSTR,
 ) {
-    println!("Device Creation Callback Start");
+    info!("Device Creation Callback Start");
     let event = *(context as *const winrt::HANDLE);
     winrt::SetEvent(event);
-    println!("Device Creation Callback End");
+    info!("Device Creation Callback End");
 }
 
 pub fn recreate_iddcx_device() -> Result<()> {
+    info!("recreate_iddcx_device");
+
     let event = unsafe { winrt::CreateEventW(None, false, false, winrt::PCWSTR::null())? };
 
     let mut create_info: winrt::SW_DEVICE_CREATE_INFO = unsafe { zeroed() };
@@ -46,19 +48,21 @@ pub fn recreate_iddcx_device() -> Result<()> {
     create_info.CapabilityFlags = (winrt::SWDeviceCapabilitiesRemovable.0
         + winrt::SWDeviceCapabilitiesDriverRequired.0) as u32;
 
+    info!("recreate_iddcx_device 1");
+
     // Create the device
     let device = unsafe {
         winrt::HSWDEVICE(winrt::SwDeviceCreate(
             winrt::w!("fusioniddcx"),
             winrt::w!("HTREE\\ROOT\\0"),
             &create_info,
-            Some(&[]),
+            None,
             Some(creation_callback),
             Some(&event as *const winrt::HANDLE as *const c_void),
         )?)
     };
 
-    println!("SwDeviceCreate: device: {:?}", device);
+    info!("SwDeviceCreate: device: {:?}", device);
 
     // HANDLE hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     // HSWDEVICE hSwDevice;
@@ -235,7 +239,7 @@ fn ctl_code(device_type: u32, function: u32, method: u32, access: u32) -> u32 {
     ((device_type) << 16) | ((access) << 14) | ((function) << 2) | (method)
 }
 
-fn send_request_to_device(dev_path: &str, request: &str) -> Result<()> {
+fn send_request_to_device(dev_path: &str, request: &str) -> Result<String> {
     let device_handle = unsafe {
         winrt::CreateFileW(
             &winrt::HSTRING::from(dev_path),
@@ -272,8 +276,8 @@ fn send_request_to_device(dev_path: &str, request: &str) -> Result<()> {
 
     let u16str = U16String::from(request);
 
-    println!("u16str.len(): {:?}", u16str.len());
-    println!("size_of::<u16>(): {:?}", size_of::<u16>());
+    info!("u16str.len(): {:?}", u16str.len());
+    info!("size_of::<u16>(): {:?}", size_of::<u16>());
 
     let result = unsafe {
         winrt::DeviceIoControl(
@@ -288,15 +292,17 @@ fn send_request_to_device(dev_path: &str, request: &str) -> Result<()> {
         )
     };
 
-    println!("DeviceIoControl: {:?}", result);
-    println!("response_size: {:?}", response_size);
+    info!("DeviceIoControl: {:?}", result);
+    info!("response_size: {:?}", response_size);
 
     let resp_str =
         unsafe { U16String::from_ptr(response_buffer.as_ptr(), response_size as usize / 2) };
-    println!("Response: {:?}", &resp_str.to_string());
+    let resp = resp_str.to_string()?;
+    info!("Response: {:?}", &resp);
 
     unsafe { winrt::CloseHandle(device_handle) };
-    Ok(())
+
+    Ok(resp)
 }
 
 /// 查找 iddcx 驱动设备访问路径
@@ -307,4 +313,37 @@ pub fn get_iddcx_device_path() -> Result<String> {
         }
     }
     bail!("Cannot find iddcx device path")
+}
+
+pub fn add_monitor(dev_path: &str, width: u32, height: u32) -> anyhow::Result<u32> {
+    let request = serde_json::json!({
+        "method": "add_monitor",
+        "params": {
+            "modes": [{
+                "width": width,
+                "height": height,
+            }]
+        }
+    });
+
+    let request_str = request.to_string();
+    info!("Request: {}", &request_str);
+
+    let resp = send_request_to_device(dev_path, &request_str)?;
+
+    Ok(0)
+}
+
+pub fn remove_monitor(dev_path: &str, monitor_id: u32) -> anyhow::Result<()> {
+    let request = serde_json::json!({
+        "method": "remove_monitor",
+        "monitor_id": monitor_id
+    });
+
+    let request_str = request.to_string();
+    info!("Request: {}", &request_str);
+
+    let resp = send_request_to_device(dev_path, &request_str)?;
+
+    Ok(())
 }

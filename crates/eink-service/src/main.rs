@@ -16,7 +16,7 @@ extern crate windows_service;
 use anyhow::Result;
 use log::{debug, error, info};
 use std::{ffi::OsString, sync::mpsc::channel, time::Duration};
-use vmon::VirtualMonitorService;
+use vmon::VirtMonServiceImpl;
 use windows_service::{
     service::*,
     service_control_handler::{self, *},
@@ -26,7 +26,7 @@ use windows_service::{
 use eink::EinkService;
 use eink_eventbus::*;
 
-use crate::{composer::ComposerService, capturer::CapturerService};
+use crate::{composer::ComposerService, capturer::CapturerService, vmon::VirtMonService};
 use crate::global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC};
 use crate::reg::RegistryManagerService;
 
@@ -82,7 +82,8 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
 
     // 创建虚拟显示器管理器
     info!("VirtualMonitorService::new");
-    let _vmon_srv = VirtualMonitorService::new();
+    let virtmon_srv = VirtMonService::new()?;
+    virtmon_srv.start()?;
 
     // 创建 EINK 服务管理器
     info!("EinkService::new");
@@ -98,7 +99,8 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
 
     // 创建捕获器
     info!("CapturerService::new");
-    let _capturer_srv = CapturerService::new()?;
+    let capturer_srv = CapturerService::new()?;
+    capturer_srv.start()?;
 
     // 本地消息通道，将异步事件递交至本地执行上下文
     let (tx, rx) = channel::<ServiceStatus>();

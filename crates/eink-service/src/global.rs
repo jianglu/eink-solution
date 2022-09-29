@@ -17,9 +17,11 @@ use windows_service::service::ServiceControl;
 #[dynamic]
 pub static EVENTBUS: Eventbus = Eventbus::new();
 
+pub const GENERIC_TOPIC_KEY: &str = "EinkService";
+
 // Topics
 #[dynamic]
-pub static GENERIC_TOPIC: TopicKey = TopicKey::from("EinkService");
+pub static GENERIC_TOPIC: TopicKey = TopicKey::from(GENERIC_TOPIC_KEY);
 
 // Application Messages
 

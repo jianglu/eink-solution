@@ -10,18 +10,19 @@
 // All rights reserved.
 //
 
+use anyhow::{Ok, Result};
 use log::info;
 use std::sync::{Arc, Mutex};
 
 use eink_eventbus::{Event, Listener};
 
-use crate::global::ModeSwitchMessage;
+use crate::global::{ModeSwitchMessage, EVENTBUS, GENERIC_TOPIC, GENERIC_TOPIC_KEY};
 
 struct CapturerServiceImpl {}
 
 impl CapturerServiceImpl {
     /// 构造方法
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> Result<Self> {
         Ok(Self {})
     }
 
@@ -31,15 +32,20 @@ impl CapturerServiceImpl {
     }
 }
 
+#[derive(Clone)]
 pub struct CapturerService {
     inner: Arc<Mutex<CapturerServiceImpl>>,
 }
 
 impl CapturerService {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> Result<Self> {
         Ok(Self {
             inner: Arc::new(Mutex::new(CapturerServiceImpl::new()?)),
         })
+    }
+    pub fn start(&self) -> Result<&Self> {
+        EVENTBUS.register(GENERIC_TOPIC_KEY, self.clone());
+        Ok(self)
     }
 }
 
