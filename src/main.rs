@@ -13,13 +13,14 @@
 #[macro_use]
 extern crate windows_service;
 
+use anyhow::Result;
 use comet_eventbus::*;
-use log::{info, warn};
+use log::{error, info, warn};
 use std::{ffi::OsString, time::Duration};
 use windows_service::{
     service::*,
     service_control_handler::{self, *},
-    service_dispatcher, Result,
+    service_dispatcher,
 };
 
 use crate::global::{MessageA, EVENTBUS, GENERIC_TOPIC};
@@ -42,6 +43,13 @@ define_windows_service!(ffi_service_main, my_service_main);
 fn my_service_main(arguments: Vec<OsString>) {
     info!("{} Started", EINK_SERVICE_NAME);
 
+    if let Err(e) = run_service(arguments) {
+        // Handle errors in some way.
+        error!("{} Error: {:?}", EINK_SERVICE_NAME, e);
+    }
+}
+
+fn run_service(arguments: Vec<OsString>) -> Result<()> {
     // The entry point where execution will start on a background thread after a call to
     // `service_dispatcher::start` from `main`.
     for arg in arguments {
@@ -79,8 +87,7 @@ fn my_service_main(arguments: Vec<OsString>) {
     };
 
     // Register system service event handler
-    let status_handle =
-        service_control_handler::register(EINK_SERVICE_NAME, event_handler).unwrap();
+    let status_handle = service_control_handler::register(EINK_SERVICE_NAME, event_handler)?;
 
     let next_status = ServiceStatus {
         // Should match the one from system service registry
@@ -100,23 +107,26 @@ fn my_service_main(arguments: Vec<OsString>) {
     };
 
     // Tell the system that the service is running now
-    status_handle.set_service_status(next_status).unwrap();
+    status_handle.set_service_status(next_status)?;
 
     // Do some work
+
+    Ok(())
 }
 
 fn main() -> Result<()> {
+    // TODO: 当前设置日志级别为全部输出
     log::set_max_level(log::LevelFilter::Trace);
 
-    // Sets the DebuggerLogger as the currently-active logger.
+    // 设置当前的活动日志系统为 OutputDebugString 输出
     logger::init();
-    logger::output_debug_string("TEST LOGGING !!!");
 
-    info!("Starting {}", EINK_SERVICE_NAME);
+    info!("{} Starting", EINK_SERVICE_NAME);
 
-    // Register generated `ffi_service_main` with the system and start the service, blocking
-    // this thread until the service is stopped.
+    // 注册系统服务，阻塞当前线程直到服务退出
     service_dispatcher::start(EINK_SERVICE_NAME, ffi_service_main)?;
+
+    info!("{} was stopped", EINK_SERVICE_NAME);
 
     Ok(())
 }
