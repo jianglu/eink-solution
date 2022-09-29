@@ -9,24 +9,40 @@
 //
 // All rights reserved.
 //
-
-use log::info;
-use winapi::shared::minwindef::DWORD;
+#[allow(non_snake_case)]
+use log::{debug, info};
 use std::mem::size_of;
 use std::mem::zeroed;
 use widestring::U16CStr;
 use widestring::U16CString;
+use winapi::shared::minwindef::BOOL;
+use winapi::shared::minwindef::DWORD;
 use winapi::shared::minwindef::FALSE;
+use winapi::shared::minwindef::LPVOID;
 use winapi::shared::ntdef::HANDLE;
 use winapi::shared::ntdef::NULL;
 use winapi::shared::ntdef::PHANDLE;
+use winapi::shared::ntdef::PVOID;
+use winapi::shared::ntdef::ULONG;
 use winapi::um::errhandlingapi::GetLastError;
+use winapi::um::minwinbase::LPSECURITY_ATTRIBUTES;
+use winapi::um::processthreadsapi::CreateProcessAsUserW;
 use winapi::um::processthreadsapi::OpenProcess;
 use winapi::um::processthreadsapi::OpenProcessToken;
+use winapi::um::processthreadsapi::PROCESS_INFORMATION;
 use winapi::um::processthreadsapi::STARTUPINFOW;
 use winapi::um::securitybaseapi::DuplicateTokenEx;
+use winapi::um::securitybaseapi::GetTokenInformation;
+use winapi::um::securitybaseapi::SetTokenInformation;
+use winapi::um::userenv::DestroyEnvironmentBlock;
+use winapi::um::winbase::WTSGetActiveConsoleSessionId;
+use winapi::um::winbase::CREATE_NEW_CONSOLE;
 use winapi::um::winbase::CREATE_NO_WINDOW;
 use winapi::um::winbase::NORMAL_PRIORITY_CLASS;
+use winapi::um::winnt::SecurityIdentification;
+use winapi::um::winnt::TokenLinkedToken;
+use winapi::um::winnt::TokenPrimary;
+use winapi::um::winnt::TokenSessionId;
 use winapi::um::winnt::MAXIMUM_ALLOWED;
 use winapi::um::winnt::PROCESS_ALL_ACCESS;
 use winapi::um::winnt::TOKEN_ADJUST_PRIVILEGES;
@@ -36,6 +52,10 @@ use winapi::um::winnt::TOKEN_DUPLICATE;
 use winapi::um::winnt::TOKEN_QUERY;
 use winapi::um::winnt::TOKEN_READ;
 use winapi::um::winnt::TOKEN_WRITE;
+
+use winapi::ENUM;
+use winapi::STRUCT;
+
 use windows::w;
 
 use anyhow::bail;
@@ -101,19 +121,7 @@ pub unsafe fn run_system_privilege_unsafe(
     proc_dir: &str,
     proc_cmd: &str,
 ) -> Result<DWORD> {
-    use winapi::shared::minwindef::DWORD;
-    use winapi::shared::minwindef::LPVOID;
-    use winapi::um::minwinbase::LPSECURITY_ATTRIBUTES;
-    use winapi::um::processthreadsapi::CreateProcessAsUserW;
-    use winapi::um::processthreadsapi::PROCESS_INFORMATION;
-    use winapi::um::securitybaseapi::SetTokenInformation;
-    use winapi::um::userenv::DestroyEnvironmentBlock;
-    use winapi::um::winbase::WTSGetActiveConsoleSessionId;
-    use winapi::um::winnt::SecurityIdentification;
-    use winapi::um::winnt::TokenPrimary;
-    use winapi::um::winnt::TokenSessionId;
-
-    let mut creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW; // CREATE_NEW_CONSOLE;
+    let mut creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE; // CREATE_NO_WINDOW; //
     let winlogon_pid = get_process_pid("winlogon.exe")?;
 
     let mut process: HANDLE = NULL;
@@ -257,6 +265,191 @@ pub unsafe fn run_system_privilege_unsafe(
 
     if process != NULL {
         CloseHandle(process);
+    }
+
+    Ok(pi.dwProcessId)
+}
+
+use winapi::shared::ntdef::LPWSTR;
+
+STRUCT! {
+struct WTS_SESSION_INFOW {
+    SessionId: DWORD,
+    pWinStationName: LPWSTR,
+    State: WTS_CONNECTSTATE_CLASS,
+}}
+
+#[allow(non_snake_case)]
+type WTS_CONNECTSTATE_CLASS = u32;
+
+const WTSActive: WTS_CONNECTSTATE_CLASS = 0;
+const WTSConnected: WTS_CONNECTSTATE_CLASS = 1;
+const WTSConnectQuery: WTS_CONNECTSTATE_CLASS = 2;
+const WTSShadow: WTS_CONNECTSTATE_CLASS = 3;
+const WTSDisconnected: WTS_CONNECTSTATE_CLASS = 4;
+const WTSIdle: WTS_CONNECTSTATE_CLASS = 5;
+const WTSListen: WTS_CONNECTSTATE_CLASS = 6;
+const WTSReset: WTS_CONNECTSTATE_CLASS = 7;
+const WTSDown: WTS_CONNECTSTATE_CLASS = 8;
+const WTSInit: WTS_CONNECTSTATE_CLASS = 9;
+
+#[windows_dll::dll(Wtsapi32)]
+extern "system" {
+    #[allow(non_snake_case)]
+    pub fn WTSEnumerateSessionsW(
+        hServer: HANDLE,
+        Reserved: DWORD,
+        Version: DWORD,
+        ppSessionInfo: *mut *mut WTS_SESSION_INFOW,
+        pCount: *mut DWORD,
+    ) -> u32;
+
+    #[allow(non_snake_case)]
+    pub fn WTSFreeMemory(pMemory: PVOID);
+
+    #[allow(non_snake_case)]
+    pub fn WTSQueryUserToken(SessionId: ULONG, phToken: PHANDLE) -> BOOL;
+}
+
+// BOOL WTSEnumerateSessionsW(
+//     [in]  HANDLE             hServer,
+//     [in]  DWORD              Reserved,
+//     [in]  DWORD              Version,
+//     [out] PWTS_SESSION_INFOW *ppSessionInfo,
+//     [out] DWORD              *pCount
+//   );
+
+#[test]
+fn test_get_current_user_token() {
+    crate::logger::init();
+    log::set_max_level(log::LevelFilter::Trace);
+    let token = unsafe { get_current_user_token().unwrap() };
+    info!("get_current_user_token: {:?}", token);
+}
+
+unsafe fn get_current_user_token() -> Result<HANDLE> {
+    // PWTS_SESSION_INFO pSessionInfo = 0;
+
+    const WTS_CURRENT_SERVER_HANDLE: HANDLE = NULL;
+
+    let mut session_info: *mut WTS_SESSION_INFOW = zeroed();
+    let mut count: DWORD = 0;
+
+    WTSEnumerateSessionsW(
+        WTS_CURRENT_SERVER_HANDLE,
+        0,
+        1,
+        &mut session_info as *mut *mut WTS_SESSION_INFOW,
+        &count as *const DWORD as *mut DWORD,
+    );
+
+    info!("count: {}", count);
+
+    let mut session_id = 0;
+    for i in 0..count {
+        let si = session_info.add(i as usize);
+        if WTSActive == (*si).State {
+            session_id = (*si).SessionId;
+            break;
+        }
+    }
+
+    WTSFreeMemory(session_info as PVOID);
+
+    let mut current_token: HANDLE = NULL;
+    let ret = WTSQueryUserToken(session_id, &current_token as *const HANDLE as PHANDLE);
+    let error_code = GetLastError();
+    if ret == FALSE {
+        bail!("WTSQueryUserToken  error_code: {}", error_code);
+    }
+
+    use winapi::um::winnt::SecurityImpersonation;
+    use winapi::um::winnt::TOKEN_ALL_ACCESS;
+
+    let mut primary_token: HANDLE = NULL;
+    let ret = DuplicateTokenEx(
+        current_token,
+        TOKEN_ASSIGN_PRIMARY | TOKEN_ALL_ACCESS,
+        NULL as LPSECURITY_ATTRIBUTES,
+        SecurityImpersonation,
+        TokenPrimary,
+        &primary_token as *const HANDLE as PHANDLE,
+    );
+    let error_code = GetLastError();
+
+    CloseHandle(current_token);
+
+    if ret == FALSE {
+        bail!("DuplicateTokenEx error_code: {}", error_code);
+    }
+
+    Ok(primary_token)
+}
+
+pub fn run_admin_privilege(proc_name: &str, proc_dir: &str, proc_cmd: &str) -> Result<DWORD> {
+    unsafe { run_admin_privilege_unsafe(proc_name, proc_dir, proc_cmd) }
+}
+
+pub unsafe fn run_admin_privilege_unsafe(
+    proc_name: &str,
+    proc_dir: &str,
+    proc_cmd: &str,
+) -> Result<DWORD> {
+    let primary_token = get_current_user_token().unwrap_or(NULL);
+
+    let mut unfiltered_token: HANDLE = NULL;
+    let mut size: DWORD = 0;
+    let ret = GetTokenInformation(
+        primary_token,
+        TokenLinkedToken,
+        &mut unfiltered_token as *const HANDLE as LPVOID,
+        size_of::<HANDLE>() as u32,
+        &mut size as *const u32 as *mut u32,
+    );
+
+    use winapi::shared::minwindef::TRUE;
+    use winapi::um::userenv::CreateEnvironmentBlock;
+    use winapi::um::winbase::CREATE_UNICODE_ENVIRONMENT;
+
+    let mut environment: LPVOID = NULL;
+    let ret = CreateEnvironmentBlock(
+        &environment as *const LPVOID as *mut LPVOID,
+        unfiltered_token,
+        FALSE,
+    );
+    info!("CreateEnvironmentBlock: ret: {:?}", ret);
+
+    let mut si: STARTUPINFOW = zeroed();
+    let mut pi: PROCESS_INFORMATION = zeroed();
+
+    let proc_name16 = U16CString::from_str(proc_name)?;
+    let proc_dir16 = U16CString::from_str(proc_dir)?;
+    let mut proc_cmd16 = U16CString::from_str(proc_cmd)?;
+
+    let mut creation_flags =
+        CREATE_NEW_CONSOLE | NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT; // CREATE_NO_WINDOW; //
+
+    let ret = CreateProcessAsUserW(
+        unfiltered_token,
+        proc_name16.as_ptr(),
+        proc_cmd16.as_mut_ptr(),
+        NULL as LPSECURITY_ATTRIBUTES,
+        NULL as LPSECURITY_ATTRIBUTES,
+        FALSE,
+        creation_flags,
+        environment,
+        proc_dir16.as_ptr(),
+        &si as *const STARTUPINFOW as *mut STARTUPINFOW,
+        &pi as *const PROCESS_INFORMATION as *mut PROCESS_INFORMATION,
+    );
+    info!("CreateProcessAsUserW: ret: {:?}", ret);
+
+    if environment != NULL {
+        DestroyEnvironmentBlock(environment);
+    }
+
+    if primary_token != NULL {
+        CloseHandle(primary_token);
     }
 
     Ok(pi.dwProcessId)

@@ -40,3 +40,9 @@ pub struct HotKeyMessage {}
 pub struct ModeSwitchMessage {
     pub mode: u32,
 }
+
+// 模式切换消息2
+#[derive(Debug)]
+pub struct ModeSwitchMessage2 {
+    pub mode: u32,
+}

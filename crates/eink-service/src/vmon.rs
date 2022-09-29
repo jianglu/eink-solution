@@ -18,7 +18,7 @@ use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
 use eink_eventbus::{Event, Listener};
 
 use crate::{
-    global::{ModeSwitchMessage, EVENTBUS, GENERIC_TOPIC_KEY},
+    global::{ModeSwitchMessage, ModeSwitchMessage2, EVENTBUS, GENERIC_TOPIC, GENERIC_TOPIC_KEY},
     iddcx::{get_iddcx_device_path, recreate_iddcx_device},
 };
 
@@ -63,6 +63,14 @@ impl VirtMonServiceImpl {
             // 模式 0 不需要创建虚拟显示器
             crate::iddcx::remove_monitor(&self.dev_path, monitor_id.unwrap()).unwrap();
         }
+
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+
+        // 将热键消息发送至消息总线
+        EVENTBUS.post(&Event::new(
+            GENERIC_TOPIC.clone(),
+            ModeSwitchMessage2 { mode: new_mode },
+        ));
     }
 }
 
