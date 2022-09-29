@@ -1,15 +1,2 @@
-[package]
-name = "eink-srv"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-anyhow = "1.0"
-log = { version = "0.4", features = ["kv_unstable"] }
-windows-service = "0.5"
-static_init = "1.0"
-comet-eventbus = { path = "../comet-eventbus/comet-eventbus", default-features = false, features = [
-    "sync",
-] }
+[workspace]
+members = ["crates/eink-eventbus", "crates/eink-service"]

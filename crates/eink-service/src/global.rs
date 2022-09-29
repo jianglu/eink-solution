@@ -10,7 +10,7 @@
 // All rights reserved.
 //
 
-use comet_eventbus::*;
+use eink_eventbus::*;
 use static_init::dynamic;
 use windows_service::service::ServiceControl;
 

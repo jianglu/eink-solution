@@ -11,10 +11,24 @@
 //
 
 // 虚拟显示器控制器
-pub struct VirtualMonitorManager {}
+pub struct VirtualMonitorManager {
+    dev_path: String,
+}
 
 impl VirtualMonitorManager {
     pub fn new() -> Self {
-        Self {}
+        let dev_path = find_device_path();
+        Self { dev_path }
+    }
+}
+
+/// 查找虚拟显示器设备路径
+fn find_device_path() -> String {
+    "".to_string()
+}
+
+impl Drop for VirtualMonitorManager {
+    fn drop(&mut self) {
+        // 关闭驱动程序句柄，进程退出时也可以自动关闭
     }
 }

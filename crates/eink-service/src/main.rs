@@ -14,8 +14,6 @@
 extern crate windows_service;
 
 use anyhow::Result;
-use comet_eventbus::*;
-use eink::EinkServiceManager;
 use log::{error, info};
 use std::{ffi::OsString, sync::mpsc::channel, time::Duration};
 use vmon::VirtualMonitorManager;
@@ -24,6 +22,9 @@ use windows_service::{
     service_control_handler::{self, *},
     service_dispatcher,
 };
+
+use eink::EinkServiceManager;
+use eink_eventbus::*;
 
 use crate::global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC};
 
