@@ -10,21 +10,29 @@
 // All rights reserved.
 //
 
+use anyhow::Result;
+
+use crate::iddcx::{get_iddcx_device_path, recreate_iddcx_device};
+
 // 虚拟显示器控制器
 pub struct VirtualMonitorService {
     dev_path: String,
 }
 
 impl VirtualMonitorService {
-    pub fn new() -> Self {
-        let dev_path = find_device_path();
-        Self { dev_path }
+    pub fn new() -> Result<Self> {
+        // 创建驱动程序实例
+        recreate_iddcx_device()?;
+
+        // 查找虚拟显示器设备路径
+        let dev_path = get_iddcx_device_path()?;
+
+        Ok(Self { dev_path })
     }
 }
 
-/// 查找虚拟显示器设备路径
-fn find_device_path() -> String {
-    "".to_string()
+impl VirtualMonitorService {
+    
 }
 
 impl Drop for VirtualMonitorService {

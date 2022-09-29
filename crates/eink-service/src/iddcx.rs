@@ -32,7 +32,7 @@ unsafe extern "system" fn creation_callback(
     println!("Device Creation Callback End");
 }
 
-fn recreate_iddcx_device() -> Result<()> {
+pub fn recreate_iddcx_device() -> Result<()> {
     let event = unsafe { winrt::CreateEventW(None, false, false, winrt::PCWSTR::null())? };
 
     let mut create_info: winrt::SW_DEVICE_CREATE_INFO = unsafe { zeroed() };
@@ -169,7 +169,7 @@ fn setupdi_get_device_interface_detail2(
 }
 
 /// 查找 iddcx 驱动设备访问路径
-pub fn get_fusion_iddcx_device_path() -> Result<String> {
+pub fn get_iddcx_device_path_internal() -> Result<String> {
     let class_guid_hstr = winrt::HSTRING::from("{ccf0a4d1-cbca-47cf-bf58-1baafc2ae082}");
     let class_guid: winrt::GUID = unsafe { winrt::CLSIDFromString(&class_guid_hstr)? };
 
@@ -229,4 +229,82 @@ pub fn get_fusion_iddcx_device_path() -> Result<String> {
     info!("device_path: {:?}", device_path);
 
     Ok(device_path?)
+}
+
+fn ctl_code(device_type: u32, function: u32, method: u32, access: u32) -> u32 {
+    ((device_type) << 16) | ((access) << 14) | ((function) << 2) | (method)
+}
+
+fn send_request_to_device(dev_path: &str, request: &str) -> Result<()> {
+    let device_handle = unsafe {
+        winrt::CreateFileW(
+            &winrt::HSTRING::from(dev_path),
+            winrt::FILE_ACCESS_FLAGS(winrt::GENERIC_READ | winrt::GENERIC_WRITE), // Administrative privilege is required
+            winrt::FILE_SHARE_MODE(winrt::FILE_SHARE_READ | winrt::FILE_SHARE_WRITE),
+            None,
+            winrt::OPEN_EXISTING,
+            winrt::FILE_ATTRIBUTE_NORMAL,
+            None,
+        )?
+    };
+
+    println!("Device Handle: {:?}", device_handle);
+
+    const FILE_DEVICE_BUS_EXTENDER: u32 = 0x0000002a;
+    const METHOD_BUFFERED: u32 = 0;
+    const FILE_ANY_ACCESS: u32 = 0;
+    const FILE_READ_ACCESS: u32 = 0x0001;
+    const FILE_WRITE_ACCESS: u32 = 0x0002;
+
+    let IOCTL_COMMAND = ctl_code(
+        FILE_DEVICE_BUS_EXTENDER,
+        0,
+        METHOD_BUFFERED,
+        FILE_ANY_ACCESS | FILE_READ_ACCESS | FILE_WRITE_ACCESS,
+    );
+
+    let response_buffer_size = 1024;
+    let mut response_buffer: Vec<u16> = Vec::with_capacity(response_buffer_size);
+
+    let mut response_size = 0;
+
+    use widestring::U16String;
+
+    let u16str = U16String::from(request);
+
+    println!("u16str.len(): {:?}", u16str.len());
+    println!("size_of::<u16>(): {:?}", size_of::<u16>());
+
+    let result = unsafe {
+        winrt::DeviceIoControl(
+            device_handle,
+            IOCTL_COMMAND,
+            Some(u16str.as_ptr() as *const c_void),
+            (u16str.len() * size_of::<u16>()) as u32,
+            Some(response_buffer.as_mut_ptr() as *mut c_void),
+            response_buffer_size as u32,
+            Some(&mut response_size),
+            None,
+        )
+    };
+
+    println!("DeviceIoControl: {:?}", result);
+    println!("response_size: {:?}", response_size);
+
+    let resp_str =
+        unsafe { U16String::from_ptr(response_buffer.as_ptr(), response_size as usize / 2) };
+    println!("Response: {:?}", &resp_str.to_string());
+
+    unsafe { winrt::CloseHandle(device_handle) };
+    Ok(())
+}
+
+/// 查找 iddcx 驱动设备访问路径
+pub fn get_iddcx_device_path() -> Result<String> {
+    for _i in 0..10 {
+        if let Ok(dev_path) = get_iddcx_device_path_internal() {
+            return Ok(dev_path);
+        }
+    }
+    bail!("Cannot find iddcx device path")
 }
