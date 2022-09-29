@@ -14,8 +14,8 @@
 extern crate windows_service;
 
 use anyhow::Result;
-use hotkey::HotkeyService;
 use log::{debug, error, info};
+use reg::RegistryManagerService;
 use std::{ffi::OsString, sync::mpsc::channel, time::Duration};
 use vmon::VirtualMonitorService;
 use windows_service::{
@@ -35,9 +35,11 @@ use crate::global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC};
 
 mod eink;
 mod global;
+mod iddcx;
 mod logger;
-mod vmon;
 mod reg;
+mod vmon;
+mod winrt;
 
 //
 // Globals
@@ -70,7 +72,7 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     let _eink_srv = EinkService::new();
 
     // 创建热键管理器
-    let _hotkey_srv = HotkeyService::new()?;
+    let _reg_srv = RegistryManagerService::new()?;
 
     // 本地消息通道，将异步事件递交至本地执行上下文
     let (tx, rx) = channel::<ServiceStatus>();

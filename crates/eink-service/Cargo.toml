@@ -12,9 +12,9 @@ windows-service = "0.5"
 static_init = "1.0"
 reg-watcher = "0.1.1"
 winreg = "0.5.1"
+widestring = "1.0.2"
 
 eink-eventbus = { path = "../eink-eventbus" }
-
 
 
 [dependencies.windows]
@@ -27,7 +27,11 @@ features = [
     "Foundation_Collections",
     "Win32_Foundation",
     "Win32_Devices_Display",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Devices_Enumeration_Pnp",
+    "Win32_Devices_Properties",
     "Win32_System",
+    "Win32_System_Com",
     "Win32_System_Services",
     "Win32_System_WinRT",
     "Win32_System_WinRT_Display",

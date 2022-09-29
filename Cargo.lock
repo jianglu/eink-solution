@@ -183,6 +183,7 @@ dependencies = [
  "log",
  "reg-watcher",
  "static_init",
+ "widestring 1.0.2",
  "windows",
  "windows-service",
  "winreg",

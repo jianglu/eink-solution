@@ -19,7 +19,7 @@ use winreg::enums::HKEY_LOCAL_MACHINE;
 use winreg::RegKey;
 
 pub struct RegistryManagerService {
-    th: Option<JoinHandle<()>>,
+    _th: Option<JoinHandle<()>>,
 }
 
 impl RegistryManagerService {
@@ -29,19 +29,23 @@ impl RegistryManagerService {
             let reg_key = hklm
                 .open_subkey(r#"SOFTWARE\Lenovo\ThinkBookPlusGen4EinkPlus"#)
                 .unwrap();
-            let res = reg_watcher::watch(
-                &reg_key,
-                reg_watcher::filter::REG_LEGAL_CHANGE_FILTER,
-                true,
-                reg_watcher::Timeout::Infinite,
-            )
-            .unwrap();
-            info!("{:?}", res);
+
+            loop {
+                let res = reg_watcher::watch(
+                    &reg_key,
+                    reg_watcher::filter::REG_LEGAL_CHANGE_FILTER,
+                    true,
+                    reg_watcher::Timeout::Infinite,
+                )
+                .unwrap();
+                info!("{:?}", res);
+
+                let mode: u32 = reg_key.get_value("Mode").unwrap();
+                info!("Current Mode: {}", mode);
+            }
         });
 
-        Ok(Self {
-            th: Some(h),
-        })
+        Ok(Self { _th: Some(h) })
     }
 }
 
