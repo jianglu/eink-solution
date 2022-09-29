@@ -16,7 +16,7 @@ extern crate windows_service;
 use anyhow::Result;
 use comet_eventbus::*;
 use log::{error, info, warn};
-use std::{ffi::OsString, time::Duration};
+use std::{ffi::OsString, sync::mpsc::channel, time::Duration};
 use windows_service::{
     service::*,
     service_control_handler::{self, *},
@@ -56,11 +56,14 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
         println!("Arg: {:?}", &arg);
     }
 
+    let (tx, rx) = channel::<ServiceStatus>();
+
     // 处理服务控制事件
     let event_handler = move |control_event| -> ServiceControlHandlerResult {
         match control_event {
             ServiceControl::Pause => {
                 info!("{} ControlEvent: Pause", EINK_SERVICE_NAME);
+
                 // 更新服务状态
                 ServiceControlHandlerResult::NoError
             }
@@ -75,9 +78,27 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
             }
             ServiceControl::Stop | ServiceControl::Preshutdown | ServiceControl::Shutdown => {
                 info!("{} ControlEvent: {:?}", EINK_SERVICE_NAME, control_event);
+
                 // 服务退出时
+
                 // 释放相关资源
-                ServiceControlHandlerResult::NoError
+
+                // 更新服务状态
+                match tx.send(ServiceStatus {
+                    service_type: ServiceType::OWN_PROCESS,
+                    current_state: ServiceState::Stopped,
+                    controls_accepted: ServiceControlAccept::STOP,
+                    exit_code: ServiceExitCode::Win32(0),
+                    checkpoint: 0,
+                    wait_hint: Duration::default(),
+                    process_id: None,
+                }) {
+                    Ok(_) => ServiceControlHandlerResult::NoError,
+                    Err(e) => {
+                        error!("SendError: {:?}", e);
+                        ServiceControlHandlerResult::Other(0)
+                    }
+                }
             }
             _ => {
                 println!("Other Control Event Not Implemented");
@@ -86,30 +107,37 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
         }
     };
 
-    // Register system service event handler
+    // 注册服务事件处理程序
     let status_handle = service_control_handler::register(EINK_SERVICE_NAME, event_handler)?;
 
     let next_status = ServiceStatus {
-        // Should match the one from system service registry
+        // 服务在当前进程内启动，需要和注册表项匹配
         service_type: ServiceType::OWN_PROCESS,
-        // The new state
+        // 正在运行
         current_state: ServiceState::Running,
-        // Accept stop events when running
+        // 可以接受服务 STOP 命令
         controls_accepted: ServiceControlAccept::STOP,
-        // Used to report an error when starting or stopping only, otherwise must be zero
+        // 发生错误时的状态汇报
         exit_code: ServiceExitCode::Win32(0),
-        // Only used for pending states, otherwise must be zero
+        // 仅用于 Pending states，设置 0
         checkpoint: 0,
-        // Only used for pending states, otherwise must be zero
+        // 仅用于 Pending states，设置 0
         wait_hint: Duration::default(),
-        // Unused for setting status
+        // 未使用参数
         process_id: None,
     };
 
-    // Tell the system that the service is running now
+    // 通知 Windows 系统，当前的服务状态
     status_handle.set_service_status(next_status)?;
 
-    // Do some work
+    // 接收状态
+    loop {
+        if let Ok(next_status) = rx.recv() {
+            status_handle.set_service_status(next_status)?;
+        } else {
+            break;
+        }
+    }
 
     Ok(())
 }
