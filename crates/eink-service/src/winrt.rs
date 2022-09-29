@@ -47,3 +47,6 @@ pub const GENERIC_READ: u32 = 0x80000000;
 pub const GENERIC_WRITE: u32 = 0x40000000;
 pub const FILE_SHARE_READ: u32 = 0x00000001;
 pub const FILE_SHARE_WRITE: u32 = 0x00000002;
+
+pub use windows::Devices::Display::Core::DisplayManager;
+pub use windows::Devices::Display::Core::DisplayManagerOptions;

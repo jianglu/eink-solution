@@ -13,9 +13,12 @@ static_init = "1.0"
 reg-watcher = "0.1.1"
 winreg = "0.5.1"
 widestring = "1.0.2"
+windows-dll = "0.4.1"
+cmd_lib = "1.3.0"
 
 eink-eventbus = { path = "../eink-eventbus" }
 
+winapi = { version = "0.3.9", features = ["tlhelp32", "userenv"] }
 
 [dependencies.windows]
 version = "0.42.0"

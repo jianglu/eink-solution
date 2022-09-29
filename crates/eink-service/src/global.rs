@@ -31,5 +31,10 @@ pub struct ServiceControlMessage {
 
 // 热键消息
 #[derive(Debug)]
-pub struct HotKeyMessage {
+pub struct HotKeyMessage {}
+
+// 模式切换消息
+#[derive(Debug)]
+pub struct ModeSwitchMessage {
+    pub mode: u32,
 }

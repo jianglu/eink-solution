@@ -256,7 +256,7 @@ fn send_request_to_device(dev_path: &str, request: &str) -> Result<()> {
     const FILE_READ_ACCESS: u32 = 0x0001;
     const FILE_WRITE_ACCESS: u32 = 0x0002;
 
-    let IOCTL_COMMAND = ctl_code(
+    let ioctl_command = ctl_code(
         FILE_DEVICE_BUS_EXTENDER,
         0,
         METHOD_BUFFERED,
@@ -278,7 +278,7 @@ fn send_request_to_device(dev_path: &str, request: &str) -> Result<()> {
     let result = unsafe {
         winrt::DeviceIoControl(
             device_handle,
-            IOCTL_COMMAND,
+            ioctl_command,
             Some(u16str.as_ptr() as *const c_void),
             (u16str.len() * size_of::<u16>()) as u32,
             Some(response_buffer.as_mut_ptr() as *mut c_void),

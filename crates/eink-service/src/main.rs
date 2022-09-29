@@ -15,7 +15,6 @@ extern crate windows_service;
 
 use anyhow::Result;
 use log::{debug, error, info};
-use reg::RegistryManagerService;
 use std::{ffi::OsString, sync::mpsc::channel, time::Duration};
 use vmon::VirtualMonitorService;
 use windows_service::{
@@ -27,19 +26,25 @@ use windows_service::{
 use eink::EinkService;
 use eink_eventbus::*;
 
+use crate::composer::ComposerService;
 use crate::global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC};
+use crate::reg::RegistryManagerService;
 
 //
 // Modules
 //
 
+mod composer;
+mod disp_filter;
 mod eink;
+mod eink_ton;
 mod global;
 mod iddcx;
 mod logger;
 mod reg;
 mod vmon;
 mod winrt;
+mod win_utils;
 
 //
 // Globals
@@ -62,17 +67,33 @@ fn eink_service_main(arguments: Vec<OsString>) {
 fn run_service(arguments: Vec<OsString>) -> Result<()> {
     // DEBUG
     for arg in arguments {
-        println!("Arg: {:?}", &arg);
+        info!("Arg: {:?}", &arg);
     }
 
+    info!("current_dir: {:?}", std::env::current_dir());
+    info!("current_exe: {:?}", std::env::current_exe());
+
+    // 更新当前工作目录为 exe 所在目录
+    let exe_path = std::env::current_exe()?;
+    let exe_dir = exe_path.parent().unwrap();
+    info!("exe_dir: {:?}", exe_dir);
+    std::env::set_current_dir(exe_dir)?;
+
     // 创建虚拟显示器管理器
+    info!("VirtualMonitorService::new");
     let _vmon_srv = VirtualMonitorService::new();
 
     // 创建 EINK 服务管理器
+    info!("EinkService::new");
     let _eink_srv = EinkService::new();
 
     // 创建热键管理器
+    info!("EinkService::new");
     let _reg_srv = RegistryManagerService::new()?;
+
+    // 创建合成器服务
+    info!("ComposerService::new");
+    let _composer_srv = ComposerService::new()?;
 
     // 本地消息通道，将异步事件递交至本地执行上下文
     let (tx, rx) = channel::<ServiceStatus>();
@@ -133,6 +154,7 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     };
 
     // 注册服务事件处理程序
+    info!("service_control_handler::register");
     let status_handle = service_control_handler::register(EINK_SERVICE_NAME, event_handler)?;
 
     // 当前状态为 Running
@@ -147,6 +169,7 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     };
 
     // 通知 Windows 系统，当前的服务状态
+    info!("set_service_status({:?})", next_status);
     status_handle.set_service_status(next_status)?;
 
     // 接收状态
