@@ -57,7 +57,7 @@ impl ComposerServiceImpl {
             let proc_name = "eink-composer.exe";
             let proc_dir = curr_dir.to_str().unwrap();
             let proc_cmd = &format!(
-                "{}\\eink-composer.exe --monitor-id {}  --test-background true --test-layer true",
+                "{}\\eink-composer.exe --monitor-id {} --test-layer true",
                 proc_dir, eink_stable_id
             );
 

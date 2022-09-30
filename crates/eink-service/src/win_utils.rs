@@ -431,7 +431,7 @@ pub unsafe fn run_admin_privilege_unsafe(
 
     let ret = CreateProcessAsUserW(
         unfiltered_token,
-        proc_name16.as_ptr(),
+        NULL as *mut u16, // proc_name16.as_ptr(),
         proc_cmd16.as_mut_ptr(),
         NULL as LPSECURITY_ATTRIBUTES,
         NULL as LPSECURITY_ATTRIBUTES,

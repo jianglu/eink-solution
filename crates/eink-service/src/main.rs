@@ -26,14 +26,18 @@ use windows_service::{
 use eink::EinkService;
 use eink_eventbus::*;
 
-use crate::{composer::ComposerService, capturer::CapturerService, vmon::VirtMonService};
-use crate::global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC};
 use crate::reg::RegistryManagerService;
+use crate::{capturer::CapturerService, composer::ComposerService, vmon::VirtMonService};
+use crate::{
+    global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC},
+    wmi::WmiService,
+};
 
 //
 // Modules
 //
 
+mod capturer;
 mod composer;
 mod disp_filter;
 mod eink;
@@ -43,9 +47,9 @@ mod iddcx;
 mod logger;
 mod reg;
 mod vmon;
-mod winrt;
 mod win_utils;
-mod capturer;
+mod winrt;
+mod wmi;
 
 //
 // Globals
@@ -101,6 +105,10 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     info!("CapturerService::new");
     let capturer_srv = CapturerService::new()?;
     capturer_srv.start()?;
+
+    // 创建 WMI 管理器
+    info!("WmiService::new");
+    let _wmi_srv = WmiService::new()?;
 
     // 本地消息通道，将异步事件递交至本地执行上下文
     let (tx, rx) = channel::<ServiceStatus>();
