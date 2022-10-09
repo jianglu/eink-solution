@@ -14,16 +14,22 @@ use anyhow::{Ok, Result};
 use log::info;
 use std::sync::{Arc, Mutex};
 use winapi::shared::minwindef::DWORD;
+use windows::Win32::Foundation::HWND;
 
 use eink_eventbus::{Event, Listener};
 
 use crate::{
-    global::{ModeSwitchMessage, ModeSwitchMessage2, EVENTBUS, GENERIC_TOPIC, GENERIC_TOPIC_KEY},
+    global::{
+        CaptureWindowMessage, ModeSwitchMessage, ModeSwitchMessage2, EVENTBUS, GENERIC_TOPIC,
+        GENERIC_TOPIC_KEY,
+    },
     win_utils,
 };
 
 struct CapturerServiceImpl {
     capturer_pid: Option<DWORD>,
+    app_capturer_pid: Option<DWORD>,
+
     launcher_pid: Option<DWORD>,
 }
 
@@ -32,8 +38,33 @@ impl CapturerServiceImpl {
     pub fn new() -> Result<Self> {
         Ok(Self {
             capturer_pid: None,
+            app_capturer_pid: None,
             launcher_pid: None,
         })
+    }
+
+    /// 捕获窗口
+    pub fn capture_window(&mut self, hwnd: HWND) {
+        info!("CapturerServiceImpl::capture_window({:?})", hwnd);
+
+        // 关闭上一次的 APP 捕获器
+        let pid = self.app_capturer_pid.take();
+
+        if pid.is_some() {
+            win_utils::kill_process_by_pid(pid.unwrap(), 0);
+        }
+
+        // 启动 Capturer
+        let curr_dir = std::env::current_dir().unwrap();
+
+        let proc_name = "eink-capturer.exe";
+        let proc_dir = curr_dir.to_str().unwrap();
+        let proc_cmd = &format!("{}\\eink-capturer.exe --window-id {}", proc_dir, hwnd.0);
+
+        let pid = win_utils::run_admin_privilege(proc_name, proc_dir, proc_cmd).unwrap();
+        self.app_capturer_pid = Some(pid);
+
+        info!("app capturer pid: {}", pid);
     }
 
     /// 模式发生切换
@@ -92,7 +123,8 @@ impl CapturerServiceImpl {
 
                 let proc_name = "eink-capturer.exe";
                 let proc_dir = curr_dir.to_str().unwrap();
-                let proc_cmd = &format!("{}\\eink-capturer.exe --window mainwindow", proc_dir);
+                let proc_cmd =
+                    &format!("{}\\eink-capturer.exe --window-title mainwindow", proc_dir);
 
                 let pid = win_utils::run_admin_privilege(proc_name, proc_dir, proc_cmd).unwrap();
                 self.capturer_pid = Some(pid);
@@ -126,7 +158,8 @@ impl CapturerService {
         })
     }
     pub fn start(&self) -> Result<&Self> {
-        EVENTBUS.register(GENERIC_TOPIC_KEY, self.clone());
+        EVENTBUS.register::<ModeSwitchMessage2, &str, CapturerService>(GENERIC_TOPIC_KEY, self.clone());
+        EVENTBUS.register::<CaptureWindowMessage, &str, CapturerService>(GENERIC_TOPIC_KEY, self.clone());
         Ok(self)
     }
 }
@@ -135,5 +168,13 @@ impl Listener<ModeSwitchMessage2> for CapturerService {
     fn handle(&self, evt: &Event<ModeSwitchMessage2>) {
         let mut guard = self.inner.lock().unwrap();
         guard.on_mode_switch(evt.mode);
+    }
+}
+
+/// 响应捕获窗口消息
+impl Listener<CaptureWindowMessage> for CapturerService {
+    fn handle(&self, evt: &Event<CaptureWindowMessage>) {
+        let mut guard = self.inner.lock().unwrap();
+        guard.capture_window(evt.hwnd);
     }
 }

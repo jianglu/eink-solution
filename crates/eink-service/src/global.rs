@@ -12,6 +12,7 @@
 
 use eink_eventbus::*;
 use static_init::dynamic;
+use windows::Win32::Foundation::HWND;
 use windows_service::service::ServiceControl;
 
 #[dynamic]
@@ -45,4 +46,10 @@ pub struct ModeSwitchMessage {
 #[derive(Debug)]
 pub struct ModeSwitchMessage2 {
     pub mode: u32,
+}
+
+// 捕获窗口消息
+#[derive(Debug)]
+pub struct CaptureWindowMessage {
+    pub hwnd: HWND,
 }

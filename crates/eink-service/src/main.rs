@@ -16,7 +16,6 @@ extern crate windows_service;
 use anyhow::Result;
 use log::{debug, error, info};
 use std::{ffi::OsString, sync::mpsc::channel, time::Duration};
-use vmon::VirtMonServiceImpl;
 use windows_service::{
     service::*,
     service_control_handler::{self, *},
@@ -26,12 +25,12 @@ use windows_service::{
 use eink::EinkService;
 use eink_eventbus::*;
 
-use crate::reg::RegistryManagerService;
 use crate::{capturer::CapturerService, composer::ComposerService, vmon::VirtMonService};
 use crate::{
     global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC},
     wmi::WmiService,
 };
+use crate::{ipc::IpcService, reg::RegistryManagerService};
 
 //
 // Modules
@@ -44,6 +43,7 @@ mod eink;
 mod eink_ton;
 mod global;
 mod iddcx;
+mod ipc;
 mod logger;
 mod reg;
 mod vmon;
@@ -67,6 +67,15 @@ fn eink_service_main(arguments: Vec<OsString>) {
         error!("{} Error: {:?}", EINK_SERVICE_NAME, e);
     }
 }
+
+//
+// 将 Native 库设置为 Lazy 全局变量
+//
+#[static_init::dynamic(lazy)]
+pub static IPC_SERVICE: IpcService = {
+    info!("IpcService::new");
+    IpcService::new().unwrap()
+};
 
 // 服务运行在独立的后台线程中
 fn run_service(arguments: Vec<OsString>) -> Result<()> {
@@ -109,6 +118,9 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     // 创建 WMI 管理器
     info!("WmiService::new");
     let _wmi_srv = WmiService::new()?;
+
+    // 创建 IPC 通讯管理器
+    IPC_SERVICE.start();
 
     // 本地消息通道，将异步事件递交至本地执行上下文
     let (tx, rx) = channel::<ServiceStatus>();

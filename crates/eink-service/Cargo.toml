@@ -20,12 +20,40 @@ serde = "1.0"
 serde_derive = "1.0"
 wmi = "0.11.3"
 
+event-listener-primitives = "2.0.1"
+
 eink-eventbus = { path = "../eink-eventbus" }
 
-winapi = { version = "0.3.9", features = ["tlhelp32", "userenv"] }
+
+# 和 Client 的 Pipe IPC 通讯
+jsonrpc-lite = "0.6"
+# pipe-ipc = { git = "http://git2.ensurebit.net/lenovo-thinkbook-gen4/pipe-ipc.git" }
+pipe-ipc = { path = "../../../pipe-ipc" }
+
+# 部分使用了 tokio 异步运行时
+futures = "0.3"
+tokio = { version = "1.21", features = ["full"] }
+tokio-util = { version = "0.7", features = ["full"] }
+
+# lock-free hashmap
+cht = "0.5"
+
+[dependencies.winapi]
+version = "0.3"
+features = [
+    "winbase",
+    "winnt",
+    "accctrl",
+    "aclapi",
+    "securitybaseapi",
+    "minwinbase",
+    "tlhelp32",
+    "userenv",
+]
+
 
 [dependencies.windows]
-version = "0.42.0"
+version = "0.42"
 features = [
     "interface",
     "implement",
