@@ -10,7 +10,10 @@
 // All rights reserved.
 //
 
+use std::sync::Arc;
+
 use eink_eventbus::*;
+use parking_lot::Mutex;
 use static_init::dynamic;
 use windows::Win32::Foundation::HWND;
 use windows_service::service::ServiceControl;
@@ -52,4 +55,10 @@ pub struct ModeSwitchMessage2 {
 #[derive(Debug)]
 pub struct CaptureWindowMessage {
     pub hwnd: HWND,
+}
+
+// 测试消息
+pub struct TestMessage<'a> {
+    pub hwnd: HWND,
+    pub reply_fn: Arc<Mutex<dyn Fn(i32) + Send + 'a>>,
 }

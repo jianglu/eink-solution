@@ -15,7 +15,14 @@ extern crate windows_service;
 
 use anyhow::Result;
 use log::{debug, error, info};
-use std::{ffi::OsString, sync::mpsc::channel, time::Duration};
+use parking_lot::Mutex;
+use std::{
+    ffi::OsString,
+    sync::{mpsc::channel, Arc},
+    time::Duration,
+};
+use winapi::um::winuser::HWND_DESKTOP;
+use windows::Win32::Foundation::HWND;
 use windows_service::{
     service::*,
     service_control_handler::{self, *},
@@ -25,7 +32,9 @@ use windows_service::{
 use eink::EinkService;
 use eink_eventbus::*;
 
-use crate::{capturer::CapturerService, composer::ComposerService, vmon::VirtMonService};
+use crate::{
+    capturer::CapturerService, composer::ComposerService, global::TestMessage, vmon::VirtMonService,
+};
 use crate::{
     global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC},
     wmi::WmiService,
@@ -198,6 +207,19 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     // 通知 Windows 系统，当前的服务状态
     info!("set_service_status({:?})", next_status);
     status_handle.set_service_status(next_status)?;
+
+    {
+        // 将服务控制消息发送至消息总线
+        EVENTBUS.post(&Event::new(
+            GENERIC_TOPIC.clone(),
+            TestMessage {
+                hwnd: HWND(0),
+                reply_fn: Arc::new(Mutex::new(|a| {
+                    info!("reply: {}", a);
+                })),
+            },
+        ));
+    }
 
     // 接收状态
     loop {

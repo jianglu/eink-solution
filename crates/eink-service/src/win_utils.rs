@@ -407,7 +407,6 @@ pub unsafe fn run_admin_privilege_unsafe(
         &mut size as *const u32 as *mut u32,
     );
 
-    use winapi::shared::minwindef::TRUE;
     use winapi::um::userenv::CreateEnvironmentBlock;
     use winapi::um::winbase::CREATE_UNICODE_ENVIRONMENT;
 

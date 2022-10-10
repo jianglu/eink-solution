@@ -20,8 +20,8 @@ use eink_eventbus::{Event, Listener};
 
 use crate::{
     global::{
-        CaptureWindowMessage, ModeSwitchMessage, ModeSwitchMessage2, EVENTBUS, GENERIC_TOPIC,
-        GENERIC_TOPIC_KEY,
+        CaptureWindowMessage, ModeSwitchMessage, ModeSwitchMessage2, TestMessage, EVENTBUS,
+        GENERIC_TOPIC, GENERIC_TOPIC_KEY,
     },
     win_utils,
 };
@@ -102,10 +102,17 @@ impl CapturerServiceImpl {
                     win_utils::kill_process_by_pid(pid.unwrap(), 0);
                 }
 
+                //
+                // EinkService.exe
+                // EinkPlus.exe
+                // EinkCapturer.exe
+                // EinkSettings.exe
+                //
+
                 // 启动 Launcher
-                let proc_name = "LenovoGen4.Launcher.exe";
-                let proc_dir = "C:\\Users\\JiangLu\\lenovo-thinkbook-gen4\\gen4-launcher";
-                let proc_cmd = "C:\\Users\\JiangLu\\lenovo-thinkbook-gen4\\gen4-launcher\\LenovoGen4.Launcher.exe";
+                let proc_name = "EinkPlus.exe";
+                let proc_dir = "C:\\Program Files\\Lenovo\\ThinkBookEinkPlus";
+                let proc_cmd = "C:\\Program Files\\Lenovo\\ThinkBookEinkPlus\\EinkPlus.exe";
 
                 info!("proc_name: {}", proc_name);
                 info!("proc_dir: {}", proc_dir);
@@ -123,8 +130,10 @@ impl CapturerServiceImpl {
 
                 let proc_name = "eink-capturer.exe";
                 let proc_dir = curr_dir.to_str().unwrap();
-                let proc_cmd =
-                    &format!("{}\\eink-capturer.exe --window-title mainwindow", proc_dir);
+                let proc_cmd = &format!(
+                    "\"{}\\eink-capturer.exe\" --window-title mainwindow",
+                    proc_dir
+                );
 
                 let pid = win_utils::run_admin_privilege(proc_name, proc_dir, proc_cmd).unwrap();
                 self.capturer_pid = Some(pid);
@@ -158,8 +167,15 @@ impl CapturerService {
         })
     }
     pub fn start(&self) -> Result<&Self> {
-        EVENTBUS.register::<ModeSwitchMessage2, &str, CapturerService>(GENERIC_TOPIC_KEY, self.clone());
-        EVENTBUS.register::<CaptureWindowMessage, &str, CapturerService>(GENERIC_TOPIC_KEY, self.clone());
+        EVENTBUS
+            .register::<ModeSwitchMessage2, &str, CapturerService>(GENERIC_TOPIC_KEY, self.clone());
+
+        EVENTBUS.register::<CaptureWindowMessage, &str, CapturerService>(
+            GENERIC_TOPIC_KEY,
+            self.clone(),
+        );
+
+        EVENTBUS.register::<TestMessage, &str, CapturerService>(GENERIC_TOPIC_KEY, self.clone());
         Ok(self)
     }
 }
@@ -176,5 +192,12 @@ impl Listener<CaptureWindowMessage> for CapturerService {
     fn handle(&self, evt: &Event<CaptureWindowMessage>) {
         let mut guard = self.inner.lock().unwrap();
         guard.capture_window(evt.hwnd);
+    }
+}
+
+/// 响应捕获窗口消息
+impl Listener<TestMessage<'_>> for CapturerService {
+    fn handle(&self, evt: &Event<TestMessage>) {
+        (evt.reply_fn).lock()(99);
     }
 }
