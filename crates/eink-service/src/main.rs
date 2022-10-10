@@ -36,7 +36,7 @@ use crate::{
     capturer::CapturerService, composer::ComposerService, global::TestMessage, vmon::VirtMonService,
 };
 use crate::{
-    global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC},
+    global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC_KEY},
     wmi::WmiService,
 };
 use crate::{ipc::IpcService, reg::RegistryManagerService};
@@ -150,7 +150,7 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
 
                 // 将服务控制消息发送至消息总线
                 EVENTBUS.post(&Event::new(
-                    GENERIC_TOPIC.clone(),
+                    GENERIC_TOPIC_KEY.clone(),
                     ServiceControlMessage { control_event },
                 ));
 
@@ -207,19 +207,6 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     // 通知 Windows 系统，当前的服务状态
     info!("set_service_status({:?})", next_status);
     status_handle.set_service_status(next_status)?;
-
-    {
-        // 将服务控制消息发送至消息总线
-        EVENTBUS.post(&Event::new(
-            GENERIC_TOPIC.clone(),
-            TestMessage {
-                hwnd: HWND(0),
-                reply_fn: Arc::new(Mutex::new(|a| {
-                    info!("reply: {}", a);
-                })),
-            },
-        ));
-    }
 
     // 接收状态
     loop {

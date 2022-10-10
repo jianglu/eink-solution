@@ -21,7 +21,7 @@ use eink_eventbus::{Event, Listener};
 use crate::{
     global::{
         CaptureWindowMessage, ModeSwitchMessage, ModeSwitchMessage2, TestMessage, EVENTBUS,
-        GENERIC_TOPIC, GENERIC_TOPIC_KEY,
+        GENERIC_TOPIC_KEY, GENERIC_TOPIC_KEY_NAME,
     },
     win_utils,
 };
@@ -167,15 +167,18 @@ impl CapturerService {
         })
     }
     pub fn start(&self) -> Result<&Self> {
-        EVENTBUS
-            .register::<ModeSwitchMessage2, &str, CapturerService>(GENERIC_TOPIC_KEY, self.clone());
-
-        EVENTBUS.register::<CaptureWindowMessage, &str, CapturerService>(
-            GENERIC_TOPIC_KEY,
+        EVENTBUS.register::<ModeSwitchMessage2, &str, CapturerService>(
+            GENERIC_TOPIC_KEY_NAME,
             self.clone(),
         );
 
-        EVENTBUS.register::<TestMessage, &str, CapturerService>(GENERIC_TOPIC_KEY, self.clone());
+        EVENTBUS.register::<CaptureWindowMessage, &str, CapturerService>(
+            GENERIC_TOPIC_KEY_NAME,
+            self.clone(),
+        );
+
+        EVENTBUS
+            .register::<TestMessage, &str, CapturerService>(GENERIC_TOPIC_KEY_NAME, self.clone());
         Ok(self)
     }
 }
@@ -196,8 +199,9 @@ impl Listener<CaptureWindowMessage> for CapturerService {
 }
 
 /// 响应捕获窗口消息
-impl Listener<TestMessage<'_>> for CapturerService {
+impl Listener<TestMessage> for CapturerService {
     fn handle(&self, evt: &Event<TestMessage>) {
-        (evt.reply_fn).lock()(99);
+        // (evt.reply_fn).lock()(99);
+        (evt.reply_chan).send(99);
     }
 }

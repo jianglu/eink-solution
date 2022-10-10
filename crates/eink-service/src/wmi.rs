@@ -20,7 +20,7 @@ use wmi::{COMLibrary, Variant, WMIConnection};
 
 use eink_eventbus::Event;
 
-use crate::global::{ModeSwitchMessage, EVENTBUS, GENERIC_TOPIC};
+use crate::global::{ModeSwitchMessage, EVENTBUS, GENERIC_TOPIC_KEY};
 
 struct WmiServiceImpl {}
 
@@ -44,13 +44,13 @@ impl WmiServiceImpl {
                     if status == &0 {
                         // 将热键消息发送至消息总线
                         EVENTBUS.post(&Event::new(
-                            GENERIC_TOPIC.clone(),
+                            GENERIC_TOPIC_KEY.clone(),
                             ModeSwitchMessage { mode: 2 },
                         ));
                     } else if status == &1 {
                         // 将热键消息发送至消息总线
                         EVENTBUS.post(&Event::new(
-                            GENERIC_TOPIC.clone(),
+                            GENERIC_TOPIC_KEY.clone(),
                             ModeSwitchMessage { mode: 0 },
                         ));
                     }

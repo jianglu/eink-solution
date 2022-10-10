@@ -43,6 +43,9 @@ cht = "0.5"
 # MIT or Apcahe-2.0
 parking_lot = "0.12"
 
+# Multi-producer multi-consumer channels for message passing
+crossbeam-channel = "0.5"
+
 [dependencies.winapi]
 version = "0.3"
 features = [

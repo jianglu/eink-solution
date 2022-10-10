@@ -36,7 +36,7 @@ use tokio_util::codec::Decoder;
 
 use tokio::sync::mpsc::channel as tokio_channel;
 
-use crate::global::{CaptureWindowMessage, EVENTBUS, GENERIC_TOPIC};
+use crate::global::{CaptureWindowMessage, EVENTBUS, GENERIC_TOPIC_KEY};
 use crate::winrt::HWND;
 // #[derive(Deserialize, Debug)]
 // struct IpcRequest {
@@ -181,7 +181,7 @@ impl IpcServiceImpl {
 
                 // 将捕获消息发送至消息总线
                 EVENTBUS.post(&Event::new(
-                    GENERIC_TOPIC.clone(),
+                    GENERIC_TOPIC_KEY.clone(),
                     CaptureWindowMessage {
                         hwnd: HWND(hwnd as isize),
                     },

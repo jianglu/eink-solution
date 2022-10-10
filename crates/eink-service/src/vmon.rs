@@ -18,7 +18,9 @@ use windows::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
 use eink_eventbus::{Event, Listener};
 
 use crate::{
-    global::{ModeSwitchMessage, ModeSwitchMessage2, EVENTBUS, GENERIC_TOPIC, GENERIC_TOPIC_KEY},
+    global::{
+        ModeSwitchMessage, ModeSwitchMessage2, EVENTBUS, GENERIC_TOPIC_KEY, GENERIC_TOPIC_KEY_NAME,
+    },
     iddcx::{get_iddcx_device_path, recreate_iddcx_device},
 };
 
@@ -68,7 +70,7 @@ impl VirtMonServiceImpl {
 
         // 将热键消息发送至消息总线
         EVENTBUS.post(&Event::new(
-            GENERIC_TOPIC.clone(),
+            GENERIC_TOPIC_KEY.clone(),
             ModeSwitchMessage2 { mode: new_mode },
         ));
     }
@@ -93,7 +95,7 @@ impl VirtMonService {
     }
 
     pub fn start(&self) -> anyhow::Result<&Self> {
-        EVENTBUS.register(GENERIC_TOPIC_KEY, self.clone());
+        EVENTBUS.register(GENERIC_TOPIC_KEY_NAME, self.clone());
         Ok(self)
     }
 }

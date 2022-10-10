@@ -13,7 +13,6 @@
 use std::sync::Arc;
 
 use eink_eventbus::*;
-use parking_lot::Mutex;
 use static_init::dynamic;
 use windows::Win32::Foundation::HWND;
 use windows_service::service::ServiceControl;
@@ -21,11 +20,11 @@ use windows_service::service::ServiceControl;
 #[dynamic]
 pub static EVENTBUS: Eventbus = Eventbus::new();
 
-pub const GENERIC_TOPIC_KEY: &str = "EinkService";
+pub const GENERIC_TOPIC_KEY_NAME: &str = "EinkService";
 
 // Topics
 #[dynamic]
-pub static GENERIC_TOPIC: TopicKey = TopicKey::from(GENERIC_TOPIC_KEY);
+pub static GENERIC_TOPIC_KEY: TopicKey = TopicKey::from(GENERIC_TOPIC_KEY_NAME);
 
 // Application Messages
 
@@ -58,7 +57,23 @@ pub struct CaptureWindowMessage {
 }
 
 // 测试消息
-pub struct TestMessage<'a> {
+pub struct TestMessage {
     pub hwnd: HWND,
-    pub reply_fn: Arc<Mutex<dyn Fn(i32) + Send + 'a>>,
+    // pub reply_fn: Arc<Mutex<dyn Fn(i32) + Send + 'a>>,
+    pub reply_chan: crossbeam_channel::Sender<i32>,
 }
+
+// 带 Reply 的总线消息传递
+// {
+//     let (tx, rx) = crossbeam_channel::unbounded::<i32>();
+//     // 将服务控制消息发送至消息总线
+//     EVENTBUS.post(&Event::new(
+//         GENERIC_TOPIC_KEY.clone(),
+//         TestMessage {
+//             hwnd: HWND(0),
+//             reply_chan: tx,
+//         },
+//     ));
+//     let reply = rx.recv().unwrap();
+//     info!("reply: {}", reply);
+// }
