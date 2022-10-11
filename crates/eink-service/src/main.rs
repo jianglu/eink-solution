@@ -129,6 +129,7 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     let _wmi_srv = WmiService::new()?;
 
     // 创建 IPC 通讯管理器
+    info!("IPC_SERVICE.start()");
     IPC_SERVICE.start();
 
     // 本地消息通道，将异步事件递交至本地执行上下文

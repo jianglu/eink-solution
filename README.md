@@ -47,3 +47,11 @@ Mode 2: 应用置顶模式，需要虚拟桌面
 
 1. Eink 横竖屏切换
 2. 
+
+
+## 驱动安装程序 crates/coinstaller
+
+```
+eink-coinstaller /install
+eink-coinstaller /uninstall
+```

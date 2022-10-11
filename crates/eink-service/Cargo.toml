@@ -27,8 +27,9 @@ eink-eventbus = { path = "../eink-eventbus" }
 
 # 和 Client 的 Pipe IPC 通讯
 jsonrpc-lite = "0.6"
-# pipe-ipc = { git = "http://git2.ensurebit.net/lenovo-thinkbook-gen4/pipe-ipc.git" }
-pipe-ipc = { path = "../../../pipe-ipc" }
+
+pipe-ipc = { git = "http://git2.ensurebit.net/lenovo-thinkbook-gen4/pipe-ipc.git" }
+# pipe-ipc = { path = "../../../pipe-ipc/crates/pipe-ipc" }
 
 # 部分使用了 tokio 异步运行时
 futures = "0.3"
