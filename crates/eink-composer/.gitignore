@@ -1,0 +1,8 @@
+target/
+debug/
+release/
+rls/
+*.o
+.vscode/
+pixel.bin
+vertex.bin

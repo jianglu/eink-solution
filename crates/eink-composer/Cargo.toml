@@ -1,0 +1,84 @@
+[package]
+name = "eink-composer"
+version = "0.1.0"
+edition = "2021"
+
+
+[features]
+default = ["force-compile", "save-blob"]
+# Enables force compilation of shader code
+force-compile = []
+save-blob = []
+
+
+[dependencies]
+uuid = { version = "1.1.2", features = ["v4"] }
+ntapi = "0.3.7"
+widestring = "1.0.2"
+anyhow = "1.0"
+parking_lot = "0.12.1"
+indoc = "1.0"
+image = "0.24.3"
+# ipc-channel = "0.16"
+log = "0.4.17"
+env_logger = "0.9.0"
+serde = { version = "1.0", features = ["derive"] }
+pico-args = "0.5.0"
+base64 = "*"
+serde_json = "*"
+# interprocess = "*"
+bincode = "*"
+nng = "1.0.1"
+clap = { version = "3.2", features = ["derive"] }
+libloading = "0.7.3"
+windows-dll = "0.4.1"
+
+[dependencies.eink-composer-lib]
+path = "../eink-composer-lib"
+
+
+# [dependencies.zenoh]
+# git = "https://github.com/eclipse-zenoh/zenoh"
+# rev = "45b7ad7"
+# features = ["shared-memory"]
+
+
+[dependencies.win_desktop_duplication]
+version = "0.10.6"
+
+
+[dependencies.windows]
+version = "0.39.0"
+features = [
+    "interface",
+    "implement",
+    "Foundation",
+    "Foundation_Numerics",
+    "Foundation_Collections",
+    "Win32_Foundation",
+    "Win32_Devices_Display",
+    "Win32_System",
+    "Win32_System_Services",
+    "Win32_System_WinRT",
+    "Win32_System_WinRT_Display",
+    "Win32_Security",
+    "Win32_Graphics",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D_Fxc",
+    "Win32_Graphics_Direct3D_Dxc",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Direct2D",
+    "Win32_UI",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_System_IO",
+    "Win32_Storage_FileSystem",
+    "Devices_Display_Core",
+    "Graphics",
+    "Graphics_DirectX",
+    "Graphics_DirectX_Direct3D11",
+]
