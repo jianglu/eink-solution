@@ -41,6 +41,10 @@ pub struct Args {
     )]
     primary: bool,
 
+    /// The target position band
+    #[clap(long)]
+    pub band: Option<i32>,
+
     /// The target position x
     #[clap(short)]
     pub x: Option<i32>,

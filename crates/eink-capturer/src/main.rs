@@ -43,23 +43,85 @@ use windows::Win32::System::WinRT::{
     Graphics::Capture::IGraphicsCaptureItemInterop, RoInitialize, RO_INIT_MULTITHREADED,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetDesktopWindow, GetWindowRect, GetWindowTextA, GetWindowThreadProcessId,
+    GetAncestor, GetClassNameA, GetDesktopWindow, GetWindowRect, GetWindowTextA,
+    GetWindowThreadProcessId, RealGetWindowClassA, GA_ROOT, GET_ANCESTOR_FLAGS,
 };
 
 use capture::enumerate_capturable_windows;
 use display_info::enumerate_displays;
-use std::ffi::c_void;
+use std::ffi::{c_void, CStr};
 use std::io::Write;
 use std::sync::mpsc::channel;
 use window_info::WindowInfo;
+
+//var hwnd = GetAncestor(findHwnd, GetAncestorFlags.GA_ROOT);
+
+fn get_window_ancestor(hwnd: HWND) -> anyhow::Result<HWND> {
+    unsafe {
+        return Ok(GetAncestor(hwnd, GA_ROOT));
+    }
+}
+
+fn get_window_class(hwnd: HWND) -> anyhow::Result<String> {
+    unsafe {
+        let mut buf: [u8; 256] = std::mem::zeroed();
+        GetClassNameA(hwnd, &mut buf);
+        let class_name = CStr::from_bytes_with_nul_unchecked(&buf);
+        return Ok(class_name
+            .to_str()?
+            .trim_end_matches(|c: char| c == '\0')
+            .to_string());
+    }
+}
+
+fn get_window_real_class(hwnd: HWND) -> anyhow::Result<String> {
+    unsafe {
+        let mut buf: [u8; 256] = std::mem::zeroed();
+        RealGetWindowClassA(hwnd, &mut buf);
+        let class_name = CStr::from_bytes_with_nul_unchecked(&buf);
+        return Ok(class_name
+            .to_str()?
+            .trim_end_matches(|c: char| c == '\0')
+            .to_string());
+    }
+}
+
+fn get_window_text(hwnd: HWND) -> anyhow::Result<String> {
+    unsafe {
+        let mut buf: [u8; 256] = std::mem::zeroed();
+        GetWindowTextA(hwnd, &mut buf);
+        let win_text = CStr::from_bytes_with_nul_unchecked(&buf);
+        return Ok(win_text
+            .to_str()?
+            .trim_end_matches(|c: char| c == '\0')
+            .to_string());
+    }
+}
 
 fn create_capture_item_for_window(window_handle: HWND) -> Result<GraphicsCaptureItem> {
     unsafe {
         let mut buf: [u8; 256] = std::mem::zeroed();
         GetWindowTextA(window_handle, &mut buf);
-        let win_text = std::ffi::CStr::from_bytes_with_nul_unchecked(&buf);
+        let win_text = CStr::from_bytes_with_nul_unchecked(&buf);
         info!("Window Text: {}", win_text.to_str().unwrap());
     }
+
+    info!("Window Text: {:?}", get_window_text(window_handle));
+    info!("Window Class Name: {:?}", get_window_class(window_handle));
+    info!(
+        "Window Real Class Name: {:?}",
+        get_window_real_class(window_handle)
+    );
+    info!(
+        "Window Ancestor Class Name: {:?}",
+        get_window_class(get_window_ancestor(window_handle).unwrap())
+    );
+    info!(
+        "Window Ancestor Real Class Name: {:?}",
+        get_window_real_class(get_window_ancestor(window_handle).unwrap())
+    );
+
+    //var hwnd = GetAncestor(findHwnd, GetAncestorFlags.GA_ROOT);
 
     info!("create_capture_item_for_window: {:?}", window_handle);
     let interop = windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>()?;
@@ -446,13 +508,21 @@ fn get_window_from_query(query: &str) -> Result<WindowInfo> {
 }
 
 fn find_window(window_name: &str) -> Vec<WindowInfo> {
+    let window_name_query = &window_name.to_string().to_lowercase();
+
     let window_list = enumerate_capturable_windows();
     let mut windows: Vec<WindowInfo> = Vec::new();
     for window_info in window_list.into_iter() {
         let title = window_info.title.to_lowercase();
         info!("{}", &title);
-        if title.contains(&window_name.to_string().to_lowercase()) {
-            windows.push(window_info.clone());
+        if window_name_query.starts_with("*") {
+            if title.contains(window_name_query) {
+                windows.push(window_info.clone());
+            }
+        } else {
+            if title.eq(window_name_query) {
+                windows.push(window_info.clone());
+            }
         }
     }
     windows
