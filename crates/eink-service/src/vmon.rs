@@ -66,6 +66,9 @@ impl VirtMonServiceImpl {
             crate::iddcx::remove_monitor(&self.dev_path, monitor_id.unwrap()).unwrap();
         }
 
+        // 更新当前模式
+        self.curr_mode = new_mode;
+
         std::thread::sleep(std::time::Duration::from_millis(1000));
 
         // 将热键消息发送至消息总线
