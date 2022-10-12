@@ -59,6 +59,7 @@ mod vmon;
 mod win_utils;
 mod winrt;
 mod wmi;
+mod settings;
 
 //
 // Globals
