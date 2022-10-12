@@ -386,7 +386,7 @@ unsafe fn get_current_user_token() -> Result<HANDLE> {
     Ok(primary_token)
 }
 
-pub fn run_admin_privilege(proc_name: &str, proc_dir: &str, proc_cmd: &str) -> Result<DWORD> {
+pub fn run_as_admin(proc_name: &str, proc_dir: &str, proc_cmd: &str) -> Result<DWORD> {
     unsafe { run_admin_privilege_unsafe(proc_name, proc_dir, proc_cmd) }
 }
 

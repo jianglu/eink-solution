@@ -17,8 +17,7 @@ Mode 1: 原生桌面模式，需要虚拟桌面
 
 Mode 2: 应用置顶模式，需要虚拟桌面
     OLED - None
-    EINK - Launcher             App Capture
-           Windows Desktop      Desktop Capture
+    EINK - Launcher             Launcher Capture
 
 通过悬浮球或者快捷键进入 Mode 1
 
@@ -54,4 +53,18 @@ Mode 2: 应用置顶模式，需要虚拟桌面
 ```
 eink-coinstaller /install
 eink-coinstaller /uninstall
+```
+
+## 配置文件
+
+服务配置文件目录
+
+```
+C:\\ProgramData\\Lenovo\\ThinkBookEinkPlus\\
+```
+
+应用配置文件目录
+
+```
+%LocalAppData%\\Lenovo\\ThinkBookEinkPlus\\
 ```

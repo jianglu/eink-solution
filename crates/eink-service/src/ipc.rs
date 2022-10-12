@@ -36,7 +36,7 @@ use tokio_util::codec::Decoder;
 
 use tokio::sync::mpsc::channel as tokio_channel;
 
-use crate::global::{CaptureWindowMessage, EVENTBUS, GENERIC_TOPIC_KEY};
+use crate::global::{CaptureWindowMessage, ModeSwitchMessage, EVENTBUS, GENERIC_TOPIC_KEY};
 use crate::winrt::HWND;
 // #[derive(Deserialize, Debug)]
 // struct IpcRequest {
@@ -87,7 +87,23 @@ impl IpcServiceImpl {
 
                         Self::handle_request(conn, request);
 
-                        conn.reply_success(id, &serde_json::Value::Bool(true));
+                        // conn.reply_success(id, &serde_json::Value::Bool(true));
+                        // conn.reply_error(id, jsonrpc_lite::Error::invalid_params());
+                    })
+                    .detach();
+
+                    conn.on_notify(|conn, request| {
+                        let id = request.get_id().unwrap();
+                        info!(
+                            "IpcServer: On New Request: Id: {:?}, request: {:?}",
+                            id, request
+                        );
+
+                        let method = request.get_method().unwrap();
+
+                        Self::handle_request(conn, request);
+
+                        // conn.reply_success(id, &serde_json::Value::Bool(true));
                         // conn.reply_error(id, jsonrpc_lite::Error::invalid_params());
                     })
                     .detach();
@@ -95,8 +111,8 @@ impl IpcServiceImpl {
                 .detach();
 
             info!("IpcServer: Start Listening");
-
             server.listen().unwrap();
+            info!("IpcServer: End Listening");
         });
 
         Ok(Self { running })
@@ -124,6 +140,8 @@ impl IpcServiceImpl {
 
                 info!("capture_window: hwnd: {:?}", hwnd);
 
+                conn.reply_success(id, &serde_json::Value::Bool(true));
+
                 // 将捕获消息发送至消息总线
                 EVENTBUS.post(&Event::new(
                     GENERIC_TOPIC_KEY.clone(),
@@ -131,8 +149,28 @@ impl IpcServiceImpl {
                         hwnd: HWND(hwnd as isize),
                     },
                 ));
+            } else {
+                info!("invalid_params");
+                conn.reply_error(id, jsonrpc_lite::Error::invalid_params())
+            }
+        } else if method == "switch_mode" {
+            let params = req.get_params().unwrap();
+            info!("params: {:?}", params);
 
-                conn.reply_success(id, &serde_json::Value::Bool(true))
+            if let Params::Map(map) = params {
+                let mode = map.get("mode").unwrap().as_u64().unwrap() as u32;
+
+                info!("switch_mode: mode: {:?}", mode);
+
+                conn.reply_success(id, &serde_json::Value::Bool(true));
+
+                std::thread::sleep(std::time::Duration::from_millis(100));
+
+                // 将捕获消息发送至消息总线
+                EVENTBUS.post(&Event::new(
+                    GENERIC_TOPIC_KEY.clone(),
+                    ModeSwitchMessage { mode },
+                ));
             } else {
                 info!("invalid_params");
                 conn.reply_error(id, jsonrpc_lite::Error::invalid_params())

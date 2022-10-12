@@ -50,8 +50,8 @@ crossbeam-channel = "0.5"
 
 eink-eventbus = { path = "../eink-eventbus" }
 
-pipe-ipc = { git = "http://git2.ensurebit.net/lenovo-thinkbook-gen4/pipe-ipc.git" }
-# pipe-ipc = { path = "../../../pipe-ipc/crates/pipe-ipc" }
+# pipe-ipc = { git = "http://git2.ensurebit.net/lenovo-thinkbook-gen4/pipe-ipc.git" }
+pipe-ipc = { path = "../../../pipe-ipc/crates/pipe-ipc" }
 
 # binder-ipc
 

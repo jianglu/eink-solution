@@ -30,7 +30,7 @@ impl RegistryManagerService {
         let h = std::thread::spawn(|| {
             let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
             let reg_key = hklm
-                .open_subkey(r#"SOFTWARE\Lenovo\ThinkBookPlusGen4EinkPlus"#)
+                .open_subkey(r#"SOFTWARE\Lenovo\ThinkBookEinkPlus"#)
                 .unwrap();
 
             loop {
@@ -39,18 +39,22 @@ impl RegistryManagerService {
                     reg_watcher::filter::REG_LEGAL_CHANGE_FILTER,
                     true,
                     reg_watcher::Timeout::Infinite,
-                )
-                .unwrap();
-                info!("{:?}", res);
+                );
 
-                let mode: u32 = reg_key.get_value("Mode").unwrap();
-                info!("Current Mode: {}", mode);
+                if res.is_ok() {
+                    info!("{:?}", res);
 
-                // 将热键消息发送至消息总线
-                EVENTBUS.post(&Event::new(
-                    GENERIC_TOPIC_KEY.clone(),
-                    ModeSwitchMessage { mode },
-                ));
+                    let mode: u32 = reg_key.get_value("Mode").unwrap();
+                    info!("Current Mode: {}", mode);
+
+                    // 将热键消息发送至消息总线
+                    EVENTBUS.post(&Event::new(
+                        GENERIC_TOPIC_KEY.clone(),
+                        ModeSwitchMessage { mode },
+                    ));
+                } else {
+                    info!("Watch Reg Err: {:?}", res.unwrap_err());
+                }
             }
         });
 
