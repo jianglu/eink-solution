@@ -242,8 +242,16 @@ fn take_screenshot(hwnd: Option<HWND>, item: &GraphicsCaptureItem, x: i32, y: i3
 
     loop {
         unsafe {
-            let frame = receiver.recv().unwrap();
-            // info!("Receive frame");
+            let frame_res = receiver.recv();
+
+            let frame = match frame_res {
+                Ok(frame) => frame,
+                Err(err) => {
+                    error!("RecvError: {:?}", err);
+                    break;
+                },
+            };
+            info!("Receive frame");
 
             let content_size = frame.ContentSize()?;
 
@@ -276,18 +284,23 @@ fn take_screenshot(hwnd: Option<HWND>, item: &GraphicsCaptureItem, x: i32, y: i3
             }
 
             if position_updated || size_updated {
-                error!(
+                info!(
                     "X,Y: {}, {}, ContentSize: {:?}, TextureSize: {}x{}, ItemSize: {:?}",
                     x, y, content_size, desc.Width, desc.Height, item_size
                 );
 
                 if size_updated {
-                    frame_pool.Recreate(
+                    let recreate_res = frame_pool.Recreate(
                         &device,
                         DirectXPixelFormat::B8G8R8A8UIntNormalized,
                         1,
                         item_size,
-                    )?;
+                    );
+
+                    if recreate_res.is_err() {
+                        info!("Recreate failed, exit capturer");
+                        break;
+                    }
                 }
 
                 if opt_surface.is_some() {
