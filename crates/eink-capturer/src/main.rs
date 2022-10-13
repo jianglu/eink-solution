@@ -27,7 +27,7 @@ use windows::Graphics::Capture::{Direct3D11CaptureFramePool, GraphicsCaptureItem
 use windows::Graphics::DirectX::DirectXPixelFormat;
 use windows::Graphics::Imaging::{BitmapAlphaMode, BitmapEncoder, BitmapPixelFormat};
 use windows::Storage::{CreationCollisionOption, FileAccessMode, StorageFolder};
-use windows::Win32::Foundation::{HWND, RECT};
+use windows::Win32::Foundation::{HWND, RECT, BOOL};
 use windows::Win32::Graphics::Direct3D::{WKPDID_CommentStringW, WKPDID_D3DDebugObjectName};
 use windows::Win32::Graphics::Direct3D11::{
     ID3D11Device4, ID3D11RenderTargetView, ID3D11Resource, ID3D11Texture2D, D3D11_BIND_FLAG,
@@ -43,8 +43,9 @@ use windows::Win32::System::WinRT::{
     Graphics::Capture::IGraphicsCaptureItemInterop, RoInitialize, RO_INIT_MULTITHREADED,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetAncestor, GetClassNameA, GetDesktopWindow, GetWindowRect, GetWindowTextA,
-    GetWindowThreadProcessId, RealGetWindowClassA, GA_ROOT, GET_ANCESTOR_FLAGS,
+    GetAncestor, GetClassNameA, GetDesktopWindow, GetWindowLongA, GetWindowRect, GetWindowTextA,
+    GetWindowThreadProcessId, IsWindow, IsWindowVisible, RealGetWindowClassA, GA_ROOT,
+    GET_ANCESTOR_FLAGS, GWL_STYLE, WS_VISIBLE,
 };
 
 use capture::enumerate_capturable_windows;
@@ -52,6 +53,7 @@ use display_info::enumerate_displays;
 use std::ffi::{c_void, CStr};
 use std::io::Write;
 use std::sync::mpsc::channel;
+use std::time::{Duration, Instant};
 use window_info::WindowInfo;
 
 //var hwnd = GetAncestor(findHwnd, GetAncestorFlags.GA_ROOT);
@@ -188,6 +190,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn is_windows_visible(hwnd: HWND) -> bool {
+    let style = unsafe { GetWindowLongA(hwnd, GWL_STYLE) } as u32;
+    return (style & WS_VISIBLE.0) == WS_VISIBLE.0;
+}
+
 fn take_screenshot(hwnd: Option<HWND>, item: &GraphicsCaptureItem, x: i32, y: i32) -> Result<()> {
     info!("take_screenshot");
 
@@ -242,15 +249,23 @@ fn take_screenshot(hwnd: Option<HWND>, item: &GraphicsCaptureItem, x: i32, y: i3
 
     loop {
         unsafe {
-            let frame_res = receiver.recv();
+            // 30FPS
+            let frame_res = receiver.recv_timeout(Duration::from_millis(1000 / 30));
 
-            let frame = match frame_res {
-                Ok(frame) => frame,
-                Err(err) => {
-                    error!("RecvError: {:?}", err);
-                    break;
-                },
-            };
+            if let Err(err) = frame_res {
+                error!("RecvError: {:?}", err);
+                // 超时，判断窗口是否存在
+                if let Some(hwnd) = hwnd {
+                    if IsWindow(hwnd) == BOOL(0) {
+                        error!("Windows is exist: exit");
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            let frame = frame_res.unwrap();
+
             info!("Receive frame");
 
             let content_size = frame.ContentSize()?;
