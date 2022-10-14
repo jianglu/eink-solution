@@ -53,6 +53,8 @@ pub enum SurfaceComposerRequest {
         width: i32,
         height: i32,
     },
+    // ReleaseSurfaceRequest {
+    // },
     MoveSurfaceRequest {
         x: i32,
         y: i32,

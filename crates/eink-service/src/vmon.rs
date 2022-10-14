@@ -52,7 +52,7 @@ impl VirtMonServiceImpl {
 
     /// 模式发生切换
     pub fn on_mode_switch(&mut self, new_mode: u32) {
-        info!("VirtMonServiceImpl::on_mode_switch({})", new_mode);
+        info!("HAHAHAH VirtMonServiceImpl::on_mode_switch({})", new_mode);
 
         if new_mode == 1 || new_mode == 2 {
             if self.curr_mode == 0 {
@@ -68,8 +68,10 @@ impl VirtMonServiceImpl {
 
         // 更新当前模式
         self.curr_mode = new_mode;
+        info!("self.curr_mode : {}", self.curr_mode);
 
         std::thread::sleep(std::time::Duration::from_millis(1000));
+        info!("After 1000 millis sleep, post new message, new_mode: {}", new_mode);
 
         // 将热键消息发送至消息总线
         EVENTBUS.post(&Event::new(

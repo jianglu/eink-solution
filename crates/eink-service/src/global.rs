@@ -53,7 +53,8 @@ pub struct ModeSwitchMessage2 {
 // 捕获窗口消息
 #[derive(Debug)]
 pub struct CaptureWindowMessage {
-    pub hwnd: HWND,
+    pub hwnd: Option<HWND>,
+    pub cmdline: Option<String>,
 }
 
 // 测试消息

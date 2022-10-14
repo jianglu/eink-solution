@@ -57,6 +57,33 @@ impl CapturerServiceImpl {
     }
 
     /// 捕获窗口
+    pub fn capture_app(&mut self, cmdline: &str) {
+        info!("CapturerServiceImpl::capture_app({:?})", cmdline);
+
+        // 关闭上一次的 APP 捕获器
+        let pid = self.app_capturer_pid.take();
+
+        if pid.is_some() {
+            kill_process_by_pid(pid.unwrap(), 0);
+        }
+
+        // 启动 Capturer
+        let curr_dir = std::env::current_dir().unwrap();
+
+        let proc_name = "eink-capturer.exe";
+        let proc_dir = curr_dir.to_str().unwrap();
+        let proc_cmd = &format!(
+            "{}\\eink-capturer.exe --command-line \"{}\" --band 2",
+            proc_dir, cmdline
+        );
+
+        let pid = run_as_admin(proc_name, proc_dir, proc_cmd).unwrap();
+        self.app_capturer_pid = Some(pid);
+
+        info!("app capturer pid: {}", pid);
+    }
+
+    /// 捕获窗口
     pub fn capture_window(&mut self, hwnd: HWND) {
         info!("CapturerServiceImpl::capture_window({:?})", hwnd);
 
@@ -81,6 +108,16 @@ impl CapturerServiceImpl {
         self.app_capturer_pid = Some(pid);
 
         info!("app capturer pid: {}", pid);
+
+        // std::thread::spawn(|| {
+        //     // 超时，判断窗口是否存在
+        //     if let Some(hwnd) = hwnd {
+        //         if IsWindow(hwnd) == BOOL(0) {
+        //             error!("Windows is exist: exit");
+        //             break;
+        //         }
+        //     }
+        // });
     }
 
     /// 模式发生切换
@@ -165,7 +202,7 @@ impl CapturerServiceImpl {
                 //     info!("desktop_capturer_pid: {}", pid);
                 // }
 
-                info!("等待 Launcher 启动, 10s");
+                // info!("等待 Launcher 启动, 10s");
 
                 // 等待 Launcher 启动, 10s
                 // unsafe {
@@ -178,7 +215,7 @@ impl CapturerServiceImpl {
 
                 //         info!("ThinkBookEinkPlus {:?}", hwnd);
 
-                std::thread::sleep(std::time::Duration::from_secs(1));
+                std::thread::sleep(std::time::Duration::from_secs(2));
                 //     }
                 // }
 
@@ -252,6 +289,7 @@ impl CapturerService {
 
 impl Listener<ModeSwitchMessage2> for CapturerService {
     fn handle(&self, evt: &Event<ModeSwitchMessage2>) {
+        info!("Capturer got ModeSwitchMessage2, mode: {}", evt.mode);
         let mut guard = self.inner.lock().unwrap();
         guard.on_mode_switch(evt.mode);
     }
@@ -261,7 +299,12 @@ impl Listener<ModeSwitchMessage2> for CapturerService {
 impl Listener<CaptureWindowMessage> for CapturerService {
     fn handle(&self, evt: &Event<CaptureWindowMessage>) {
         let mut guard = self.inner.lock().unwrap();
-        guard.capture_window(evt.hwnd);
+        if evt.hwnd.is_some() {
+            guard.capture_window(evt.hwnd.unwrap());
+        } else if evt.cmdline.is_some() {
+            let cmdline = evt.cmdline.as_ref().unwrap().to_owned();
+            guard.capture_app(&cmdline);
+        }
     }
 }
 

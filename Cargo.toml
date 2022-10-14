@@ -8,4 +8,5 @@ members = [
     "crates/eink-composer",
 
     "crates/eink-capturer",
+    "crates/eink-desktop",
 ]

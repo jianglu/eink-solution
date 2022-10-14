@@ -131,10 +131,10 @@ impl SurfaceFlinger {
         // let (pipe_tx, pipe_rx) = channel::<DuplexMsgPipeStream>();
 
         // let pipe_thread = std::thread::spawn(move || loop {
-        //     println!("Try accept");
+        //     info!("Try accept");
         //     match pipe.accept() {
         //         Ok(conn) => {
-        //             println!("New connection !!!");
+        //             info!("New connection !!!");
         //             conn.set_nonblocking(true).unwrap();
         //             pipe_tx.send(conn).unwrap();
         //         }
@@ -157,7 +157,7 @@ impl SurfaceFlinger {
         // let session = Arc::new(zenoh::open(config).wait().expect("Cannot open ipc session"));
 
         // let key_expr = "/SurfaceComposer/*".to_string();
-        // println!("Creating Queryable on '{}'...", key_expr);
+        // info!("Creating Queryable on '{}'...", key_expr);
         // let queryable = session
         //     .queryable(&key_expr)
         //     .kind(EVAL)
@@ -166,7 +166,7 @@ impl SurfaceFlinger {
 
         ///// D2D
         // let dxgi_device = dev.cast::<IDXGIDevice>()?;
-        // println!("IDXGIDevice: {:?}", dxgi_device);
+        // info!("IDXGIDevice: {:?}", dxgi_device);
 
         // let mut ppsurface: [Option<IDXGISurface>; 3] = Default::default();
         // let desc = DXGI_SURFACE_DESC {
@@ -218,10 +218,10 @@ impl SurfaceFlinger {
         match self.sock.try_recv() {
             Ok(msg) => {
                 let req = bincode::deserialize::<SurfaceComposerRequest>(&msg)?;
-                println!("try_recv: req: {:?}", req);
+                info!("try_recv: req: {:?}", req);
 
                 if let SurfaceComposerRequest::NewConnection { pid, url } = req {
-                    println!("NewConnection: {}, {}", pid, &url);
+                    info!("NewConnection: {}, {}", pid, &url);
                     let conn_sock = nng::Socket::new(nng::Protocol::Pair0)?;
                     conn_sock.dial(&url)?;
 
@@ -236,7 +236,7 @@ impl SurfaceFlinger {
                 // self.layers.retain(|l| !l.name.eq_ignore_ascii_case(url));
             }
             Err(err) => {
-                println!("self.sock.try_recv({:?})", err);
+                info!("self.sock.try_recv({:?})", err);
             }
         }
 
@@ -253,15 +253,16 @@ impl SurfaceFlinger {
                             GetExitCodeProcess(hprocess, &mut exit_code as *const u32 as *mut u32)
                         };
                         if exit_code == STILL_ACTIVE {
+                            info!("TryAgain 1, pid: {:?} STILL_ACTIVE", *pid);
                             continue;
                         } else {
                             // let last_error = unsafe { GetLastError() };
-                            println!("TryAgain, BOOL: {:?}, ExitCode: {}", result, exit_code);
+                            info!("TryAgain 2, pid: {:?} BOOL: {:?}, ExitCode: {}", *pid, result, exit_code);
                             return Some((*pid, Err(nng::Error::Closed)));
                         }
                     }
                     Err(_) => {
-                        println!("conn try_recv: err: {:?}", &ret.as_ref().err());
+                        info!("conn try_recv: err: {:?}", &ret.as_ref().err());
                         return Some((*pid, ret));
                     }
                 }
@@ -279,7 +280,7 @@ impl SurfaceFlinger {
 
         // 发生错误，关闭对应的 Layer
         if ret.is_err() {
-            println!("ERROR: pid: {}, err: {:?}", pid, ret.as_ref().err());
+            info!("ERROR: pid: {}, err: {:?}", pid, ret.as_ref().err());
             self.conn_socks.retain(|s, _| *s != pid);
             self.layers.retain(|l| l.pid != pid);
             return Ok(());
@@ -296,7 +297,7 @@ impl SurfaceFlinger {
                         width,
                         height,
                     } => {
-                        println!(
+                        info!(
                             "SurfaceComposerRequest::CreateSurfaceRequest({}, {}, {}, {})",
                             x, y, width, height
                         );
@@ -310,13 +311,17 @@ impl SurfaceFlinger {
                         let sock = self.conn_socks.get(&pid).unwrap();
                         sock.send(&rep_bin).unwrap();
                     }
+                    // SurfaceComposerRequest::ReleaseSurfaceRequest {
+                    // } => {
+
+                    // }
                     SurfaceComposerRequest::MoveSurfaceRequest {
                         x,
                         y,
                         width,
                         height,
                     } => {
-                        println!(
+                        info!(
                             "SurfaceComposerRequest::MoveSurfaceRequest({}, {}, {}, {})",
                             x, y, width, height
                         );
@@ -335,11 +340,16 @@ impl SurfaceFlinger {
                 }
             }
             Err(nng::Error::TryAgain) => {
-                // println!("conn try_recv: TryAgain");
+                // info!("conn try_recv: TryAgain");
+                // self.layers.retain(|l| !l.name.eq_ignore_ascii_case(url));
+            }
+            Err(nng::Error::Closed) => {
+                // 连接关闭，释放表面
+                info!("Conn closed !!, Release Surface !!!!!!!!!!");
                 // self.layers.retain(|l| !l.name.eq_ignore_ascii_case(url));
             }
             Err(err) => {
-                println!("conn try_recv: err: {:?}", err);
+                info!("conn try_recv: err: {:?}", err);
                 //
             }
         }
@@ -350,10 +360,10 @@ impl SurfaceFlinger {
         // // 接收新连接
         // if let Ok(conn) = self.pipe_rx.try_recv() {
         //     let client_pid = conn.client_process_id()?;
-        //     println!("New connection client_pid: {}", client_pid);
+        //     info!("New connection client_pid: {}", client_pid);
         //     self.pipe_conns.push(conn);
         // }
-        // // println!("do_events START");
+        // // info!("do_events START");
 
         // let mut msg_vec = [0u8; 1024];
 
@@ -361,7 +371,7 @@ impl SurfaceFlinger {
         //     .retain_mut(|conn| match conn.try_read_msg(&mut msg_vec) {
         //         Ok(ret) => match ret {
         //             Ok(size) => {
-        //                 println!("read_msg: size: {:?}", size);
+        //                 info!("read_msg: size: {:?}", size);
         //                 let reply = SurfaceComposerResponse::CreateSurfaceResponse {
         //                     texture_name: "11111".to_string(),
         //                 };
@@ -371,12 +381,12 @@ impl SurfaceFlinger {
         //                 true
         //             }
         //             Err(os_errcode) => {
-        //                 println!("read_msg: err_code: {:?}", os_errcode);
+        //                 info!("read_msg: err_code: {:?}", os_errcode);
         //                 false
         //             }
         //         },
         //         Err(err) => {
-        //             println!("read_msg: err: {:?}", err);
+        //             info!("read_msg: err: {:?}", err);
         //             false
         //         }
         //     });
@@ -387,20 +397,20 @@ impl SurfaceFlinger {
         //     match conn.try_read_msg(&mut msg_vec) {
         //         Ok(ret) => match ret {
         //             Ok(size) => {
-        //                 println!("read_msg: size: {:?}", size);
+        //                 info!("read_msg: size: {:?}", size);
         //             }
         //             Err(os_errcode) => {
-        //                 println!("read_msg: err_code: {:?}", os_errcode);
+        //                 info!("read_msg: err_code: {:?}", os_errcode);
         //             }
         //         },
         //         Err(err) => {
-        //             println!("read_msg: err: {:?}", err);
+        //             info!("read_msg: err: {:?}", err);
         //             self.pipe_conns.remove(i);
         //         }
         //     }
         // }
 
-        // println!("do_events END");
+        // info!("do_events END");
 
         // if let Ok(query) = self.queryable.try_recv() {
         //     let selector = query.selector();
@@ -408,15 +418,15 @@ impl SurfaceFlinger {
         //     let key_selector = selector.key_selector.as_str();
         //     let value_selector = selector.parse_value_selector().unwrap();
 
-        //     println!("key_selector: {}", key_selector);
-        //     println!("filter: {}", value_selector.filter);
-        //     println!("properties: {}", value_selector.properties);
-        //     println!("fragment: {:?}", value_selector.fragment);
+        //     info!("key_selector: {}", key_selector);
+        //     info!("filter: {}", value_selector.filter);
+        //     info!("properties: {}", value_selector.properties);
+        //     info!("fragment: {:?}", value_selector.fragment);
 
         //     if key_selector == "/SurfaceComposer/CreateSurface" {
         //         let s = base64::decode(value_selector.filter.as_bytes())?;
         //         let s = serde_json::from_slice::<CreateSurfaceRequest>(&s)?;
-        //         println!("{},{},{},{}", s.x, s.y, s.width, s.height);
+        //         info!("{},{},{},{}", s.x, s.y, s.width, s.height);
 
         //         let h = self.create_surface(s.x, s.y, s.width, s.height)?;
 

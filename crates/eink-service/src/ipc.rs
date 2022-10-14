@@ -10,14 +10,9 @@
 // All rights reserved.
 //
 
-use std::{
-    collections::HashMap,
-    default,
-    io::{BufRead, BufReader},
-    sync::{
-        atomic::{AtomicBool, Ordering::Relaxed},
-        Arc, Mutex, RwLock,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering::Relaxed},
+    Arc, Mutex, RwLock,
 };
 
 use anyhow::{bail, Result};
@@ -136,19 +131,37 @@ impl IpcServiceImpl {
             info!("params: {:?}", params);
 
             if let Params::Map(map) = params {
-                let hwnd = map.get("hwnd").unwrap().as_i64().unwrap();
+                if map.contains_key("hwnd") {
+                    let hwnd = map.get("hwnd").unwrap().as_i64().unwrap();
 
-                info!("capture_window: hwnd: {:?}", hwnd);
+                    info!("capture_window: hwnd: {:?}", hwnd);
 
-                conn.reply_success(id, &serde_json::Value::Bool(true));
+                    conn.reply_success(id, &serde_json::Value::Bool(true));
 
-                // 将捕获消息发送至消息总线
-                EVENTBUS.post(&Event::new(
-                    GENERIC_TOPIC_KEY.clone(),
-                    CaptureWindowMessage {
-                        hwnd: HWND(hwnd as isize),
-                    },
-                ));
+                    // 将捕获消息发送至消息总线
+                    EVENTBUS.post(&Event::new(
+                        GENERIC_TOPIC_KEY.clone(),
+                        CaptureWindowMessage {
+                            hwnd: Some(HWND(hwnd as isize)),
+                            cmdline: None,
+                        },
+                    ));
+                } else if map.contains_key("cmdline") {
+                    let cmdline = map.get("cmdline").unwrap().as_str().unwrap();
+
+                    info!("capture_window: cmdline: {:?}", cmdline);
+
+                    conn.reply_success(id, &serde_json::Value::Bool(true));
+
+                    // 将捕获消息发送至消息总线
+                    EVENTBUS.post(&Event::new(
+                        GENERIC_TOPIC_KEY.clone(),
+                        CaptureWindowMessage {
+                            hwnd: None,
+                            cmdline: Some(cmdline.to_string()),
+                        },
+                    ));
+                }
             } else {
                 info!("invalid_params");
                 conn.reply_error(id, jsonrpc_lite::Error::invalid_params())

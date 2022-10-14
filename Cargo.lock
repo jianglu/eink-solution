@@ -649,6 +649,7 @@ dependencies = [
  "clap 4.0.13",
  "eink-composer-lib",
  "log",
+ "widestring 1.0.2",
  "windows 0.42.0",
 ]
 
@@ -692,6 +693,18 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "windows 0.39.0",
+]
+
+[[package]]
+name = "eink-desktop"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.0.13",
+ "cmd_lib",
+ "log",
+ "widestring 1.0.2",
+ "windows 0.42.0",
 ]
 
 [[package]]
