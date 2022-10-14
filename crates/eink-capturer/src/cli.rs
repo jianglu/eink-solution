@@ -3,6 +3,9 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 pub struct Args {
+    #[clap(long)]
+    command_line: Option<String>,
+
     /// Capture a window who's title contains the provided input.
     #[clap(
         long,
@@ -55,6 +58,7 @@ pub struct Args {
 }
 
 pub enum CaptureMode {
+    CommandLine(String),
     WindowId(isize),
     WindowTitle(String),
     Monitor(usize),
@@ -63,7 +67,9 @@ pub enum CaptureMode {
 
 impl CaptureMode {
     pub fn from_args(args: &Args) -> Self {
-        if let Some(window_id) = &args.window_id {
+        if let Some(cmdline) = &args.command_line {
+            CaptureMode::CommandLine(cmdline.clone())
+        } else if let Some(window_id) = &args.window_id {
             CaptureMode::WindowId(*window_id)
         } else if let Some(window_query) = &args.window_title {
             CaptureMode::WindowTitle(window_query.clone())

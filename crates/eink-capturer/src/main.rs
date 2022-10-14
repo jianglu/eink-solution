@@ -17,17 +17,19 @@ mod display_info;
 mod logger;
 mod window_info;
 
+use anyhow::bail;
 use clap::Parser;
 use cli::CaptureMode;
 use eink_composer_lib::SurfaceComposerClient;
 use log::{error, info};
-use windows::core::{IInspectable, Interface, Result, HSTRING};
+use widestring::{U16CString, U16String};
+use windows::core::{IInspectable, Interface, Result, HSTRING, PCSTR, PCWSTR, PWSTR};
 use windows::Foundation::TypedEventHandler;
 use windows::Graphics::Capture::{Direct3D11CaptureFramePool, GraphicsCaptureItem};
 use windows::Graphics::DirectX::DirectXPixelFormat;
 use windows::Graphics::Imaging::{BitmapAlphaMode, BitmapEncoder, BitmapPixelFormat};
 use windows::Storage::{CreationCollisionOption, FileAccessMode, StorageFolder};
-use windows::Win32::Foundation::{HWND, RECT, BOOL};
+use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
 use windows::Win32::Graphics::Direct3D::{WKPDID_CommentStringW, WKPDID_D3DDebugObjectName};
 use windows::Win32::Graphics::Direct3D11::{
     ID3D11Device4, ID3D11RenderTargetView, ID3D11Resource, ID3D11Texture2D, D3D11_BIND_FLAG,
@@ -39,22 +41,30 @@ use windows::Win32::Graphics::Dxgi::{
     IDXGIKeyedMutex, DXGI_SHARED_RESOURCE_READ, DXGI_SHARED_RESOURCE_WRITE,
 };
 use windows::Win32::Graphics::Gdi::{MonitorFromWindow, HMONITOR, MONITOR_DEFAULTTOPRIMARY};
+use windows::Win32::System::Console::GetConsoleWindow;
+use windows::Win32::System::Threading::{
+    CreateProcessW, CREATE_NEW_CONSOLE, NORMAL_PRIORITY_CLASS, PROCESS_INFORMATION, STARTUPINFOW,
+};
 use windows::Win32::System::WinRT::{
     Graphics::Capture::IGraphicsCaptureItemInterop, RoInitialize, RO_INIT_MULTITHREADED,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetAncestor, GetClassNameA, GetDesktopWindow, GetWindowLongA, GetWindowRect, GetWindowTextA,
-    GetWindowThreadProcessId, IsWindow, IsWindowVisible, RealGetWindowClassA, GA_ROOT,
-    GET_ANCESTOR_FLAGS, GWL_STYLE, WS_VISIBLE,
+    EnumWindows, GetAncestor, GetClassNameA, GetDesktopWindow, GetWindowLongA, GetWindowLongW,
+    GetWindowRect, GetWindowTextA, GetWindowThreadProcessId, IsWindow, IsWindowVisible,
+    RealGetWindowClassA, SetWindowTextA, SetWindowTextW, ShowWindow, GA_ROOT, GET_ANCESTOR_FLAGS,
+    GWL_STYLE, SW_SHOWMINIMIZED, WS_VISIBLE,
 };
 
 use capture::enumerate_capturable_windows;
 use display_info::enumerate_displays;
-use std::ffi::{c_void, CStr};
+use std::collections::HashSet;
+use std::ffi::{c_void, CStr, CString};
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 use window_info::WindowInfo;
+use windows::{s, w};
 
 //var hwnd = GetAncestor(findHwnd, GetAncestorFlags.GA_ROOT);
 
@@ -100,12 +110,191 @@ fn get_window_text(hwnd: HWND) -> anyhow::Result<String> {
     }
 }
 
+/// 查找所有有效窗口
+/// 1. 必须是顶层窗口，Ancestor 等于自身
+/// 2. 必须时可见窗口
+fn find_all_windows() -> HashSet<isize> {
+    unsafe extern "system" fn enum_hwnd(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let mut hwnds = Box::from_raw(lparam.0 as *mut HashSet<isize>);
+
+        let hwnd_ancestor = GetAncestor(hwnd, GA_ROOT);
+        if hwnd_ancestor == hwnd {}
+
+        let style = GetWindowLongW(hwnd, GWL_STYLE) as u32;
+        let visible = (style & WS_VISIBLE.0) == WS_VISIBLE.0;
+
+        if visible {
+            hwnds.insert(hwnd.0);
+        }
+
+        std::mem::forget(hwnds);
+        BOOL(1)
+    }
+
+    let boxed_hwnds = Box::new(HashSet::<isize>::new());
+    let boxed_hwnds_ptr = Box::into_raw(boxed_hwnds) as isize;
+
+    unsafe {
+        EnumWindows(Some(enum_hwnd), LPARAM(boxed_hwnds_ptr));
+        let hwnds = Box::from_raw(boxed_hwnds_ptr as *mut HashSet<isize>);
+        return *hwnds;
+    }
+}
+
+fn create_capture_item_for_cmdline(cmdline: &str) -> Result<(HWND, GraphicsCaptureItem)> {
+    let mut cmdline16 = U16CString::from_str(&cmdline).unwrap();
+
+    let cmdline_path = PathBuf::from(&cmdline);
+    let curr_dir = cmdline_path.parent().unwrap().to_str().unwrap();
+    let curr_dir16 = U16String::from_str(curr_dir);
+
+    info!("cmdline = {}", &cmdline);
+    info!("curr_dir = {}", &curr_dir);
+
+    let mut si: STARTUPINFOW = unsafe { std::mem::zeroed() };
+    si.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
+    // si.lpDesktop = PWSTR::from_raw(desktop_name.as_mut_ptr());
+    si.lpDesktop = PWSTR::from_raw(w!("winsta0\\default").as_ptr() as *mut u16);
+    let mut pi: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
+
+    let hwnds_before = find_all_windows();
+
+    let ret = unsafe {
+        CreateProcessW(
+            None,
+            PWSTR::from_raw(cmdline16.as_mut_ptr()),
+            None,
+            None,
+            false,
+            NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE,
+            None,
+            None,
+            &si as *const STARTUPINFOW as *mut STARTUPINFOW,
+            &mut pi,
+        )
+    };
+
+    info!("pi.dwProcessId = {}", pi.dwProcessId);
+    info!("pi.dwThreadId = {}", pi.dwThreadId);
+
+    let sys_time = std::time::SystemTime::now();
+    let second_10 = std::time::Duration::from_secs(10);
+
+    let interop =
+        windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>().unwrap();
+
+    'outter: loop {
+        let hwnds_after = find_all_windows();
+
+        if hwnds_after.len() > 0 {
+            for hwnd in hwnds_after {
+                if hwnds_before.contains(&hwnd) {
+                    continue;
+                }
+
+                // let title = get_window_text(HWND(hwnd)).unwrap();
+                // let class = get_window_class(HWND(hwnd)).unwrap();
+                // let real_class = get_window_real_class(HWND(hwnd)).unwrap();
+
+                // let mut process_id: u32 = 0;
+                // GetWindowThreadProcessId(HWND(hwnd), Some(&mut process_id));
+                // info!(
+                //     "Window {}, ProcessId: {}, Title: {}, Class: {} / {}",
+                //     hwnd, process_id, &title, &class, &real_class
+                // );
+
+                error!("interop.CreateForWindow(HWND({:?}))", hwnd);
+
+                let result: ::windows::core::Result<GraphicsCaptureItem> =
+                    unsafe { interop.CreateForWindow(HWND(hwnd)) };
+
+                if result.is_err() {
+                    error!("interop.CreateForWindow error: {:?}", result.unwrap_err());
+                    continue;
+                }
+
+                let item_ret = result;
+                if item_ret.is_err() {
+                    error!("item_ret.is_err(): {:?}", item_ret.unwrap_err());
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    continue;
+                }
+
+                let item = item_ret.unwrap();
+
+                let size_ret = item.Size();
+
+                if size_ret.is_err() {
+                    error!("size_ret.is_err()");
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    continue;
+                }
+
+                let size = size_ret.unwrap();
+                info!(
+                    "size.Width == {} && size.Height == {}",
+                    size.Width, size.Height
+                );
+
+                if size.Width == 0 && size.Height == 0 {
+                    error!("size.Width == 0 && size.Height == 0");
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    continue;
+                }
+
+                // 窗口尺寸正常，但是这可能不稳定，100ms 后再次查询
+                std::thread::sleep(std::time::Duration::from_millis(100));
+
+                let size_ret = item.Size();
+
+                if size_ret.is_err() {
+                    error!("size_ret.is_err()");
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    continue;
+                }
+
+                let size = size_ret.unwrap();
+                info!(
+                    "size.Width == {} && size.Height == {}",
+                    size.Width, size.Height
+                );
+
+                if size.Width == 0 && size.Height == 0 {
+                    error!("size.Width == 0 && size.Height == 0");
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    continue;
+                }
+
+                // DEBUG: 关闭窗口
+                // PostThreadMessageA(pi.dwThreadId, WM_QUIT, None, None);
+                return Ok((HWND(hwnd), item));
+            }
+        }
+
+        // 大于 10‘s 还未启动，启动失败，退出
+        if sys_time.elapsed().unwrap() > second_10 {
+            break 'outter;
+        }
+
+        // sleep 1 millis
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+
+    Err(windows::core::Error::from_win32())
+}
+
 fn create_capture_item_for_window(window_handle: HWND) -> Result<GraphicsCaptureItem> {
     unsafe {
         let mut buf: [u8; 256] = std::mem::zeroed();
         GetWindowTextA(window_handle, &mut buf);
         let win_text = CStr::from_bytes_with_nul_unchecked(&buf);
         info!("Window Text: {}", win_text.to_str().unwrap());
+
+        let console_hwnd = GetConsoleWindow();
+
+        let new_title = format!("Capturer: {}", win_text.to_str().unwrap());
+        let new_title16 = U16String::from_str(&new_title);
+        SetWindowTextW(console_hwnd, PCWSTR::from_raw(new_title16.as_ptr()));
     }
 
     info!("Window Text: {:?}", get_window_text(window_handle));
@@ -148,11 +337,22 @@ fn main() -> Result<()> {
     logger::init();
     log::set_max_level(log::LevelFilter::Trace);
 
+    unsafe {
+        let console_hwnd = GetConsoleWindow();
+        info!("console_hwnd: {:?}", console_hwnd);
+        ShowWindow(console_hwnd, SW_SHOWMINIMIZED);
+    }
+
     let args = cli::Args::parse();
     let mode = CaptureMode::from_args(&args);
     let mut hwnd: Option<HWND> = None;
 
     let item = match mode {
+        CaptureMode::CommandLine(cmdline) => {
+            let (h, item) = create_capture_item_for_cmdline(&cmdline)?;
+            hwnd = Some(h);
+            item
+        }
         CaptureMode::WindowId(hwnd) => create_capture_item_for_window(HWND(hwnd))?,
         CaptureMode::WindowTitle(query) => {
             let window = get_window_from_query(&query)?;
@@ -203,21 +403,45 @@ fn take_screenshot(hwnd: Option<HWND>, item: &GraphicsCaptureItem, x: i32, y: i3
     let mut composer = SurfaceComposerClient::new().unwrap();
 
     let item_size = item.Size()?;
+    info!("item_size: {:?}", item_size);
 
     info!("d3d::create_d3d_device()");
-    let d3d_device = d3d::create_d3d_device()?;
+    let d3d_device = match d3d::create_d3d_device() {
+        Ok(v) => v,
+        Err(err) => {
+            error!("d3d::create_d3d_device error {:?}", &err);
+            return Err(err);
+        }
+    };
     let d3d_context = unsafe {
         let mut d3d_context = None;
         d3d_device.GetImmediateContext(&mut d3d_context);
         d3d_context.unwrap()
     };
-    let device = d3d::create_direct3d_device(&d3d_device)?;
-    let frame_pool = Direct3D11CaptureFramePool::CreateFreeThreaded(
+
+    let device = match d3d::create_direct3d_device(&d3d_device) {
+        Ok(v) => v,
+        Err(err) => {
+            error!("d3d::create_direct3d_device error {:?}", &err);
+            return Err(err);
+        }
+    };
+
+    let frame_pool = match Direct3D11CaptureFramePool::CreateFreeThreaded(
         &device,
         DirectXPixelFormat::B8G8R8A8UIntNormalized,
         1,
         item_size,
-    )?;
+    ) {
+        Ok(v) => v,
+        Err(err) => {
+            error!(
+                "Direct3D11CaptureFramePool::CreateFreeThreaded error {:?}",
+                &err
+            );
+            return Err(err);
+        }
+    };
 
     info!("frame_pool.CreateCaptureSession");
     let mut session = frame_pool.CreateCaptureSession(item)?;
@@ -247,15 +471,18 @@ fn take_screenshot(hwnd: Option<HWND>, item: &GraphicsCaptureItem, x: i32, y: i3
     let mut x = 0;
     let mut y = 0;
 
+    let mut starting = true;
+
     loop {
         unsafe {
             // 30FPS
             let frame_res = receiver.recv_timeout(Duration::from_millis(1000 / 30));
 
             if let Err(err) = frame_res {
-                error!("RecvError: {:?}", err);
+                // error!("RecvError: {:?}", err);
                 // 超时，判断窗口是否存在
                 if let Some(hwnd) = hwnd {
+                    info!("RecvTimeout，IsWindow(hwnd): {:?}", IsWindow(hwnd));
                     if IsWindow(hwnd) == BOOL(0) {
                         error!("Windows is exist: exit");
                         break;
@@ -266,7 +493,7 @@ fn take_screenshot(hwnd: Option<HWND>, item: &GraphicsCaptureItem, x: i32, y: i3
 
             let frame = frame_res.unwrap();
 
-            info!("Receive frame");
+            // info!("Receive frame");
 
             let content_size = frame.ContentSize()?;
 

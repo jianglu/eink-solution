@@ -9,7 +9,7 @@ edition = "2021"
 anyhow = "1.0"
 log = "0.4.17"
 clap = { version = "4.0.4", features = ["derive"] }
-
+widestring = "1.0.2"
 
 [dependencies.eink-composer-lib]
 path = "../eink-composer-lib"
@@ -21,6 +21,7 @@ features = [
     "Foundation",
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_Security",
     "Win32_System_Console",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
@@ -31,6 +32,10 @@ features = [
     "Win32_System_WinRT",
     "Win32_System_WinRT_Direct3D11",
     "Win32_System_WinRT_Graphics_Capture",
+    "Win32_System_StationsAndDesktops",
+    "Win32_System_SystemServices",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Threading",
     "UI",
     "Storage",
     "Storage_Streams",
