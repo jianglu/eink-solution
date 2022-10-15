@@ -22,7 +22,7 @@ use log::{debug, info};
 use winapi::shared::ntdef::NULL;
 use winapi::shared::{minwindef::DWORD, ntdef::HANDLE};
 
-use crate::{composer, eink, logger::output_debug_string, win_utils};
+use crate::{composer, eink, win_utils};
 
 const EINK_COMPOSER_NAME: &str = "eink-composer.exe";
 

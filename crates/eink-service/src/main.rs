@@ -53,7 +53,7 @@ mod eink_ton;
 mod global;
 mod iddcx;
 mod ipc;
-mod logger;
+// mod logger;
 mod reg;
 mod vmon;
 mod win_utils;
@@ -225,11 +225,8 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    // TODO: 当前设置日志级别为全部输出
-    log::set_max_level(log::LevelFilter::Trace);
-
     // 设置当前的活动日志系统为 OutputDebugString 输出
-    logger::init();
+    eink_logger::init_with_level(log::Level::Trace);
 
     info!("{} Starting", EINK_SERVICE_NAME);
 

@@ -1,0 +1,30 @@
+#define RT_MANIFEST 24
+1 RT_MANIFEST "app.manifest"
+
+1 VERSIONINFO
+FILEVERSION    0,1,0,16384
+PRODUCTVERSION 1,0,0,0
+FILEFLAGS 0x1L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x1L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080904E4"
+        BEGIN
+            VALUE "CompanyName", "Lenoovo"
+            VALUE "FileDescription", "Lenovo ThinkBook Eink Service"
+            VALUE "FileVersion", "6000"
+            VALUE "InternalName", "eink-service"
+            VALUE "LegalCopyright", "Lenovo Copyright"
+            VALUE "OriginalFilename", "eink-service.exe"
+            VALUE "ProductName", "ThinkBook Eink Plus"
+            VALUE "ProductVersion", "1.0"
+        END
+   END
+   BLOCK "VarFileInfo"
+   BEGIN
+      VALUE "Translation", 0x809, 1252
+   END
+END
