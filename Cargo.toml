@@ -1,5 +1,8 @@
 [workspace]
 members = [
+    # Windows 日志库，支持环境变量配置，OutputDebugString 输出
+    "crates/eink-logger",
+
     "crates/eink-eventbus",
     # "crates/eink-watchreg",
     "crates/eink-service",
