@@ -242,8 +242,8 @@ fn create_capture_item_for_cmdline(cmdline: &str) -> Result<(HWND, GraphicsCaptu
                     continue;
                 }
 
-                // 窗口尺寸正常，但是这可能不稳定，100ms 后再次查询
-                std::thread::sleep(std::time::Duration::from_millis(100));
+                // 窗口尺寸正常，但是这可能不稳定，500ms 后再次查询
+                std::thread::sleep(std::time::Duration::from_millis(500));
 
                 let size_ret = item.Size();
 

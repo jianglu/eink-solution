@@ -69,7 +69,7 @@ impl Listener<ModeSwitchMessage> for EinkService {
 
 /// 查找 EINK 显示器的 Stable ID
 /// TODO: 使用 PID/VID 查找
-pub fn find_eink_display_stable_id() -> Result<String> {
+pub fn find_eink_display_stable_id_with_prefix(prefix: &str) -> Result<String> {
     let manager = winrt::DisplayManager::Create(winrt::DisplayManagerOptions::None)?;
     for (i, t) in manager.GetCurrentTargets()?.into_iter().enumerate() {
         info!("Display[{}] UsageKind: {:?}", i, t.UsageKind()?);
@@ -78,10 +78,17 @@ pub fn find_eink_display_stable_id() -> Result<String> {
 
         info!("Display[{}] {}", i, monitor_id);
 
-        if monitor_id.starts_with("MS_") {
+        if monitor_id.starts_with(prefix) {
             info!("Find EInk Display {}", monitor_id);
             return Ok(monitor_id);
         }
     }
     bail!("Cannot find eink display stable id");
+}
+
+pub fn find_eink_display_stable_id() -> Result<String> {
+    match find_eink_display_stable_id_with_prefix("WH") {
+        Ok(id) => Ok(id),
+        Err(_) => find_eink_display_stable_id_with_prefix("MS_"),
+    }
 }

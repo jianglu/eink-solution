@@ -170,7 +170,12 @@ impl CapturerServiceImpl {
                     kill_process_by_pid(pid, 0);
                 }
 
-                // 启动 Launcher
+                // 关闭桌面捕获
+                if let Some(pid) = self.launcher_capturer_pid.take() {
+                    kill_process_by_pid(pid, 0);
+                }
+
+                // 重新动 Launcher
                 let proc_name = "EinkPlus.exe";
                 let proc_dir = "C:\\Program Files\\Lenovo\\ThinkBookEinkPlus";
                 let proc_cmd = "C:\\Program Files\\Lenovo\\ThinkBookEinkPlus\\EinkPlus.exe";

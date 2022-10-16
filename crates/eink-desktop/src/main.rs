@@ -2,6 +2,7 @@ use std::{collections::HashSet, ffi::CStr, mem::zeroed, path::PathBuf};
 
 use anyhow::Result;
 use cmd_lib::{run_cmd, spawn};
+use log::info;
 use widestring::{U16CStr, U16CString};
 use windows::{
     core::{PCWSTR, PWSTR},
@@ -13,7 +14,7 @@ use windows::{
         System::{
             StationsAndDesktops::{
                 CloseDesktop, CreateDesktopW, EnumDesktopWindows, EnumDesktopsW, GetThreadDesktop,
-                SwitchDesktop, DF_ALLOWOTHERACCOUNTHOOK,
+                OpenDesktopW, SwitchDesktop, DF_ALLOWOTHERACCOUNTHOOK,
             },
             SystemServices::{
                 DESKTOP_CREATEMENU, DESKTOP_CREATEWINDOW, DESKTOP_ENUMERATE, DESKTOP_HOOKCONTROL,
@@ -30,7 +31,7 @@ use windows::{
             CloseWindow, EnumWindows, GetAncestor, GetClassNameA, GetDesktopWindow, GetWindowLongA,
             GetWindowLongW, GetWindowTextA, GetWindowTextW, GetWindowThreadProcessId,
             PostQuitMessage, PostThreadMessageA, RealGetWindowClassA, GA_ROOT, GET_ANCESTOR_FLAGS,
-            GWL_STYLE, WM_QUIT, WNDENUMPROC, WS_VISIBLE,
+            GWL_STYLE, WM_QUIT, WNDENUMPROC, WS_VISIBLE, HCF_DEFAULTDESKTOP,
         },
     },
 };
@@ -112,6 +113,8 @@ fn main() -> Result<()> {
     //     [in, optional] LPSECURITY_ATTRIBUTES lpsa
     // );
 
+    eink_logger::init_with_env()?;
+
     const GENERIC_ALL: u32 = DESKTOP_CREATEMENU.0
         | DESKTOP_CREATEWINDOW.0
         | DESKTOP_ENUMERATE.0
@@ -135,7 +138,12 @@ fn main() -> Result<()> {
         .unwrap()
     };
 
-    println!("Hello world: hdesk: {:?}", hdesk);
+    log::trace!("TRACE: Hello world");
+    log::info!("INFO Hello world: hdesk: {:?}", hdesk);
+    log::debug!("DEBUG: Hello world");
+    log::error!("ERROR: Hello world");
+
+    return Ok(());
 
     unsafe {
 
@@ -148,16 +156,12 @@ fn main() -> Result<()> {
         // EnumDesktopsW()
     };
 
-    // unsafe {
-    //     SwitchDesktop(hdesk);
-    // }
-
     unsafe {
         let mut desktop_name = U16CString::from_str("EInk Desktop").unwrap();
         let mut si: STARTUPINFOW = zeroed();
         si.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
-        // si.lpDesktop = PWSTR::from_raw(desktop_name.as_mut_ptr());
-        si.lpDesktop = PWSTR::from_raw(w!("winsta0\\default").as_ptr() as *mut u16);
+        si.lpDesktop = PWSTR::from_raw(desktop_name.as_mut_ptr());
+        // si.lpDesktop = PWSTR::from_raw(w!("winsta0\\default").as_ptr() as *mut u16);
         let mut pi: PROCESS_INFORMATION = zeroed();
 
         // let cmdline = "C:\\Program Files\\Lenovo\\Lenovo Reader\\net6.0-windows\\Lenovo.Reader.exe";
@@ -187,8 +191,15 @@ fn main() -> Result<()> {
         println!("pi.dwProcessId = {}", pi.dwProcessId);
         println!("pi.dwThreadId = {}", pi.dwThreadId);
 
+        let sys_time = std::time::SystemTime::now();
+        let five_secs = std::time::Duration::from_secs(5);
+
         'outter: loop {
             let hwnds_after = find_all_windows();
+
+            if sys_time.elapsed().unwrap() > five_secs {
+                break;
+            }
 
             if hwnds_after.len() > 0 {
                 for hwnd in hwnds_after {
@@ -219,12 +230,34 @@ fn main() -> Result<()> {
                     }
 
                     // DEBUG: 关闭窗口
-                    PostThreadMessageA(pi.dwThreadId, WM_QUIT, None, None);
+                    // PostThreadMessageA(pi.dwThreadId, WM_QUIT, None, None);
                     break 'outter;
                 }
             }
         }
     }
+
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
+    unsafe {
+        SwitchDesktop(hdesk);
+    }
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    unsafe {
+        let def_hdesk = OpenDesktopW(
+            PCWSTR::from_raw(w!("winsta0\\default").as_ptr() as *mut u16),
+            DF_ALLOWOTHERACCOUNTHOOK,
+            false,
+            GENERIC_ALL,
+        )
+        .unwrap();
+        SwitchDesktop(def_hdesk);
+        CloseDesktop(def_hdesk);
+    }
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     unsafe {
         CloseDesktop(hdesk);

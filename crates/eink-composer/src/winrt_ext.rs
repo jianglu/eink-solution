@@ -239,7 +239,7 @@ impl IDXGIAdapterExt for IDXGIAdapter {
                 self,
                 D3D_DRIVER_TYPE_UNKNOWN,
                 HINSTANCE(0),
-                D3D11_CREATE_DEVICE_DEBUG,
+                D3D11_CREATE_DEVICE_FLAG(0),
                 &feature_levels,
                 D3D11_SDK_VERSION,
                 &mut device_opt,

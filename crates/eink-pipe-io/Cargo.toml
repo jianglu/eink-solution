@@ -1,0 +1,16 @@
+[package]
+name = "eink-pipe-io"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = { version = "0.4", features = ["std", "serde"] }
+
+
+[dependencies.windows]
+version = "0.42"
+features = [
+    "Win32_System_Diagnostics_Debug",
+]

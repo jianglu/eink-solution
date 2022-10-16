@@ -5,7 +5,9 @@ members = [
 
     "crates/eink-eventbus",
     # "crates/eink-watchreg",
+
     "crates/eink-service",
+    "crates/eink-service-runner",
 
     "crates/eink-composer-lib",
     "crates/eink-composer",

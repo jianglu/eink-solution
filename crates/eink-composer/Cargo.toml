@@ -82,3 +82,7 @@ features = [
     "Graphics_DirectX",
     "Graphics_DirectX_Direct3D11",
 ]
+
+
+[build-dependencies]
+embed-resource = "1.7"

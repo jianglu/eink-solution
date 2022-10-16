@@ -25,6 +25,12 @@ Mode 2: 应用置顶模式，需要虚拟桌面
 
 // UACPromptEvent UAC 弹出事件，Windows Desktop Layer 临时提升优先级
 
+
+Mode0: OLED+Keyboard
+Mode1：EINK+Keyboard
+Mode2：OLED
+Mode3：EINK
+
 # Project Layout
 
 ## Directories
@@ -41,6 +47,8 @@ Mode 2: 应用置顶模式，需要虚拟桌面
 3. EinkCapturer.exe     屏幕、窗口捕获器
 4. EinkSettings.exe     设置程序
 5. EinkCrashReport.exe  奔溃报告
+
+1. eink-logger          系统化日志模块，支持文件日志、DebugView 日志等
 
 ## Libraries
 

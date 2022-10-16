@@ -1,0 +1,27 @@
+1 VERSIONINFO
+FILEVERSION    0,1,0,16384
+PRODUCTVERSION 1,0,0,0
+FILEFLAGS 0x1L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x1L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080904E4"
+        BEGIN
+            VALUE "CompanyName", "Lenoovo"
+            VALUE "FileDescription", "Lenovo ThinkBook Eink Composer"
+            VALUE "FileVersion", "6000"
+            VALUE "InternalName", "eink-composer"
+            VALUE "LegalCopyright", "Lenovo Copyright"
+            VALUE "OriginalFilename", "eink-composer.exe"
+            VALUE "ProductName", "ThinkBook Eink Plus"
+            VALUE "ProductVersion", "1.0"
+        END
+   END
+   BLOCK "VarFileInfo"
+   BEGIN
+      VALUE "Translation", 0x809, 1252
+   END
+END

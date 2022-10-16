@@ -121,5 +121,4 @@ features = [
 
 
 [build-dependencies]
-# 嵌入 Windows Resources 到 exe 中
 embed-resource = "1.7"

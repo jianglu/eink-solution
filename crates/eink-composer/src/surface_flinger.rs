@@ -253,7 +253,7 @@ impl SurfaceFlinger {
                             GetExitCodeProcess(hprocess, &mut exit_code as *const u32 as *mut u32)
                         };
                         if exit_code == STILL_ACTIVE {
-                            info!("TryAgain 1, pid: {:?} STILL_ACTIVE", *pid);
+                            // info!("TryAgain 1, pid: {:?} STILL_ACTIVE", *pid);
                             continue;
                         } else {
                             // let last_error = unsafe { GetLastError() };
