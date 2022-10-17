@@ -12,7 +12,9 @@
 
 use anyhow::{bail, Ok, Result};
 
-use windows::Devices::Display::Core::{DisplayFence, DisplayScanout, DisplayManagerResult};
+use log::info;
+
+use windows::Devices::Display::Core::{DisplayFence, DisplayManagerResult, DisplayScanout};
 use windows::Graphics::DirectX::DirectXPixelFormat;
 use windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext4;
 use windows::Win32::Graphics::Dxgi::IDXGIAdapter;
@@ -83,7 +85,7 @@ impl SwapChain {
         let usage_kind = target.UsageKind()?;
 
         if usage_kind != DisplayMonitorUsageKind::SpecialPurpose {
-            println!("usage_kind: {:?}", usage_kind);
+            info!("usage_kind: {:?}", usage_kind);
             set_monitor_specialized(&target, true)?;
 
             // 再次尝试获取
@@ -96,7 +98,7 @@ impl SwapChain {
         // Create a state object for setting modes on the targets
         let targets_iter: IIterable<DisplayTarget> = iterable::Iterable(target_vec).into();
 
-        println!("TryAcquireTargetsAndCreateEmptyState !");
+        info!("TryAcquireTargetsAndCreateEmptyState !");
         let result = manager
             .TryAcquireTargetsAndCreateEmptyState(&targets_iter)
             .unwrap();
@@ -107,10 +109,10 @@ impl SwapChain {
             panic!("TryAcquireTargetsAndCreateEmptyState: TargetAccessDenied");
         }
 
-        println!("result.ErrorCode: {:?}", errcode);
-        println!("result.ExtendedErrorCode: {:?}", result.ExtendedErrorCode());
+        info!("result.ErrorCode: {:?}", errcode);
+        info!("result.ExtendedErrorCode: {:?}", result.ExtendedErrorCode());
 
-        println!("result.State !");
+        info!("result.State !");
         let state = result.State().expect("XXX");
 
         config_best_display_mode(&state, &target)?;
@@ -133,18 +135,18 @@ impl SwapChain {
 
         // Create a task pool for queueing presents
         let task_pool = device.CreateTaskPool()?;
-        println!("task_pool: {:?}", task_pool);
+        info!("task_pool: {:?}", task_pool);
 
         // Create DXGI Adapter
         let dxgi_adapter = adapter.create_dxgi_adapter()?;
 
         // Create D3D11 Stuff
         let (d3d_device, d3d_context) = dxgi_adapter.create_d3d11_device()?;
-        println!("d3d_device: {:?}", d3d_device);
+        info!("d3d_device: {:?}", d3d_device);
 
         let d3d_fence = d3d_device.create_shared_fence()?;
         let fence = device.create_shared_fence(&d3d_fence)?;
-        println!("fence: {:?}", fence);
+        info!("fence: {:?}", fence);
 
         let mut primaries = Vec::<DisplaySurface>::new();
         let mut scanouts = Vec::<DisplayScanout>::new();
@@ -273,14 +275,14 @@ fn config_best_display_mode(state: &DisplayState, target: &DisplayTarget) -> Res
     let mut best_mode: Option<DisplayModeInfo> = None;
     let mut best_mode_diff = f32::MAX;
 
-    println!("modes.Size() : {}", modes.Size()?);
+    info!("modes.Size() : {}", modes.Size()?);
 
     for mode in modes {
         let v_sync = mode.PresentationRate()?.VerticalSyncRate;
         let v_sync_double = v_sync.Numerator as f32 / v_sync.Denominator as f32;
 
         let tr = mode.TargetResolution().unwrap();
-        println!("TargetResolution : {}x{}", tr.Width, tr.Height);
+        info!("TargetResolution : {}x{}", tr.Width, tr.Height);
 
         let mode_diff = f32::abs(v_sync_double - 60f32);
         if mode_diff < best_mode_diff {
