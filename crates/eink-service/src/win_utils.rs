@@ -386,12 +386,12 @@ unsafe fn get_current_user_token() -> Result<HANDLE> {
     Ok(primary_token)
 }
 
-pub fn run_as_admin(proc_name: &str, proc_dir: &str, proc_cmd: &str) -> Result<DWORD> {
-    unsafe { run_admin_privilege_unsafe(proc_name, proc_dir, proc_cmd) }
+pub fn run_as_admin(proc_dir: &str, proc_cmd: &str) -> Result<DWORD> {
+    unsafe { run_admin_privilege_unsafe(proc_dir, proc_cmd) }
 }
 
 pub unsafe fn run_admin_privilege_unsafe(
-    proc_name: &str,
+    // proc_name: &str,
     proc_dir: &str,
     proc_cmd: &str,
 ) -> Result<DWORD> {
@@ -421,7 +421,7 @@ pub unsafe fn run_admin_privilege_unsafe(
     let mut si: STARTUPINFOW = zeroed();
     let mut pi: PROCESS_INFORMATION = zeroed();
 
-    let proc_name16 = U16CString::from_str(proc_name)?;
+    // let proc_name16 = U16CString::from_str(proc_name)?;
     let proc_dir16 = U16CString::from_str(proc_dir)?;
     let mut proc_cmd16 = U16CString::from_str(proc_cmd)?;
 

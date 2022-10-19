@@ -195,7 +195,7 @@ pub fn get_iddcx_device_path_internal() -> Result<String> {
 
     let mut dev_iface_data: winrt::SP_DEVICE_INTERFACE_DATA = unsafe { zeroed() };
     dev_iface_data.cbSize = std::mem::size_of::<winrt::SP_DEVICE_INTERFACE_DATA>() as u32;
-    println!("dev_iface_data.cbSize: {:?}", dev_iface_data.cbSize);
+    info!("dev_iface_data.cbSize: {:?}", dev_iface_data.cbSize);
 
     let result = unsafe {
         winrt::SetupDiEnumDeviceInterfaces(

@@ -22,7 +22,7 @@ use log::{debug, info};
 use winapi::shared::ntdef::NULL;
 use winapi::shared::{minwindef::DWORD, ntdef::HANDLE};
 
-use crate::{composer, eink, win_utils};
+use crate::{composer, eink_service, win_utils};
 
 const EINK_COMPOSER_NAME: &str = "eink-composer.exe";
 
@@ -35,7 +35,7 @@ struct ComposerServiceImpl {
 
 impl ComposerServiceImpl {
     pub fn new() -> Result<Self> {
-        let eink_stable_id = eink::find_eink_display_stable_id()?;
+        let eink_stable_id = eink_service::find_eink_display_stable_id()?;
         info!("Eink Stable Monitor Id: {}", eink_stable_id);
 
         let pid = Arc::new(Mutex::new(0));
@@ -43,15 +43,6 @@ impl ComposerServiceImpl {
 
         // 创建 eink-composer 进程，并通过匿名管道和 eink-composer 进程建立双向通讯
         std::thread::spawn(move || {
-            // cmd_lib::spawn_with_output!(eink-composer.exe --monitor-id $eink_stable_id  --test-background true --test-layer true)
-            //     .unwrap()
-            //     .wait_with_pipe(&mut |pipe| {
-            //         BufReader::new(pipe)
-            //             .lines()
-            //             .for_each(|line| output_debug_string(&line.unwrap()));
-            //     })
-            //     .unwrap();
-
             let curr_dir = std::env::current_dir().unwrap();
 
             let proc_name = "eink-composer.exe";
@@ -69,37 +60,7 @@ impl ComposerServiceImpl {
 
             *pid_clone.lock().unwrap() = pid;
 
-            // let mut composer = Command::new(EINK_COMPOSER_NAME)
-            //     .arg("--monitor-id")
-            //     .arg(&eink_stable_id)
-            //     .spawn();
-
-            // let mut composer = match composer {
-            //     Ok(composer) => composer,
-            //     Err(err) => {
-            //         debug!("Composer Error: {:?}", err);
-            //         return;
-            //     }
-            // };
-
-            // let stdout = composer.stdout.take().expect("failed to get stdout");
-            // let stderr = composer.stderr.take().expect("failed to get stdout");
-
             info!("Composer is running !!!");
-
-            // std::thread::spawn(move || {
-            //     let reader = std::io::BufReader::new(stdout);
-            //     reader
-            //         .lines()
-            //         .for_each(|l| output_debug_string(&l.unwrap()));
-            // });
-
-            // std::thread::spawn(move || {
-            //     let reader = std::io::BufReader::new(stderr);
-            //     reader
-            //         .lines()
-            //         .for_each(|l| output_debug_string(&l.unwrap()));
-            // });
         });
 
         Ok(Self { pid })

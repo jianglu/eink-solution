@@ -38,9 +38,19 @@ pub struct ServiceControlMessage {
 #[derive(Debug)]
 pub struct HotKeyMessage {}
 
-// 模式切换消息
+pub enum LidState {
+    Open,
+    Close,
+}
+
+// 上盖状态消息
+pub struct LidStateMessage {
+    pub state: LidState,
+}
+
+// 注册表模式切换消息
 #[derive(Debug)]
-pub struct ModeSwitchMessage {
+pub struct RegModeUpdateMessage {
     pub mode: u32,
 }
 

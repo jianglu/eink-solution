@@ -12,6 +12,7 @@
 
 use anyhow::{Ok, Result};
 use log::info;
+use parking_lot::RwLock;
 use std::sync::{Arc, Mutex};
 use winapi::shared::minwindef::DWORD;
 use windows::{
@@ -27,7 +28,7 @@ use eink_eventbus::{Event, Listener};
 
 use crate::{
     global::{
-        CaptureWindowMessage, ModeSwitchMessage, ModeSwitchMessage2, TestMessage, EVENTBUS,
+        CaptureWindowMessage, ModeSwitchMessage2, RegModeUpdateMessage, TestMessage, EVENTBUS,
         GENERIC_TOPIC_KEY, GENERIC_TOPIC_KEY_NAME,
     },
     win_utils::{self, kill_process_by_pid, run_as_admin},
@@ -56,6 +57,31 @@ impl CapturerServiceImpl {
         })
     }
 
+    /// 设置桌面捕获器状态
+    pub fn set_desktop_capturer_status(&mut self, enabled: bool) -> Result<()> {
+        if enabled {
+            if self.desktop_capturer_pid.is_none() {
+                let curr_dir = std::env::current_dir().unwrap();
+
+                let proc_name = "eink-capturer.exe";
+                let proc_dir = curr_dir.to_str().unwrap();
+                let proc_cmd = &format!("{}\\eink-capturer.exe --primary --band 0", proc_dir);
+
+                let pid = run_as_admin(proc_dir, proc_cmd).unwrap();
+                self.desktop_capturer_pid = Some(pid);
+
+                info!("desktop_capturer_pid: {}", pid);
+            }
+        } else {
+            // 关闭桌面捕获
+            if let Some(pid) = self.desktop_capturer_pid.take() {
+                kill_process_by_pid(pid, 0);
+            }
+        }
+
+        Ok(())
+    }
+
     /// 捕获窗口
     pub fn capture_app(&mut self, cmdline: &str) {
         info!("CapturerServiceImpl::capture_app({:?})", cmdline);
@@ -77,7 +103,7 @@ impl CapturerServiceImpl {
             proc_dir, cmdline
         );
 
-        let pid = run_as_admin(proc_name, proc_dir, proc_cmd).unwrap();
+        let pid = run_as_admin(proc_dir, proc_cmd).unwrap();
         self.app_capturer_pid = Some(pid);
 
         info!("app capturer pid: {}", pid);
@@ -104,7 +130,7 @@ impl CapturerServiceImpl {
             proc_dir, hwnd.0
         );
 
-        let pid = run_as_admin(proc_name, proc_dir, proc_cmd).unwrap();
+        let pid = run_as_admin(proc_dir, proc_cmd).unwrap();
         self.app_capturer_pid = Some(pid);
 
         info!("app capturer pid: {}", pid);
@@ -150,7 +176,7 @@ impl CapturerServiceImpl {
                     // winproc::run_as_user
                     // winproc::run_as_admin
 
-                    let pid = run_as_admin(proc_name, proc_dir, proc_cmd).unwrap();
+                    let pid = run_as_admin(proc_dir, proc_cmd).unwrap();
                     self.desktop_capturer_pid = Some(pid);
 
                     info!("desktop_capturer_pid: {}", pid);
@@ -184,7 +210,7 @@ impl CapturerServiceImpl {
                 info!("proc_dir: {}", proc_dir);
                 info!("proc_cmd: {}", proc_cmd);
 
-                let pid = run_as_admin(proc_name, proc_dir, proc_cmd).unwrap();
+                let pid = run_as_admin(proc_dir, proc_cmd).unwrap();
                 self.launcher_pid = Some(pid);
 
                 info!("launcher pid: {}", pid);
@@ -237,7 +263,7 @@ impl CapturerServiceImpl {
                         proc_dir
                     );
 
-                    let pid = run_as_admin(proc_name, proc_dir, proc_cmd).unwrap();
+                    let pid = run_as_admin(proc_dir, proc_cmd).unwrap();
                     self.launcher_capturer_pid = Some(pid);
 
                     info!("launcher_capturer_pid: {}", pid);
@@ -266,15 +292,27 @@ impl CapturerServiceImpl {
 
 #[derive(Clone)]
 pub struct CapturerService {
-    inner: Arc<Mutex<CapturerServiceImpl>>,
+    inner: Arc<RwLock<CapturerServiceImpl>>,
 }
 
 impl CapturerService {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            inner: Arc::new(Mutex::new(CapturerServiceImpl::new()?)),
+            inner: Arc::new(RwLock::new(CapturerServiceImpl::new()?)),
         })
     }
+
+    /// 关闭所有捕获器
+    pub fn close_all_capturer(&self) -> Result<()> {
+        Ok(())
+    }
+
+    /// 设置桌面捕获器状态
+    pub fn set_desktop_capturer_status(&self, enabled: bool) -> Result<()> {
+        self.inner.write().set_desktop_capturer_status(enabled)?;
+        Ok(())
+    }
+
     pub fn start(&self) -> Result<&Self> {
         EVENTBUS.register::<ModeSwitchMessage2, &str, CapturerService>(
             GENERIC_TOPIC_KEY_NAME,
@@ -286,8 +324,10 @@ impl CapturerService {
             self.clone(),
         );
 
-        EVENTBUS
-            .register::<TestMessage, &str, CapturerService>(GENERIC_TOPIC_KEY_NAME, self.clone());
+        EVENTBUS.register::<TestMessage, &str, CapturerService>(
+            GENERIC_TOPIC_KEY_NAME, //
+            self.clone(),
+        );
         Ok(self)
     }
 }
@@ -295,7 +335,7 @@ impl CapturerService {
 impl Listener<ModeSwitchMessage2> for CapturerService {
     fn handle(&self, evt: &Event<ModeSwitchMessage2>) {
         info!("Capturer got ModeSwitchMessage2, mode: {}", evt.mode);
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.write();
         guard.on_mode_switch(evt.mode);
     }
 }
@@ -303,7 +343,7 @@ impl Listener<ModeSwitchMessage2> for CapturerService {
 /// 响应捕获窗口消息
 impl Listener<CaptureWindowMessage> for CapturerService {
     fn handle(&self, evt: &Event<CaptureWindowMessage>) {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.write();
         if evt.hwnd.is_some() {
             guard.capture_window(evt.hwnd.unwrap());
         } else if evt.cmdline.is_some() {
@@ -320,3 +360,12 @@ impl Listener<TestMessage> for CapturerService {
         (evt.reply_chan).send(99);
     }
 }
+
+//
+// 将 Native 库设置为 Lazy 全局变量
+//
+#[static_init::dynamic(lazy)]
+pub static CAPTURER_SERVICE: CapturerService = {
+    info!("Create CAPTURER_SERVICE");
+    CapturerService::new().unwrap()
+};

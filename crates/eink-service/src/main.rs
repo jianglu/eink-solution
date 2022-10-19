@@ -29,11 +29,12 @@ use windows_service::{
     service_dispatcher,
 };
 
-use eink::EinkService;
+use eink_service::EinkService;
 use eink_eventbus::*;
 
 use crate::{
-    capturer::CapturerService, composer::ComposerService, global::TestMessage, vmon::VirtMonService,
+    capturer::{CapturerService, CAPTURER_SERVICE}, composer::ComposerService, eink_desktop::EINK_DESKTOP_SERVICE,
+    global::TestMessage, virtual_monitor::{VirtualMonitorService, VIRTUAL_MONITOR_SERVICE},
 };
 use crate::{
     global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC_KEY},
@@ -48,18 +49,20 @@ use crate::{ipc::IpcService, reg::RegistryManagerService};
 mod capturer;
 mod composer;
 mod disp_filter;
-mod eink;
+mod eink_service;
+mod eink_desktop;
 mod eink_ton;
 mod global;
 mod iddcx;
 mod ipc;
 // mod logger;
 mod reg;
-mod vmon;
+mod settings;
+mod virtual_desktop;
+mod virtual_monitor;
 mod win_utils;
 mod winrt;
 mod wmi;
-mod settings;
 
 //
 // Globals
@@ -104,13 +107,13 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     std::env::set_current_dir(exe_dir)?;
 
     // 创建虚拟显示器管理器
-    info!("VirtualMonitorService::new");
-    let virtmon_srv = VirtMonService::new()?;
-    virtmon_srv.start()?;
+    // let virtmon_srv = VirtualMonitorService::new()?;
+    // virtmon_srv.start()?;
+    VIRTUAL_MONITOR_SERVICE.start();
 
     // 创建 EINK 服务管理器
     info!("EinkService::new");
-    let _eink_srv = EinkService::new();
+    let eink_srv = EinkService::new()?;
 
     // 创建热键管理器
     info!("EinkService::new");
@@ -122,8 +125,9 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
 
     // 创建捕获器
     info!("CapturerService::new");
-    let capturer_srv = CapturerService::new()?;
-    capturer_srv.start()?;
+    // let capturer_srv = CapturerService::new()?;
+    // capturer_srv.start()?;
+    CAPTURER_SERVICE.start()?;
 
     // 创建 WMI 管理器
     info!("WmiService::new");
@@ -131,7 +135,10 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
 
     // 创建 IPC 通讯管理器
     info!("IPC_SERVICE.start()");
-    IPC_SERVICE.start();
+    IPC_SERVICE.start()?;
+
+    // 启动 Eink Service
+    eink_srv.start()?;
 
     // 本地消息通道，将异步事件递交至本地执行上下文
     let (tx, rx) = channel::<ServiceStatus>();

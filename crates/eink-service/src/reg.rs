@@ -19,7 +19,7 @@ use winreg::RegKey;
 
 use eink_eventbus::Event;
 
-use crate::global::{ModeSwitchMessage, EVENTBUS, GENERIC_TOPIC_KEY};
+use crate::global::{RegModeUpdateMessage, EVENTBUS, GENERIC_TOPIC_KEY};
 
 pub struct RegistryManagerService {
     _th: Option<JoinHandle<()>>,
@@ -50,7 +50,7 @@ impl RegistryManagerService {
                     // 将热键消息发送至消息总线
                     EVENTBUS.post(&Event::new(
                         GENERIC_TOPIC_KEY.clone(),
-                        ModeSwitchMessage { mode },
+                        RegModeUpdateMessage { mode },
                     ));
                 } else {
                     info!("Watch Reg Err: {:?}", res.unwrap_err());
