@@ -15,13 +15,15 @@ use eink_eventbus::*;
 use log::info;
 use parking_lot::RwLock;
 use std::sync::{Arc, Mutex};
+use winapi::shared::minwindef::DWORD;
 use windows::Win32::System::Threading::GetExitCodeProcess;
 
 use crate::capturer::CAPTURER_SERVICE;
 use crate::eink_desktop::{EinkDesktopServiceImpl, EINK_DESKTOP_SERVICE};
 use crate::global::{EVENTBUS, GENERIC_TOPIC_KEY_NAME};
+use crate::helper::HELPER_SERVICE;
 use crate::virtual_monitor::{VirtualMonitorService, VIRTUAL_MONITOR_SERVICE};
-use crate::win_utils::get_process_pid;
+use crate::win_utils::{get_process_pid, kill_process_by_pid, run_as_admin};
 use crate::{
     eink_ton::eink_enable,
     global::{RegModeUpdateMessage, ServiceControlMessage},
@@ -42,6 +44,9 @@ enum EinkMode {
 struct EinkServiceImpl {
     // Eink 当前模式(默认为壁纸模式)
     curr_mode: EinkMode,
+
+    // Launcher
+    launcher_pid: Option<DWORD>,
 }
 
 impl EinkServiceImpl {
@@ -49,6 +54,7 @@ impl EinkServiceImpl {
     pub fn new() -> Result<Self> {
         Ok(Self {
             curr_mode: EinkMode::Wallpaper,
+            launcher_pid: None,
         })
     }
 
@@ -81,28 +87,44 @@ impl EinkServiceImpl {
     }
 
     /// 进入壁纸模式
-    fn enter_wallpaper_mode(&self) {
+    fn enter_wallpaper_mode(&mut self) {
         info!("进入壁纸模式");
 
         // 确认虚拟显示器关闭
         VIRTUAL_MONITOR_SERVICE.disable_virtual_monitor();
+
+        // 切换桌面
+        EINK_DESKTOP_SERVICE.switch_to_standard_desktop();
+
+        // 显示任务栏
+        HELPER_SERVICE.show_taskbar();
 
         // 开启桌面捕获器
         CAPTURER_SERVICE.set_desktop_capturer_status(true);
 
         // 同步壁纸状态，设置壁纸
         // self.wallpaper_manager.sync()
+
+        self.stop_launcher();
     }
 
     /// 进入系统桌面模式
-    fn enter_windows_desktop_mode(&self) {
+    fn enter_windows_desktop_mode(&mut self) {
         info!("进入系统桌面模式");
 
         // 确认虚拟显示器关闭
         VIRTUAL_MONITOR_SERVICE.enable_virtual_monitor();
 
+        // 切换桌面
+        EINK_DESKTOP_SERVICE.switch_to_standard_desktop();
+
+        // 显示任务栏
+        HELPER_SERVICE.show_taskbar();
+
         // 开启桌面捕获器
         CAPTURER_SERVICE.set_desktop_capturer_status(true);
+
+        self.stop_launcher();
     }
 
     // 进入 Launcher 启动器模式
@@ -115,8 +137,44 @@ impl EinkServiceImpl {
         // 切换桌面
         EINK_DESKTOP_SERVICE.switch_to_eink_desktop();
 
-        // 关闭桌面捕获器
-        CAPTURER_SERVICE.set_desktop_capturer_status(false).unwrap();
+        // 隐藏任务栏
+        HELPER_SERVICE.hide_taskbar();
+
+        // 重新开启桌面捕获器
+        CAPTURER_SERVICE.set_desktop_capturer_status(true).unwrap();
+
+        self.start_launcher();
+    }
+
+    pub(crate) fn stop_launcher(&mut self) -> Result<()> {
+        // 停止旧的 Launcher
+        if let Some(pid) = self.launcher_pid.take() {
+            kill_process_by_pid(pid, 0);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn start_launcher(&mut self) -> Result<()> {
+        // 停止旧的 Launcher
+        if let Some(pid) = self.launcher_pid.take() {
+            kill_process_by_pid(pid, 0);
+        }
+
+        // 重新动 Launcher
+        let proc_name = "EinkPlus.exe";
+        let proc_dir = "C:\\Program Files\\Lenovo\\ThinkBookEinkPlus";
+        let proc_cmd = "C:\\Program Files\\Lenovo\\ThinkBookEinkPlus\\EinkPlus.exe";
+
+        info!("proc_name: {}", proc_name);
+        info!("proc_dir: {}", proc_dir);
+        info!("proc_cmd: {}", proc_cmd);
+
+        let pid = run_as_admin(proc_dir, proc_cmd).unwrap();
+        self.launcher_pid = Some(pid);
+
+        info!("launcher pid: {}", pid);
+
+        Ok(())
     }
 }
 

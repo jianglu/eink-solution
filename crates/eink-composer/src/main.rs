@@ -89,7 +89,7 @@ fn main() -> Result<()> {
     info!("install driver");
     install_driver()?;
 
-    println!("");
+    info!("");
     let manager = DisplayManager::Create(DisplayManagerOptions::None)?;
     for (i, t) in manager.GetCurrentTargets()?.into_iter().enumerate() {
         let monitor_id = t.StableMonitorId()?;
@@ -97,7 +97,7 @@ fn main() -> Result<()> {
             info!("Display[{}] {}", i, monitor_id);
         }
     }
-    println!("");
+    info!("");
 
     info!("{:?}", std::env::args_os());
 
@@ -175,16 +175,16 @@ fn install_driver() -> Result<()> {
         // Err(Error { code: 0x80070424, message: 指定的服务未安装。 })
         match sh {
             Ok(sh) => {
-                println!("DispFilter Service: {:?}", sh);
+                info!("DispFilter Service: {:?}", sh);
 
                 let ret = StartServiceA(sh, &[PSTR::null()]);
-                println!("DispFilter Start Service: {:?}", ret);
+                info!("DispFilter Start Service: {:?}", ret);
 
                 CloseServiceHandle(sh);
             }
             Err(err) => {
-                println!("err.code() : {:?}", err.code());
-                println!(
+                info!("err.code() : {:?}", err.code());
+                info!(
                     "ERROR_SERVICE_DOES_NOT_EXIST : {:?}",
                     ERROR_SERVICE_DOES_NOT_EXIST
                 );
@@ -192,7 +192,7 @@ fn install_driver() -> Result<()> {
                 if err.code() == HRESULT(0x80070424) {
                     let mut bin_path = std::env::current_exe()?;
                     bin_path.set_file_name("DispFilter.sys");
-                    println!("Driver BinPath: {:?}", bin_path);
+                    info!("Driver BinPath: {:?}", bin_path);
 
                     let bin_path = bin_path.to_str().unwrap().to_string();
 
@@ -212,15 +212,15 @@ fn install_driver() -> Result<()> {
                         PCWSTR::null(),
                     ) {
                         Ok(_) => {
-                            println!("Create DispFilter Service Success");
+                            info!("Create DispFilter Service Success");
 
                             let sh = OpenServiceW(sch, &service_name, SC_MANAGER_ALL_ACCESS)?;
                             let ret = StartServiceA(sh, &[PSTR::null()]);
-                            println!("DispFilter Start Service: {:?}", ret);
+                            info!("DispFilter Start Service: {:?}", ret);
                             CloseServiceHandle(sh);
                         }
                         Err(err) => {
-                            println!("Create DispFilter Service Failed: {:?}", err);
+                            info!("Create DispFilter Service Failed: {:?}", err);
                         }
                     }
                 }

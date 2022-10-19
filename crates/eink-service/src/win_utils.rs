@@ -11,6 +11,10 @@
 //
 #[allow(non_snake_case)]
 use log::{debug, info};
+use windows::Win32::UI::Shell::ABM_SETSTATE;
+use windows::Win32::UI::Shell::ABS_ALWAYSONTOP;
+use windows::Win32::UI::Shell::ABS_AUTOHIDE;
+use windows::Win32::UI::Shell::SHAppBarMessage;
 use std::mem::size_of;
 use std::mem::zeroed;
 use widestring::U16CStr;
@@ -52,6 +56,8 @@ use winapi::um::winnt::TOKEN_DUPLICATE;
 use winapi::um::winnt::TOKEN_QUERY;
 use winapi::um::winnt::TOKEN_READ;
 use winapi::um::winnt::TOKEN_WRITE;
+use windows::Win32::Foundation::LPARAM;
+use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
 
 use winapi::ENUM;
 use winapi::STRUCT;
@@ -67,6 +73,8 @@ use winapi::um::tlhelp32::Process32FirstW;
 use winapi::um::tlhelp32::Process32NextW;
 use winapi::um::tlhelp32::PROCESSENTRY32W;
 use winapi::um::tlhelp32::TH32CS_SNAPPROCESS;
+
+use windows::Win32::UI::Shell::APPBARDATA;
 
 /// 通过进程名获取进程 PID
 pub fn get_process_pid(name: &str) -> Result<u32> {

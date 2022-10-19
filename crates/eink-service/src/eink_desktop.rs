@@ -67,7 +67,7 @@ impl EinkDesktopServiceImpl {
     }
 
     /// 切换到标准桌面
-    pub fn switch_to_standard_desktop() -> Result<()> {
+    pub fn switch_to_standard_desktop(&mut self) -> Result<()> {
         // TODO: 将所有在 EINK_DESKTOP 桌面上的 APP 移动到标准桌面，并且最小化
 
         // 删除所有的的 EINK_DESKTOP 桌面
@@ -108,7 +108,7 @@ impl EinkDesktopService {
 
     /// 切换到标准桌面
     pub fn switch_to_standard_desktop(&self) -> Result<()> {
-        self.inner.write().switch_to_eink_desktop()?;
+        self.inner.write().switch_to_standard_desktop()?;
         Ok(())
     }
 }

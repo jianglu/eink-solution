@@ -23,7 +23,7 @@ use windows::{
             },
             Threading::{
                 CreateProcessW, CREATE_NEW_CONSOLE, NORMAL_PRIORITY_CLASS, PROCESS_INFORMATION,
-                STARTUPINFOW,
+                STARTUPINFOW, GetCurrentThreadId,
             },
             WinRT::Graphics::Capture::IGraphicsCaptureItemInterop,
         },
@@ -112,6 +112,9 @@ fn main() -> Result<()> {
     //     [in]           ACCESS_MASK           dwDesiredAccess,
     //     [in, optional] LPSECURITY_ATTRIBUTES lpsa
     // );
+    let orig_desk = unsafe {
+        GetThreadDesktop(GetCurrentThreadId()).unwrap()
+    };
 
     eink_logger::init_with_env()?;
 
@@ -128,7 +131,7 @@ fn main() -> Result<()> {
 
     let hdesk = unsafe {
         CreateDesktopW(
-            w!("EInk Desktop"),
+            w!("Eink Desktop"),
             None,
             None,
             DF_ALLOWOTHERACCOUNTHOOK,
@@ -143,21 +146,8 @@ fn main() -> Result<()> {
     log::debug!("DEBUG: Hello world");
     log::error!("ERROR: Hello world");
 
-    return Ok(());
-
     unsafe {
-
-        // BOOL EnumDesktopsW(
-        //     [in, optional] HWINSTA          hwinsta,
-        //     [in]           DESKTOPENUMPROCW lpEnumFunc,
-        //     [in]           LPARAM           lParam
-        // );
-
-        // EnumDesktopsW()
-    };
-
-    unsafe {
-        let mut desktop_name = U16CString::from_str("EInk Desktop").unwrap();
+        let mut desktop_name = U16CString::from_str("Eink Desktop").unwrap();
         let mut si: STARTUPINFOW = zeroed();
         si.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
         si.lpDesktop = PWSTR::from_raw(desktop_name.as_mut_ptr());
@@ -194,47 +184,47 @@ fn main() -> Result<()> {
         let sys_time = std::time::SystemTime::now();
         let five_secs = std::time::Duration::from_secs(5);
 
-        'outter: loop {
-            let hwnds_after = find_all_windows();
+    //     'outter: loop {
+    //         let hwnds_after = find_all_windows();
 
-            if sys_time.elapsed().unwrap() > five_secs {
-                break;
-            }
+    //         if sys_time.elapsed().unwrap() > five_secs {
+    //             break;
+    //         }
 
-            if hwnds_after.len() > 0 {
-                for hwnd in hwnds_after {
-                    if hwnds_before.contains(&hwnd) {
-                        continue;
-                    }
+    //         if hwnds_after.len() > 0 {
+    //             for hwnd in hwnds_after {
+    //                 if hwnds_before.contains(&hwnd) {
+    //                     continue;
+    //                 }
 
-                    let title = get_window_text(HWND(hwnd)).unwrap();
-                    let class = get_window_class(HWND(hwnd)).unwrap();
-                    let real_class = get_window_real_class(HWND(hwnd)).unwrap();
+    //                 let title = get_window_text(HWND(hwnd)).unwrap();
+    //                 let class = get_window_class(HWND(hwnd)).unwrap();
+    //                 let real_class = get_window_real_class(HWND(hwnd)).unwrap();
 
-                    // let mut process_id: u32 = 0;
-                    // GetWindowThreadProcessId(HWND(hwnd), Some(&mut process_id));
-                    // info!(
-                    //     "Window {}, ProcessId: {}, Title: {}, Class: {} / {}",
-                    //     hwnd, process_id, &title, &class, &real_class
-                    // );
+    //                 // let mut process_id: u32 = 0;
+    //                 // GetWindowThreadProcessId(HWND(hwnd), Some(&mut process_id));
+    //                 // info!(
+    //                 //     "Window {}, ProcessId: {}, Title: {}, Class: {} / {}",
+    //                 //     hwnd, process_id, &title, &class, &real_class
+    //                 // );
 
-                    let interop =
-                        windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>(
-                        )
-                        .unwrap();
+    //                 let interop =
+    //                     windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>(
+    //                     )
+    //                     .unwrap();
 
-                    let result: Result<GraphicsCaptureItem, windows::core::Error> =
-                        interop.CreateForWindow(HWND(hwnd));
-                    if result.is_err() {
-                        continue;
-                    }
+    //                 let result: Result<GraphicsCaptureItem, windows::core::Error> =
+    //                     interop.CreateForWindow(HWND(hwnd));
+    //                 if result.is_err() {
+    //                     continue;
+    //                 }
 
-                    // DEBUG: 关闭窗口
-                    // PostThreadMessageA(pi.dwThreadId, WM_QUIT, None, None);
-                    break 'outter;
-                }
-            }
-        }
+    //                 // DEBUG: 关闭窗口
+    //                 // PostThreadMessageA(pi.dwThreadId, WM_QUIT, None, None);
+    //                 break 'outter;
+    //             }
+    //         }
+    //     }
     }
 
     std::thread::sleep(std::time::Duration::from_secs(1));
@@ -243,18 +233,20 @@ fn main() -> Result<()> {
         SwitchDesktop(hdesk);
     }
 
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    std::thread::sleep(std::time::Duration::from_secs(20));
 
     unsafe {
-        let def_hdesk = OpenDesktopW(
-            PCWSTR::from_raw(w!("winsta0\\default").as_ptr() as *mut u16),
-            DF_ALLOWOTHERACCOUNTHOOK,
-            false,
-            GENERIC_ALL,
-        )
-        .unwrap();
-        SwitchDesktop(def_hdesk);
-        CloseDesktop(def_hdesk);
+        // let def_hdesk = OpenDesktopW(
+        //     PCWSTR::from_raw(w!("winsta0\\default").as_ptr() as *mut u16),
+        //     DF_ALLOWOTHERACCOUNTHOOK,
+        //     false,
+        //     GENERIC_ALL,
+        // )
+        // .unwrap();
+        // GetThreadDesktop(dwthreadid)
+
+        SwitchDesktop(orig_desk);
+        // CloseDesktop(def_hdesk);
     }
 
     std::thread::sleep(std::time::Duration::from_secs(5));

@@ -740,19 +740,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "eink-desktop"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 4.0.13",
- "cmd_lib",
- "eink-logger",
- "log",
- "widestring 1.0.2",
- "windows 0.42.0",
-]
-
-[[package]]
 name = "eink-eventbus"
 version = "0.0.0"
 dependencies = [
@@ -764,10 +751,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "eink-iddcx"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "widestring 1.0.2",
+ "windows 0.42.0",
+]
+
+[[package]]
 name = "eink-logger"
 version = "0.0.0"
 dependencies = [
  "debug-view-logger",
+]
+
+[[package]]
+name = "eink-pipe-io"
+version = "0.0.0"
+dependencies = [
+ "log",
+ "pipe-ipc",
+ "windows 0.42.0",
 ]
 
 [[package]]
@@ -782,6 +791,7 @@ dependencies = [
  "dirs",
  "eink-eventbus",
  "eink-logger",
+ "eink-service-common",
  "embed-resource",
  "event-listener-primitives",
  "futures 0.3.24",
@@ -799,6 +809,7 @@ dependencies = [
  "static_init",
  "tokio 1.21.2",
  "tokio-util",
+ "viaduct",
  "widestring 1.0.2",
  "winapi 0.3.9",
  "windows 0.42.0",
@@ -806,6 +817,39 @@ dependencies = [
  "windows-service",
  "winreg 0.5.1",
  "wmi",
+]
+
+[[package]]
+name = "eink-service-common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.0.13",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "viaduct",
+ "widestring 1.0.2",
+ "windows 0.42.0",
+]
+
+[[package]]
+name = "eink-service-helper"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.0.13",
+ "eink-logger",
+ "eink-pipe-io",
+ "eink-service-common",
+ "jsonrpc-lite",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "widestring 1.0.2",
+ "windows 0.42.0",
 ]
 
 [[package]]
@@ -1256,6 +1300,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "interprocess"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c58ec7fbda1df9a93f587b780659db3c99f61f4be27f9c82c9b37684ffd0366"
+dependencies = [
+ "cfg-if 1.0.0",
+ "libc",
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -2829,6 +2884,22 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "viaduct"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79154b532dc4f9a501d2ba91f81b991355f38d114c1efcedbf6cf757a8d91845"
+dependencies = [
+ "bincode",
+ "bytemuck",
+ "interprocess",
+ "libc",
+ "parking_lot 0.12.1",
+ "serde",
+ "uuid 1.2.1",
+ "windows 0.39.0",
+]
 
 [[package]]
 name = "vswhom"

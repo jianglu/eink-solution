@@ -3,15 +3,29 @@ members = [
     # Windows 日志库，支持环境变量配置，OutputDebugString 输出
     "crates/eink-logger",
 
+    # 事件总线
     "crates/eink-eventbus",
-    # "crates/eink-watchreg",
 
+    # 管道通讯库
+    "crates/eink-pipe-io",
+
+    # IddCx 驱动程序互操作库
+    "crates/eink-iddcx",
+
+    # 服务
+    # TODO：使用 runner 把 service 改为标准应用程序
     "crates/eink-service",
+    "crates/eink-service-common",
+    "crates/eink-service-helper",
     "crates/eink-service-runner",
 
+    # 合成器 Composer 
     "crates/eink-composer-lib",
     "crates/eink-composer",
 
+    # 捕获器
     "crates/eink-capturer",
-    "crates/eink-desktop",
+
+    # "crates/eink-desktop",
+    # "crates/eink-vdesktop",
 ]

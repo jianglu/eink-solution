@@ -55,6 +55,10 @@ eink-logger = { path = "../eink-logger" }
 # pipe-ipc = { git = "http://git2.ensurebit.net/lenovo-thinkbook-gen4/pipe-ipc.git" }
 pipe-ipc = { path = "../../../pipe-ipc/crates/pipe-ipc" }
 
+# helper ipc
+viaduct = { version = "0.4.0", features = ["bincode"] }
+eink-service-common = { path = "../eink-service-common" }
+
 # binder-ipc
 
 libc = "0.2.134"
@@ -104,6 +108,7 @@ features = [
     "Win32_Graphics_Direct3D11",
     "Win32_Graphics_Direct2D",
     "Win32_UI",
+    "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_LibraryLoader",
     "Win32_System_Threading",

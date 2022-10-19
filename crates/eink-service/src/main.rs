@@ -63,6 +63,7 @@ mod virtual_monitor;
 mod win_utils;
 mod winrt;
 mod wmi;
+mod helper;
 
 //
 // Globals
