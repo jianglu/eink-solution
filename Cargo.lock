@@ -852,6 +852,7 @@ dependencies = [
  "eink-common",
  "eink-logger",
  "eink-pipe-io",
+ "eink-winkits",
  "jsonrpc-lite",
  "log",
  "serde",
@@ -876,6 +877,13 @@ dependencies = [
  "winapi 0.3.9",
  "windows-service",
  "winres",
+]
+
+[[package]]
+name = "eink-winkits"
+version = "0.0.0"
+dependencies = [
+ "windows 0.42.0",
 ]
 
 [[package]]
