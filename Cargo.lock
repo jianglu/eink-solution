@@ -707,6 +707,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "eink-common"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "widestring 1.0.2",
+ "windows 0.42.0",
+]
+
+[[package]]
 name = "eink-composer"
 version = "0.1.0"
 dependencies = [
@@ -799,9 +813,9 @@ dependencies = [
  "config",
  "crossbeam-channel 0.5.6",
  "dirs",
+ "eink-common",
  "eink-eventbus",
  "eink-logger",
- "eink-service-common",
  "embed-resource",
  "event-listener-primitives",
  "futures 0.3.24",
@@ -830,29 +844,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "eink-service-common"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 4.0.13",
- "log",
- "serde",
- "serde_derive",
- "serde_json",
- "viaduct",
- "widestring 1.0.2",
- "windows 0.42.0",
-]
-
-[[package]]
 name = "eink-service-helper"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 4.0.13",
+ "eink-common",
  "eink-logger",
  "eink-pipe-io",
- "eink-service-common",
  "jsonrpc-lite",
  "log",
  "serde",
@@ -868,6 +867,7 @@ name = "eink-service-runner"
 version = "0.1.0"
 dependencies = [
  "ctrlc",
+ "eink-common",
  "flexi_logger",
  "log",
  "regex",
