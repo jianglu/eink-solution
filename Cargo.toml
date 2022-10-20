@@ -26,6 +26,9 @@ members = [
     # 捕获器
     "crates/eink-capturer",
 
+    # AppBar 控制库
+    "crates/eink-appbar",
+
     # "crates/eink-desktop",
     # "crates/eink-vdesktop",
 ]

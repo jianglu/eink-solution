@@ -20,7 +20,7 @@ use viaduct::{ViaductParent, ViaductTx};
 
 use jsonrpc_lite::JsonRpc;
 
-use crate::win_utils::{kill_process_by_pid, run_as_admin};
+use crate::win_utils::{self, kill_process_by_pid, run_as_admin};
 
 // 虚拟显示器控制器
 // 1. 创建虚拟显示器
@@ -35,6 +35,9 @@ pub struct HelperServiceImpl {
 impl HelperServiceImpl {
     /// 创建服务实例
     pub fn new() -> Result<Self> {
+        // 关闭可能的遗留程序
+        win_utils::kill_process_by_name("eink-service-helper", 0);
+
         let shared_conn: Arc<RwLock<Option<BlockingIpcConnection>>> = Arc::new(RwLock::new(None));
         let shared_conn2 = shared_conn.clone();
 

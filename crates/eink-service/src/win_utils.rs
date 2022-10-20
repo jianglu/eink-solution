@@ -1,3 +1,4 @@
+use log::Level;
 //
 // Copyright (C) Lenovo ThinkBook Gen4 Project.
 //
@@ -11,52 +12,89 @@
 //
 #[allow(non_snake_case)]
 use log::{debug, info};
+use std::mem::size_of;
+use std::mem::zeroed;
+use std::mem::MaybeUninit;
+use widestring::U16CStr;
+use widestring::U16CString;
+use windows::Win32::System::SystemServices::MAXIMUM_ALLOWED;
+use windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
+use windows::Win32::System::Threading::CREATE_NO_WINDOW;
+use windows::Win32::System::Threading::NORMAL_PRIORITY_CLASS;
+use windows::Win32::System::Threading::PROCESS_INFORMATION;
+use windows::Win32::System::Threading::STARTUPINFOW;
+
+// use winapi::shared::minwindef::BOOL;
+// use winapi::shared::minwindef::DWORD;
+// use winapi::shared::minwindef::FALSE;
+// use winapi::shared::minwindef::LPVOID;
+// use winapi::shared::ntdef::HANDLE;
+// use winapi::shared::ntdef::NULL;
+// use winapi::shared::ntdef::PHANDLE;
+// use winapi::shared::ntdef::PVOID;
+// use winapi::shared::ntdef::ULONG;
+
+// use winapi::um::errhandlingapi::GetLastError;
+// use winapi::um::minwinbase::LPSECURITY_ATTRIBUTES;
+// use winapi::um::processthreadsapi::CreateProcessAsUserW;
+// use winapi::um::processthreadsapi::OpenProcess;
+// use winapi::um::processthreadsapi::OpenProcessToken;
+// use winapi::um::processthreadsapi::PROCESS_INFORMATION;
+// use winapi::um::processthreadsapi::STARTUPINFOW;
+// use winapi::um::securitybaseapi::DuplicateTokenEx;
+// use winapi::um::securitybaseapi::GetTokenInformation;
+// use winapi::um::securitybaseapi::SetTokenInformation;
+// use winapi::um::tlhelp32::Process32First;
+// use winapi::um::tlhelp32::PROCESSENTRY32;
+// use winapi::um::userenv::DestroyEnvironmentBlock;
+// use winapi::um::winbase::WTSGetActiveConsoleSessionId;
+// use winapi::um::winbase::CREATE_NEW_CONSOLE;
+// use winapi::um::winbase::CREATE_NO_WINDOW;
+// use winapi::um::winbase::NORMAL_PRIORITY_CLASS;
+// use winapi::um::winnt::SecurityIdentification;
+// use winapi::um::winnt::TokenLinkedToken;
+// use winapi::um::winnt::TokenPrimary;
+// use winapi::um::winnt::TokenSessionId;
+// use winapi::um::winnt::MAXIMUM_ALLOWED;
+// use winapi::um::winnt::PROCESS_ALL_ACCESS;
+// use winapi::um::winnt::TOKEN_ADJUST_PRIVILEGES;
+// use winapi::um::winnt::TOKEN_ADJUST_SESSIONID;
+// use winapi::um::winnt::TOKEN_ASSIGN_PRIMARY;
+// use winapi::um::winnt::TOKEN_DUPLICATE;
+// use winapi::um::winnt::TOKEN_QUERY;
+// use winapi::um::winnt::TOKEN_READ;
+// use winapi::um::winnt::TOKEN_WRITE;
+
+use windows::core::PCWSTR;
+use windows::core::PWSTR;
+use windows::core::{PCWSTR, PWSTR};
+use windows::Win32::Foundation::CloseHandle;
+use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
+use windows::Win32::Foundation::LPARAM;
+use windows::Win32::Foundation::{BOOL, HANDLE};
+use windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES;
+use windows::Win32::System::Diagnostics::ToolHelp::CreateToolhelp32Snapshot;
+use windows::Win32::System::Diagnostics::ToolHelp::PROCESSENTRY32W;
+use windows::Win32::System::Diagnostics::ToolHelp::TH32CS_SNAPPROCESS;
+use windows::Win32::System::Diagnostics::ToolHelp::{
+    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32, PROCESSENTRY32W,
+    TH32CS_SNAPPROCESS,
+};
+use windows::Win32::System::Threading::{
+    OpenProcess, TerminateProcess, PROCESS_ALL_ACCESS, PROCESS_TERMINATE,
+};
+use windows::Win32::UI::Shell::SHAppBarMessage;
+use windows::Win32::UI::Shell::SHGetFileInfoW;
+use windows::Win32::UI::Shell::StrStrW;
 use windows::Win32::UI::Shell::ABM_SETSTATE;
 use windows::Win32::UI::Shell::ABS_ALWAYSONTOP;
 use windows::Win32::UI::Shell::ABS_AUTOHIDE;
-use windows::Win32::UI::Shell::SHAppBarMessage;
-use std::mem::size_of;
-use std::mem::zeroed;
-use widestring::U16CStr;
-use widestring::U16CString;
-use winapi::shared::minwindef::BOOL;
-use winapi::shared::minwindef::DWORD;
-use winapi::shared::minwindef::FALSE;
-use winapi::shared::minwindef::LPVOID;
-use winapi::shared::ntdef::HANDLE;
-use winapi::shared::ntdef::NULL;
-use winapi::shared::ntdef::PHANDLE;
-use winapi::shared::ntdef::PVOID;
-use winapi::shared::ntdef::ULONG;
-use winapi::um::errhandlingapi::GetLastError;
-use winapi::um::minwinbase::LPSECURITY_ATTRIBUTES;
-use winapi::um::processthreadsapi::CreateProcessAsUserW;
-use winapi::um::processthreadsapi::OpenProcess;
-use winapi::um::processthreadsapi::OpenProcessToken;
-use winapi::um::processthreadsapi::PROCESS_INFORMATION;
-use winapi::um::processthreadsapi::STARTUPINFOW;
-use winapi::um::securitybaseapi::DuplicateTokenEx;
-use winapi::um::securitybaseapi::GetTokenInformation;
-use winapi::um::securitybaseapi::SetTokenInformation;
-use winapi::um::userenv::DestroyEnvironmentBlock;
-use winapi::um::winbase::WTSGetActiveConsoleSessionId;
-use winapi::um::winbase::CREATE_NEW_CONSOLE;
-use winapi::um::winbase::CREATE_NO_WINDOW;
-use winapi::um::winbase::NORMAL_PRIORITY_CLASS;
-use winapi::um::winnt::SecurityIdentification;
-use winapi::um::winnt::TokenLinkedToken;
-use winapi::um::winnt::TokenPrimary;
-use winapi::um::winnt::TokenSessionId;
-use winapi::um::winnt::MAXIMUM_ALLOWED;
-use winapi::um::winnt::PROCESS_ALL_ACCESS;
-use winapi::um::winnt::TOKEN_ADJUST_PRIVILEGES;
-use winapi::um::winnt::TOKEN_ADJUST_SESSIONID;
-use winapi::um::winnt::TOKEN_ASSIGN_PRIMARY;
-use winapi::um::winnt::TOKEN_DUPLICATE;
-use winapi::um::winnt::TOKEN_QUERY;
-use winapi::um::winnt::TOKEN_READ;
-use winapi::um::winnt::TOKEN_WRITE;
-use windows::Win32::Foundation::LPARAM;
+use windows::Win32::UI::Shell::SHFILEINFOW;
+use windows::Win32::UI::Shell::SHGFI_ICON;
+use windows::Win32::UI::Shell::SHGFI_SMALLICON;
+use windows::Win32::UI::Shell::{
+    SHGetFileInfoW, StrStrW, SHFILEINFOW, SHGFI_ICON, SHGFI_SMALLICON,
+};
 use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
 
 use winapi::ENUM;
@@ -66,15 +104,6 @@ use windows::w;
 
 use anyhow::bail;
 use anyhow::Result;
-use winapi::um::handleapi::CloseHandle;
-use winapi::um::handleapi::INVALID_HANDLE_VALUE;
-use winapi::um::tlhelp32::CreateToolhelp32Snapshot;
-use winapi::um::tlhelp32::Process32FirstW;
-use winapi::um::tlhelp32::Process32NextW;
-use winapi::um::tlhelp32::PROCESSENTRY32W;
-use winapi::um::tlhelp32::TH32CS_SNAPPROCESS;
-
-use windows::Win32::UI::Shell::APPBARDATA;
 
 /// 通过进程名获取进程 PID
 pub fn get_process_pid(name: &str) -> Result<u32> {
@@ -83,7 +112,7 @@ pub fn get_process_pid(name: &str) -> Result<u32> {
 
 /// 通过进程名获取进程 PID
 pub unsafe fn get_process_pid_unsafe(name: &str) -> Result<u32> {
-    let process_snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    let process_snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)?;
 
     if process_snap == INVALID_HANDLE_VALUE {
         bail!("CreateToolhelp32Snapshot Failed")
@@ -99,7 +128,7 @@ pub unsafe fn get_process_pid_unsafe(name: &str) -> Result<u32> {
 
     let mut pid = 0;
 
-    while ret != 0 {
+    while ret.as_bool() {
         // 使用 CStr 避免内存分配
         let exe = U16CStr::from_ptr_str(pe32.szExeFile.as_ptr());
 
@@ -129,7 +158,7 @@ pub unsafe fn run_system_privilege_unsafe(
     proc_dir: &str,
     proc_cmd: &str,
 ) -> Result<DWORD> {
-    let mut creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE; // CREATE_NO_WINDOW; //
+    let mut creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE | CREATE_NO_WINDOW;
     let winlogon_pid = get_process_pid("winlogon.exe")?;
 
     let mut process: HANDLE = NULL;
@@ -319,17 +348,9 @@ extern "system" {
     pub fn WTSQueryUserToken(SessionId: ULONG, phToken: PHANDLE) -> BOOL;
 }
 
-// BOOL WTSEnumerateSessionsW(
-//     [in]  HANDLE             hServer,
-//     [in]  DWORD              Reserved,
-//     [in]  DWORD              Version,
-//     [out] PWTS_SESSION_INFOW *ppSessionInfo,
-//     [out] DWORD              *pCount
-//   );
-
 #[test]
 fn test_get_current_user_token() {
-    crate::logger::init();
+    eink_logger::init();
     log::set_max_level(log::LevelFilter::Trace);
     let token = unsafe { get_current_user_token().unwrap() };
     info!("get_current_user_token: {:?}", token);
@@ -464,7 +485,7 @@ pub unsafe fn run_admin_privilege_unsafe(
 
 #[test]
 fn test_eink() {
-    crate::logger::init();
+    eink_logger::init_with_level(Level::Trace).unwrap();
     log::set_max_level(log::LevelFilter::Trace);
     let pid = unsafe { get_process_pid_unsafe("lsass.exe").unwrap() };
     info!("PID: {}", pid);
@@ -472,6 +493,14 @@ fn test_eink() {
     unsafe { run_system_privilege_unsafe("a", "", "") };
 }
 
+#[test]
+fn test_kill_process_by_name() {
+    eink_logger::init_with_level(Level::Trace).unwrap();
+    info!("TaskBar.exe");
+    kill_process_by_name("TaskBar.exe", 0);
+}
+
+/// 根据 PID 杀进程
 pub fn kill_process_by_pid(pid: DWORD, exit_code: u32) -> bool {
     unsafe {
         let hprocess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
@@ -479,11 +508,65 @@ pub fn kill_process_by_pid(pid: DWORD, exit_code: u32) -> bool {
     }
 }
 
+/// 根据 HANDLE 杀进程
 pub fn kill_process(hprocess: HANDLE, exit_code: u32) -> bool {
+    unsafe { TerminateProcess(hprocess, exit_code).as_bool() }
+}
+
+/// 根据 NAME 杀进程
+pub fn kill_process_by_name(name: &str, exit_code: u32) -> bool {
     unsafe {
-        use winapi::shared::minwindef::TRUE;
-        use winapi::shared::minwindef::UINT;
-        use winapi::um::processthreadsapi::TerminateProcess;
-        TerminateProcess(hprocess, exit_code as UINT) == TRUE
+        let pid = get_process_id_by_name(name).unwrap();
+        let hprocess = OpenProcess(PROCESS_TERMINATE, false, pid).unwrap();
+        kill_process(hprocess, exit_code)
     }
+}
+
+pub fn get_process_id_by_name(name: &str) -> anyhow::Result<u32> {
+    unsafe {
+        let name16 = widestring::U16CString::from_str(name)?;
+        info!("name16: {:?}", name16);
+
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)?;
+
+        if snapshot.is_invalid() {
+            anyhow::bail!("XXX");
+        }
+
+        let mut pinfo: PROCESSENTRY32W = MaybeUninit::uninit().assume_init();
+        let mut shfile_info: SHFILEINFOW = MaybeUninit::uninit().assume_init();
+
+        // let mut pid = 0;
+
+        pinfo.dwSize = size_of::<PROCESSENTRY32W>() as u32;
+
+        let mut status: BOOL = Process32FirstW(snapshot, &mut pinfo);
+
+        info!("pinfo.szExeFile: {:?}", pinfo.szExeFile);
+        info!("name16: {:?}", name16);
+
+        while status.as_bool() {
+            SHGetFileInfoW(
+                PCWSTR::from_raw(pinfo.szExeFile.as_ptr()),
+                FILE_FLAGS_AND_ATTRIBUTES(0),
+                Some(&mut shfile_info),
+                size_of::<SHFILEINFOW>() as u32,
+                SHGFI_ICON | SHGFI_SMALLICON,
+            );
+
+            info!("pinfo.szExeFile: {:?}", pinfo.szExeFile);
+            info!("name16: {:?}", name16);
+
+            if StrStrW(
+                PCWSTR::from_raw(pinfo.szExeFile.as_ptr()),
+                PCWSTR::from_raw(name16.as_ptr()),
+            ) != PWSTR::null()
+            {
+                return Ok(pinfo.th32ProcessID);
+            }
+
+            status = Process32NextW(snapshot, &mut pinfo);
+        }
+    }
+    anyhow::bail!("XXX");
 }

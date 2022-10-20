@@ -60,7 +60,7 @@ mod reg;
 mod settings;
 mod virtual_desktop;
 mod virtual_monitor;
-mod win_utils;
+pub mod win_utils;
 mod winrt;
 mod wmi;
 mod helper;

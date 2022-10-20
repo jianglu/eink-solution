@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
+use eink_pipe_io::blocking::BlockingIpcConnection;
 use jsonrpc_lite::{Error, JsonRpc};
-// use viaduct::{ViaductChild, ViaductEvent};
 use windows::{
     w,
     Win32::{
@@ -27,10 +27,10 @@ use windows::{
 /// 在 admin 权限下运行，负责 system 权限无法进行的操作
 fn main() -> anyhow::Result<()> {
     // 设置当前的活动日志系统为 OutputDebugString 输出
-    eink_logger::init_with_level(log::Level::Trace);
+    eink_logger::init_with_level(log::Level::Trace)?;
 
     std::thread::spawn(|| {
-        let mut connection = eink_pipe_io::blocking::BlockingIpcConnection::new().unwrap();
+        let mut connection = BlockingIpcConnection::new().unwrap();
 
         connection
             .connect("\\\\.\\pipe\\eink-service-helper")

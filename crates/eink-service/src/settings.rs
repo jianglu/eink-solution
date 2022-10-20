@@ -59,8 +59,8 @@ fn test_settings() {
             .unwrap()
     );
 
-    std::thread::spawn(|| {
-        let mut settings = SETTINGS.write().unwrap().clone();
-        settings.set(key, value)
-    });
+    // std::thread::spawn(|| {
+    //     let mut settings = SETTINGS.write().unwrap().clone();
+    //     settings.set(key, value)
+    // });
 }

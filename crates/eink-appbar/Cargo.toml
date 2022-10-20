@@ -1,31 +1,25 @@
 [package]
-name = "eink-service-helper"
-version = "0.1.0"
+name = "eink-appbar"
+version = "0.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1.0"
-log = "0.4.17"
-clap = { version = "4.0.4", features = ["derive"] }
-widestring = "1.0.2"
-jsonrpc-lite = "0.6.0"
-serde_json = "1.0"
-serde = "1.0"
-serde_derive = "1.0"
-windows-hotkeys = "0.1.1"
+log = "0.4"
 
 # eink stuff
 eink-logger = { path = "../eink-logger" }
-eink-service-common = { path = "../eink-service-common" }
-eink-pipe-io = { path = "../eink-pipe-io" }
+
 
 [dependencies.windows]
 version = "0.42.0"
 features = [
     "Foundation",
     "Win32_Foundation",
+    "Win32_UI",
+    "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
     "Win32_Security",
     "Win32_System_Console",
