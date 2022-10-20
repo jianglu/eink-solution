@@ -64,6 +64,7 @@ viaduct = { version = "0.4.0", features = ["bincode"] }
 libc = "0.2.134"
 hidapi = "1.4.2"
 ntapi = "0.4.0"
+ctrlc = { version = "3.2", features = ["termination"] }
 
 [dependencies.winapi]
 version = "0.3"

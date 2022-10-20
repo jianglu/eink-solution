@@ -29,12 +29,15 @@ use windows_service::{
     service_dispatcher,
 };
 
-use eink_service::EinkService;
 use eink_eventbus::*;
+use eink_service::EinkService;
 
 use crate::{
-    capturer::{CapturerService, CAPTURER_SERVICE}, composer::ComposerService, eink_desktop::EINK_DESKTOP_SERVICE,
-    global::TestMessage, virtual_monitor::{VirtualMonitorService, VIRTUAL_MONITOR_SERVICE},
+    capturer::{CapturerService, CAPTURER_SERVICE},
+    composer::ComposerService,
+    eink_desktop::EINK_DESKTOP_SERVICE,
+    global::TestMessage,
+    virtual_monitor::{VirtualMonitorService, VIRTUAL_MONITOR_SERVICE},
 };
 use crate::{
     global::{ServiceControlMessage, EVENTBUS, GENERIC_TOPIC_KEY},
@@ -49,13 +52,14 @@ use crate::{ipc::IpcService, reg::RegistryManagerService};
 mod capturer;
 mod composer;
 mod disp_filter;
-mod eink_service;
 mod eink_desktop;
+mod eink_service;
 mod eink_ton;
 mod global;
 mod iddcx;
 mod ipc;
 // mod logger;
+mod helper;
 mod reg;
 mod settings;
 mod virtual_desktop;
@@ -63,7 +67,6 @@ mod virtual_monitor;
 pub mod win_utils;
 mod winrt;
 mod wmi;
-mod helper;
 
 //
 // Globals
@@ -91,12 +94,24 @@ pub static IPC_SERVICE: IpcService = {
     IpcService::new().unwrap()
 };
 
-// 服务运行在独立的后台线程中
-fn run_service(arguments: Vec<OsString>) -> Result<()> {
-    // DEBUG
-    for arg in arguments {
-        info!("Arg: {:?}", &arg);
-    }
+/// 使用 Tokio 作为全异步服务
+#[tokio::main]
+async fn main() -> Result<()> {
+    // 设置当前的活动日志系统为 OutputDebugString 输出
+    eink_logger::init_with_level(log::Level::Trace)?;
+
+    let (tx, rx) = channel();
+
+    // 将 ctrl-c 响应转化为总线消息，通知各服务
+    ctrlc::set_handler(move || tx.send(())).expect("Error setting Ctrl-C handler");
+
+    println!("Waiting for Ctrl-C...");
+
+    rx.recv().expect("Could not receive from channel.");
+    println!("Got it! Exiting...");
+
+    info!("{} Starting", EINK_SERVICE_NAME);
+    info!("{} was stopped", EINK_SERVICE_NAME);
 
     info!("current_dir: {:?}", std::env::current_dir());
     info!("current_exe: {:?}", std::env::current_exe());
@@ -108,8 +123,6 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     std::env::set_current_dir(exe_dir)?;
 
     // 创建虚拟显示器管理器
-    // let virtmon_srv = VirtualMonitorService::new()?;
-    // virtmon_srv.start()?;
     VIRTUAL_MONITOR_SERVICE.start();
 
     // 创建 EINK 服务管理器
@@ -228,20 +241,6 @@ fn run_service(arguments: Vec<OsString>) -> Result<()> {
     }
 
     // TODO: 其他清理工作
-
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    // 设置当前的活动日志系统为 OutputDebugString 输出
-    eink_logger::init_with_level(log::Level::Trace);
-
-    info!("{} Starting", EINK_SERVICE_NAME);
-
-    // 注册系统服务，阻塞当前线程直到服务退出
-    service_dispatcher::start(EINK_SERVICE_NAME, ffi_service_main)?;
-
-    info!("{} was stopped", EINK_SERVICE_NAME);
 
     Ok(())
 }

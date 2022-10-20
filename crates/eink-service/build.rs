@@ -10,9 +10,6 @@
 // All rights reserved.
 //
 
-
-
-
 fn main() {
     embed_resource::compile("app.manifest.rc");
 }

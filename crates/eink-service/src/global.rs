@@ -28,13 +28,19 @@ pub static GENERIC_TOPIC_KEY: TopicKey = TopicKey::from(GENERIC_TOPIC_KEY_NAME);
 
 // Application Messages
 
-// 服务控制消息
+/// 服务控制消息
 #[derive(Debug)]
 pub struct ServiceControlMessage {
     pub control_event: ServiceControl,
 }
 
-// 热键消息
+/// 服务准备退出消息
+#[derive(Debug)]
+pub struct ServiceClosingMessage {
+    pub control_event: ServiceControl,
+}
+
+/// 热键消息
 #[derive(Debug)]
 pub struct HotKeyMessage {}
 

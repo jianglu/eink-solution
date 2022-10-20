@@ -764,6 +764,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "eink-desktop"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.0.13",
+ "cmd_lib",
+ "eink-logger",
+ "log",
+ "widestring 1.0.2",
+ "windows 0.42.0",
+]
+
+[[package]]
 name = "eink-eventbus"
 version = "0.0.0"
 dependencies = [
@@ -812,6 +825,7 @@ dependencies = [
  "cmd_lib",
  "config",
  "crossbeam-channel 0.5.6",
+ "ctrlc",
  "dirs",
  "eink-common",
  "eink-eventbus",
