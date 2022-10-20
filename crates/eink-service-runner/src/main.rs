@@ -174,31 +174,34 @@ fn prepare_logging(
     let mut exe_dir = std::env::current_exe()?;
     exe_dir.pop();
 
+    let mut logging_dir = eink_common::get_eink_logging_dir();
+    logging_dir.push("eink-service-runner.log");
+
+    let file_spec = flexi_logger::FileSpec::try_from(logging_dir).unwrap();
+
     let mut logger = flexi_logger::Logger::try_with_env_or_str("debug")?
-        .log_to_file()
-        .directory(exe_dir)
-        .discriminant(format!("for_{}", name))
+        .log_to_file(file_spec)
         .append()
         .rotate(
             flexi_logger::Criterion::Size(1024 * 1024 * 2),
             flexi_logger::Naming::Timestamps,
             flexi_logger::Cleanup::KeepLogFiles(2),
         )
-        .format_for_files(|w, now, record| {
-            write!(
-                w,
-                "{} [{}] {}",
-                now.now().format("%Y-%m-%d %H:%M:%S"),
-                record.level(),
-                &record.args()
-            )
-        })
+        // .format_for_files(|w, now, record| {
+        //     write!(
+        //         w,
+        //         "{} [{}] {}",
+        //         now.now().format("%Y-%m-%d %H:%M:%S"),
+        //         record.level(),
+        //         &record.args()
+        //     )
+        // })
         .format_for_stderr(|w, _now, record| write!(w, "[{}] {}", record.level(), &record.args()));
 
     // Set custom log directory
-    if let Some(dir) = log_dir {
-        logger = logger.o_directory(Some(dir));
-    }
+    // if let Some(dir) = log_dir {
+    //     logger = logger.o_directory(Some(dir));
+    // }
 
     if console {
         logger = logger.duplicate_to_stderr(flexi_logger::Duplicate::Info);
