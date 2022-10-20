@@ -22,8 +22,8 @@ use windows::{
                 DESKTOP_SWITCHDESKTOP, DESKTOP_WRITEOBJECTS,
             },
             Threading::{
-                CreateProcessW, CREATE_NEW_CONSOLE, NORMAL_PRIORITY_CLASS, PROCESS_INFORMATION,
-                STARTUPINFOW, GetCurrentThreadId,
+                CreateProcessW, GetCurrentThreadId, CREATE_NEW_CONSOLE, NORMAL_PRIORITY_CLASS,
+                PROCESS_INFORMATION, STARTUPINFOW,
             },
             WinRT::Graphics::Capture::IGraphicsCaptureItemInterop,
         },
@@ -31,7 +31,7 @@ use windows::{
             CloseWindow, EnumWindows, GetAncestor, GetClassNameA, GetDesktopWindow, GetWindowLongA,
             GetWindowLongW, GetWindowTextA, GetWindowTextW, GetWindowThreadProcessId,
             PostQuitMessage, PostThreadMessageA, RealGetWindowClassA, GA_ROOT, GET_ANCESTOR_FLAGS,
-            GWL_STYLE, WM_QUIT, WNDENUMPROC, WS_VISIBLE, HCF_DEFAULTDESKTOP,
+            GWL_STYLE, HCF_DEFAULTDESKTOP, WM_QUIT, WNDENUMPROC, WS_VISIBLE,
         },
     },
 };
@@ -104,6 +104,7 @@ fn find_all_windows() -> HashSet<isize> {
 }
 
 fn main() -> Result<()> {
+    // From MSDN
     // HDESK CreateDesktopA(
     //     [in]           LPCSTR                lpszDesktop,
     //                    LPCSTR                lpszDevice,
@@ -112,10 +113,9 @@ fn main() -> Result<()> {
     //     [in]           ACCESS_MASK           dwDesiredAccess,
     //     [in, optional] LPSECURITY_ATTRIBUTES lpsa
     // );
-    let orig_desk = unsafe {
-        GetThreadDesktop(GetCurrentThreadId()).unwrap()
-    };
+    let orig_desk = unsafe { GetThreadDesktop(GetCurrentThreadId()).unwrap() };
 
+    // Initialize logger with OutputDebugString
     eink_logger::init_with_env()?;
 
     const GENERIC_ALL: u32 = DESKTOP_CREATEMENU.0
@@ -184,47 +184,47 @@ fn main() -> Result<()> {
         let sys_time = std::time::SystemTime::now();
         let five_secs = std::time::Duration::from_secs(5);
 
-    //     'outter: loop {
-    //         let hwnds_after = find_all_windows();
+        //     'outter: loop {
+        //         let hwnds_after = find_all_windows();
 
-    //         if sys_time.elapsed().unwrap() > five_secs {
-    //             break;
-    //         }
+        //         if sys_time.elapsed().unwrap() > five_secs {
+        //             break;
+        //         }
 
-    //         if hwnds_after.len() > 0 {
-    //             for hwnd in hwnds_after {
-    //                 if hwnds_before.contains(&hwnd) {
-    //                     continue;
-    //                 }
+        //         if hwnds_after.len() > 0 {
+        //             for hwnd in hwnds_after {
+        //                 if hwnds_before.contains(&hwnd) {
+        //                     continue;
+        //                 }
 
-    //                 let title = get_window_text(HWND(hwnd)).unwrap();
-    //                 let class = get_window_class(HWND(hwnd)).unwrap();
-    //                 let real_class = get_window_real_class(HWND(hwnd)).unwrap();
+        //                 let title = get_window_text(HWND(hwnd)).unwrap();
+        //                 let class = get_window_class(HWND(hwnd)).unwrap();
+        //                 let real_class = get_window_real_class(HWND(hwnd)).unwrap();
 
-    //                 // let mut process_id: u32 = 0;
-    //                 // GetWindowThreadProcessId(HWND(hwnd), Some(&mut process_id));
-    //                 // info!(
-    //                 //     "Window {}, ProcessId: {}, Title: {}, Class: {} / {}",
-    //                 //     hwnd, process_id, &title, &class, &real_class
-    //                 // );
+        //                 // let mut process_id: u32 = 0;
+        //                 // GetWindowThreadProcessId(HWND(hwnd), Some(&mut process_id));
+        //                 // info!(
+        //                 //     "Window {}, ProcessId: {}, Title: {}, Class: {} / {}",
+        //                 //     hwnd, process_id, &title, &class, &real_class
+        //                 // );
 
-    //                 let interop =
-    //                     windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>(
-    //                     )
-    //                     .unwrap();
+        //                 let interop =
+        //                     windows::core::factory::<GraphicsCaptureItem, IGraphicsCaptureItemInterop>(
+        //                     )
+        //                     .unwrap();
 
-    //                 let result: Result<GraphicsCaptureItem, windows::core::Error> =
-    //                     interop.CreateForWindow(HWND(hwnd));
-    //                 if result.is_err() {
-    //                     continue;
-    //                 }
+        //                 let result: Result<GraphicsCaptureItem, windows::core::Error> =
+        //                     interop.CreateForWindow(HWND(hwnd));
+        //                 if result.is_err() {
+        //                     continue;
+        //                 }
 
-    //                 // DEBUG: 关闭窗口
-    //                 // PostThreadMessageA(pi.dwThreadId, WM_QUIT, None, None);
-    //                 break 'outter;
-    //             }
-    //         }
-    //     }
+        //                 // DEBUG: 关闭窗口
+        //                 // PostThreadMessageA(pi.dwThreadId, WM_QUIT, None, None);
+        //                 break 'outter;
+        //             }
+        //         }
+        //     }
     }
 
     std::thread::sleep(std::time::Duration::from_secs(1));
