@@ -49,6 +49,7 @@ parking_lot = "0.12"
 # 增强版 channel 通道
 crossbeam-channel = "0.5"
 
+eink-common = { path = "../eink-common" }
 eink-eventbus = { path = "../eink-eventbus" }
 eink-logger = { path = "../eink-logger" }
 
@@ -57,7 +58,6 @@ pipe-ipc = { path = "../../../pipe-ipc/crates/pipe-ipc" }
 
 # helper ipc
 viaduct = { version = "0.4.0", features = ["bincode"] }
-eink-service-common = { path = "../eink-service-common" }
 
 # binder-ipc
 
