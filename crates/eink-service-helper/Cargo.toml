@@ -18,7 +18,7 @@ windows-hotkeys = "0.1.1"
 
 # eink stuff
 eink-logger = { path = "../eink-logger" }
-eink-service-common = { path = "../eink-service-common" }
+eink-common = { path = "../eink-common" }
 eink-pipe-io = { path = "../eink-pipe-io" }
 
 [dependencies.windows]
