@@ -10,5 +10,4 @@
 // All rights reserved.
 //
 
-pub mod process;
-pub mod taskbar;
+struct Process {}
