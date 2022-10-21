@@ -867,6 +867,7 @@ dependencies = [
  "eink-logger",
  "eink-pipe-io",
  "eink-winkits",
+ "embed-resource",
  "jsonrpc-lite",
  "log",
  "serde",
