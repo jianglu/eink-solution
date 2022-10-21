@@ -15,16 +15,17 @@
 
 use std::{
     ffi::c_void,
-    mem::zeroed,
+    mem::{size_of, zeroed},
     sync::{Arc, Mutex},
 };
 
 use anyhow::{bail, Ok};
 use eink_pipe_io::blocking::BlockingIpcConnection;
 use jsonrpc_lite::{Error, JsonRpc};
+use mag_win::MagWindow;
 use static_init::dynamic;
 use windows::{
-    core::{PCWSTR, PWSTR},
+    core::{HSTRING, PCWSTR, PWSTR},
     w,
     Win32::{
         Foundation::{
@@ -60,14 +61,18 @@ use windows::{
 };
 
 mod helper;
+mod mag_win;
 mod magnify;
 
 // Show magnifier or not
 static mut ENABLED: bool = false;
 
-static mut hkb: HHOOK = HHOOK(0);
+static mut HKB: HHOOK = HHOOK(0);
 // KBDLLHOOKSTRUCT* key;
 // BOOL                wkDown = FALSE;
+
+// lens pan offset x|y
+static mut PAN_OFFSET: POINT = POINT { x: 0, y: 0 };
 
 /// 服务助手程序
 /// 在 admin 权限下运行，负责 system 权限无法进行的操作
@@ -108,7 +113,7 @@ fn main() -> anyhow::Result<()> {
     // Create notification object for the task tray icon
     unsafe {
         let mut nid: NOTIFYICONDATAW = zeroed();
-        nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
+        nid.cbSize = size_of::<NOTIFYICONDATAW>() as u32;
         nid.Anonymous.uVersion = NOTIFYICON_VERSION;
         nid.hWnd = HWND_HOST;
         nid.uID = 0;
@@ -128,7 +133,7 @@ fn main() -> anyhow::Result<()> {
 
     // Setup the keyboard hook to capture global hotkeys
     unsafe {
-        hkb = SetWindowsHookExW(
+        HKB = SetWindowsHookExW(
             WH_KEYBOARD_LL,
             Some(LowLevelKeyboardProc),
             instance.clone(),
@@ -156,7 +161,7 @@ fn main() -> anyhow::Result<()> {
     // Shut down.
     unsafe { ENABLED = false };
 
-    unsafe { UnhookWindowsHookEx(hkb) };
+    unsafe { UnhookWindowsHookEx(HKB) };
     // hkb = HHOOK(0);
 
     // delete hkb;
@@ -174,29 +179,45 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn setup_magnifier_window(clone: HINSTANCE) -> anyhow::Result<()> {
+// Calculates an X or Y value where the lens (host window) should be relative to mouse position. i.e. top left corner of a window centered on mouse
+fn lens_position_value(mousepoint_value: i32, lenssize_value: i32) -> i32 {
+    mousepoint_value - (lenssize_value / 2) - 1
+}
 
-    SIZE magSize;
-	magSize.cx = LENS_SIZE_BUFFER_VALUE(lensSize.cx, resizeIncrement.cx);
-	magSize.cy = LENS_SIZE_BUFFER_VALUE(lensSize.cy, resizeIncrement.cy);
+// Calculates a lens size value that is slightly larger than (lens + increment) to give an extra buffer area on the edges
+fn lens_size_buffer_value(lens_size_value: i32, resize_increment_value: i32) -> i32 {
+    lens_size_value + (2 * resize_increment_value)
+}
 
-    POINT magPosition; // position in the host window coordinates - top left corner
-	magPosition.x = 0;
-	magPosition.y = 0;
+static mut mag1: Option<MagWindow> = None;
+// static mag2: Option<MagWindow> = None;
 
-	mag1 = MagWindow(magnificationFactor, magPosition, magSize);
-	if (!mag1.Create(hInst, hwndHost, TRUE))
-	{
-		return FALSE;
-	}
+unsafe fn setup_magnifier_window(hInst: HINSTANCE) -> anyhow::Result<()> {
+    let mut magSize: SIZE = SIZE { cx: 0, cy: 0 };
 
-	mag2 = MagWindow(magnificationFactor, magPosition, magSize);
-	if (!mag2.Create(hInst, hwndHost, FALSE))
-	{
-		return FALSE;
-	}
+    magSize.cx = lens_size_buffer_value(LENS_SIZE.cx, RESIZE_INCREMENT.cx);
+    magSize.cy = lens_size_buffer_value(LENS_SIZE.cy, RESIZE_INCREMENT.cy);
 
-	magActive = &mag1;
+    // position in the host window coordinates - top left corner
+    let mut magPosition: POINT = POINT { x: 0, y: 0 };
+    magPosition.x = 0;
+    magPosition.y = 0;
+
+    mag1 = Some(MagWindow::new(magnificationFactor, magPosition, magSize).unwrap());
+    if !mag1
+        .as_mut()
+        .unwrap()
+        .create(hInst.clone(), HWND_HOST, true)
+    {
+        bail!("Cannot create magnify window")
+    }
+
+    // mag2 = Some(MagWindow::new(magnificationFactor, magPosition, magSize).unwrap());
+    // if !mag2.as_mut().unwrap().Create(hInst.clone(), HWND_HOST, false) {
+    //     return false;
+    // }
+
+    // magActive = &mag1;
 
     Ok(())
 }
@@ -236,7 +257,7 @@ unsafe extern "system" fn TimerTickEvent(
     context: *mut c_void,
     _: *mut TP_TIMER,
 ) {
-    RefreshMagnifier();
+    refresh_magnifier();
 
     // Reset timer to expire one time at next interval
     if ENABLED {
@@ -252,75 +273,96 @@ static mut newMagnificationFactor: f32 = 2.0f32; // Temp mag factor to store cha
 // MagWindow* magActive;
 
 /// Called in the timer tick event to refresh the magnification area drawn and lens (host window) position and size
-unsafe fn refresh_magnifier() -> anyhow::Result<()> {
-    GetCursorPos(&mut mousePoint);
+unsafe fn refresh_magnifier() {
+    GetCursorPos(&mut MOUSE_POINT);
 
-    if lensSize.cx != newLensSize.cx || lensSize.cy != newLensSize.cy
+    if LENS_SIZE.cx != NEW_LENS_SIZE.cx || LENS_SIZE.cy != NEW_LENS_SIZE.cy
     // lens size has changed - do update
     {
-        lensSize = newLensSize;
-        RotateMagWindow(lensSize, magnificationFactor);
+        LENS_SIZE = NEW_LENS_SIZE;
+        rotate_mag_window(LENS_SIZE, magnificationFactor);
 
-        UpdateLensPosition(&mut mousePoint);
+        update_lens_position(&mut MOUSE_POINT);
 
         SetWindowPos(
             HWND_HOST,
             HWND_TOPMOST,
-            lensPosition.x,
-            lensPosition.y, // x|y coordinate of top left corner
-            lensSize.cx,
-            lensSize.cy, // width|height of window
+            LENS_POSITION.x,
+            LENS_POSITION.y, // x|y coordinate of top left corner
+            LENS_SIZE.cx,
+            LENS_SIZE.cy, // width|height of window
             SWP_NOACTIVATE | SWP_NOREDRAW,
         );
 
         // magActive->UpdateMagnifier(&mousePoint, panOffset, lensSize);
         // Exit early to avoid updating once more below
-        return Ok(());
+        return;
     } else if magnificationFactor != newMagnificationFactor {
         unsafe { magnificationFactor = newMagnificationFactor };
-        RotateMagWindow(lensSize, magnificationFactor);
+        rotate_mag_window(LENS_SIZE, magnificationFactor);
     }
 
     // TODO why does this else cause problems?
     {
         // magActive->UpdateMagnifier(&mousePoint, panOffset, lensSize);
+        mag1.as_mut()
+            .unwrap()
+            .update_magnifier(&mut MOUSE_POINT, PAN_OFFSET, LENS_SIZE);
     }
 
-    if UpdateLensPosition(&mut mousePoint).is_ok() {
+    if update_lens_position(&mut MOUSE_POINT) {
         SetWindowPos(
             HWND_HOST,
             HWND_TOPMOST,
-            lensPosition.x,
-            lensPosition.y, // x|y coordinate of top left corner
-            lensSize.cx,
-            lensSize.cy, // width|height of window
+            LENS_POSITION.x,
+            LENS_POSITION.y, // x|y coordinate of top left corner
+            LENS_SIZE.cx,
+            LENS_SIZE.cy, // width|height of window
             SWP_NOACTIVATE | SWP_NOREDRAW | SWP_NOSIZE,
         );
     }
-
-    Ok(())
 }
 
-unsafe fn RotateMagWindow(newSize: SIZE, newMagFactor: f32) {
+unsafe fn rotate_mag_window(newSize: SIZE, newMagFactor: f32) {
     // if (magActive == &mag1)
     // {
-    // 	UpdateMagWindow(&mag2, newSize, newMagFactor);
-    // 	ReassignActiveMag(&mag2, &mag1);
+    // UpdateMagWindow(&mag2, newSize, newMagFactor);
+    // ReassignActiveMag(&mag2, &mag1);
     // }
     // else
     // {
-    // 	UpdateMagWindow(&mag1, newSize, newMagFactor);
-    // 	ReassignActiveMag(&mag1, &mag2);
+    update_mag_window(mag1.as_mut().unwrap(), newSize, newMagFactor);
+    // ReassignActiveMag(&mag1, &mag2);
     // }
 }
 
-pub static mut SCREEN_SIZE: SIZE = SIZE { cx: 0, cy: 0 };
-pub static mut lensSize: SIZE = SIZE { cx: 0, cy: 0 };
-pub static mut newLensSize: SIZE = SIZE { cx: 0, cy: 0 };
-pub static mut lensPosition: POINT = POINT { x: 0, y: 0 };
+fn update_mag_window(mag: &mut MagWindow, new_size: SIZE, new_mag_factor: f32) {
+    unsafe {
+        mag.set_magnification_factor(new_mag_factor);
+        mag.update_magnifier(&mut MOUSE_POINT, PAN_OFFSET, new_size);
+        mag.set_size(
+            lens_size_buffer_value(new_size.cx, RESIZE_INCREMENT.cx),
+            lens_size_buffer_value(new_size.cy, RESIZE_INCREMENT.cy),
+        );
+    }
+}
 
-pub static mut resizeIncrement: SIZE = SIZE { cx: 0, cy: 0 };
-pub static mut resizeLimit: SIZE = SIZE { cx: 0, cy: 0 };
+// fn ReassignActiveMag(active: &mut MagWindow, MagWindow* backup)
+// {
+//     SetWindowPos(active->GetHandle(), HWND_TOP, 0, 0, 0, 0,
+//         SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE | SWP_NOREDRAW);
+
+//     magActive = active;
+//     ShowWindow(backup->GetHandle(), SW_HIDE);
+// }
+
+pub static mut SCREEN_SIZE: SIZE = SIZE { cx: 0, cy: 0 };
+pub static mut LENS_SIZE: SIZE = SIZE { cx: 0, cy: 0 };
+pub static mut NEW_LENS_SIZE: SIZE = SIZE { cx: 0, cy: 0 };
+pub static mut LENS_POSITION: POINT = POINT { x: 0, y: 0 };
+
+pub static mut RESIZE_INCREMENT: SIZE = SIZE { cx: 0, cy: 0 };
+pub static mut RESIZE_LIMIT: SIZE = SIZE { cx: 0, cy: 0 };
 
 // lens sizing factors as a percent of screen resolution
 const INIT_LENS_WIDTH_FACTOR: f32 = 0.5f32;
@@ -335,44 +377,44 @@ unsafe fn init_screen_dimensions() {
     SCREEN_SIZE.cx = GetSystemMetrics(SM_CXSCREEN);
     SCREEN_SIZE.cy = GetSystemMetrics(SM_CYSCREEN);
 
-    lensSize.cx = (SCREEN_SIZE.cx as f32 * INIT_LENS_WIDTH_FACTOR) as i32;
-    lensSize.cy = (SCREEN_SIZE.cy as f32 * INIT_LENS_HEIGHT_FACTOR) as i32;
-    newLensSize = lensSize; // match initial value
+    LENS_SIZE.cx = (SCREEN_SIZE.cx as f32 * INIT_LENS_WIDTH_FACTOR) as i32;
+    LENS_SIZE.cy = (SCREEN_SIZE.cy as f32 * INIT_LENS_HEIGHT_FACTOR) as i32;
+    NEW_LENS_SIZE = LENS_SIZE; // match initial value
 
-    resizeIncrement.cx = (SCREEN_SIZE.cx as f32 * INIT_LENS_RESIZE_WIDTH_FACTOR) as i32;
-    resizeIncrement.cy = (SCREEN_SIZE.cy as f32 * INIT_LENS_RESIZE_HEIGHT_FACTOR) as i32;
+    RESIZE_INCREMENT.cx = (SCREEN_SIZE.cx as f32 * INIT_LENS_RESIZE_WIDTH_FACTOR) as i32;
+    RESIZE_INCREMENT.cy = (SCREEN_SIZE.cy as f32 * INIT_LENS_RESIZE_HEIGHT_FACTOR) as i32;
 
-    resizeLimit.cx = (SCREEN_SIZE.cx as f32 * LENS_MAX_WIDTH_FACTOR) as i32;
-    resizeLimit.cy = (SCREEN_SIZE.cy as f32 * LENS_MAX_HEIGHT_FACTOR) as i32;
+    RESIZE_LIMIT.cx = (SCREEN_SIZE.cx as f32 * LENS_MAX_WIDTH_FACTOR) as i32;
+    RESIZE_LIMIT.cy = (SCREEN_SIZE.cy as f32 * LENS_MAX_HEIGHT_FACTOR) as i32;
 }
 
 // Current mouse location
-static mut mousePoint: POINT = POINT { x: 0, y: 0 };
+static mut MOUSE_POINT: POINT = POINT { x: 0, y: 0 };
 
-unsafe fn register_host_window_class(hInstance: HINSTANCE) -> u16 /*ATOM*/ {
-    let window_class_name = widestring::U16CString::from_str("MagnifierWindow").unwrap();
+fn register_host_window_class(inst: HINSTANCE) -> u16 /*ATOM*/ {
+    let class_name = &HSTRING::from("MagnifierWindow");
 
-    let mut wcex: WNDCLASSEXW = zeroed();
-    wcex.cbSize = std::mem::size_of::<WNDCLASSEXW>() as u32;
-    wcex.style = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc = Some(HostWndProc);
-    wcex.hInstance = hInstance;
-    wcex.hCursor = HCURSOR(0); // LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground = HBRUSH((1i32 + COLOR_BTNFACE.0) as isize);
-    wcex.lpszClassName = PCWSTR::from_raw(window_class_name.as_ptr());
+    let mut wc: WNDCLASSEXW = unsafe { zeroed() };
+    wc.cbSize = size_of::<WNDCLASSEXW>() as u32;
+    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc = Some(host_wnd_proc);
+    wc.hInstance = inst;
+    wc.hCursor = HCURSOR(0); // LoadCursor(nullptr, IDC_ARROW);
+    wc.hbrBackground = HBRUSH((1i32 + COLOR_BTNFACE.0) as isize);
+    wc.lpszClassName = PCWSTR::from(class_name);
 
-    return RegisterClassExW(&wcex);
+    unsafe { RegisterClassExW(&wc) }
 }
 
 // Window handles
 static mut HWND_HOST: HWND = HWND(0);
 
-unsafe fn setup_host_window(hInst: HINSTANCE) -> anyhow::Result<()> {
-    GetCursorPos(&mut mousePoint);
-    UpdateLensPosition(&mut mousePoint);
+unsafe fn setup_host_window(inst: HINSTANCE) -> anyhow::Result<()> {
+    GetCursorPos(&mut MOUSE_POINT);
+    update_lens_position(&mut MOUSE_POINT);
 
     // Create the host window.
-    register_host_window_class(hInst);
+    register_host_window_class(inst);
 
     // 查找系统放大镜窗口
     let magni_hwnd = FindWindowW(w!("Screen Magnifier Window"), None);
@@ -382,9 +424,6 @@ unsafe fn setup_host_window(hInst: HINSTANCE) -> anyhow::Result<()> {
     // WS_EX_TRANSPARENT: Click-through
     // WS_EX_TOOLWINDOW: Do not show program on taskbar
 
-    let window_class_name = widestring::U16CString::from_str("MagnifierWindow").unwrap();
-    let window_name = widestring::U16CString::from_str("Screen Magnifier").unwrap();
-
     // 寄生在系统 Magnify 窗口中
 
     // WS_POPUP: Removes titlebar and borders - simply a bare window
@@ -392,16 +431,16 @@ unsafe fn setup_host_window(hInst: HINSTANCE) -> anyhow::Result<()> {
     unsafe {
         HWND_HOST = CreateWindowExW(
             WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
-            PCWSTR::from_raw(window_class_name.as_ptr()),
-            PCWSTR::from_raw(window_name.as_ptr()),
+            PCWSTR::from(w!("MagnifierWindow")),
+            PCWSTR::from(w!("Screen Magnifier")),
             WS_CLIPCHILDREN | WS_POPUP,
-            lensPosition.x,
-            lensPosition.y,
-            lensSize.cx,
-            lensSize.cy,
+            LENS_POSITION.x,
+            LENS_POSITION.y,
+            LENS_SIZE.cx,
+            LENS_SIZE.cy,
             magni_hwnd,
             None,
-            hInst,
+            inst,
             None,
         );
     }
@@ -423,20 +462,22 @@ unsafe fn setup_host_window(hInst: HINSTANCE) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn UpdateLensPosition(mousePosition: &mut POINT) -> anyhow::Result<()> {
-    // if (lensPosition.x == LENS_POSITION_VALUE(mousePosition->x, lensSize.cx) &&
-    // 	lensPosition.y == LENS_POSITION_VALUE(mousePosition->y, lensSize.cy))
-    // {
-    // 	return FALSE; // No change needed
-    // }
+fn update_lens_position(mousePosition: &mut POINT) -> bool {
+    unsafe {
+        if LENS_POSITION.x == lens_position_value(mousePosition.x, LENS_SIZE.cx)
+            && LENS_POSITION.y == lens_position_value(mousePosition.y, LENS_SIZE.cy)
+        {
+            return false; // No change needed
+        }
 
-    // lensPosition.x = LENS_POSITION_VALUE(mousePosition->x, lensSize.cx);
-    // lensPosition.y = LENS_POSITION_VALUE(mousePosition->y, lensSize.cy);
-    // Values were changed
-    Ok(())
+        LENS_POSITION.x = lens_position_value(mousePosition.x, LENS_SIZE.cx);
+        LENS_POSITION.y = lens_position_value(mousePosition.y, LENS_SIZE.cy);
+        // Values were changed
+        true
+    }
 }
 
-unsafe extern "system" fn HostWndProc(
+unsafe extern "system" fn host_wnd_proc(
     hWnd: HWND,
     message: u32,
     wParam: WPARAM,
@@ -452,10 +493,6 @@ unsafe extern "system" fn HostWndProc(
         // case WM_RBUTTONUP:
         // 	PostMessage(hwndHost, WM_CLOSE, 0, 0);
         // 	break;
-
-        // default:
-        // 	return DefWindowProc(hWnd, message, wParam, lParam);
-        // }
         WM_QUERYENDSESSION => (),
         // PostMessage(hwndHost, WM_DESTROY, 0, 0);
         // break;
