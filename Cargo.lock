@@ -795,6 +795,7 @@ dependencies = [
  "clap 4.0.13",
  "fs_extra",
  "glob",
+ "image",
  "log",
  "widestring 1.0.2",
  "windows 0.42.0",

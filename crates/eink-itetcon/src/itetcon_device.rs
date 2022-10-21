@@ -10,8 +10,23 @@
 // All rights reserved.
 //
 
-mod itetcon;
-mod itetcon_device;
+pub struct IteTconDevice {
+    drive_no: u8,
+    dev_path: String,
+    is_open: bool,
+}
 
-pub use itetcon::*;
-pub use itetcon_device::*;
+impl IteTconDevice {
+    pub fn new() -> anyhow::Result<Self> {
+        Ok(Self {
+            drive_no: 0,
+            dev_path: "".to_string(),
+            is_open: true,
+        })
+    }
+
+    /// 设置为速度模式
+    pub fn set_speed_mode() {
+        
+    }
+}

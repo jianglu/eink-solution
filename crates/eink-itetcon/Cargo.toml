@@ -11,6 +11,7 @@ log = "0.4.17"
 clap = { version = "4.0.4", features = ["derive"] }
 widestring = "1.0.2"
 windows-dll = "0.4.1"
+image = "0.24.3"
 
 [dependencies.windows]
 version = "0.42.0"

@@ -22,7 +22,7 @@ pub fn copy_to_output(path: &str, target_dir: &str, build_type: &str) -> Result<
     let mut from_path = Vec::new();
     let out_path = format!("{}\\{}\\", target_dir, build_type);
 
-    println!("cargo:warning=out_path is {:?}", out_path);
+    // println!("cargo:warning=out_path is {:?}", out_path);
 
     // Overwrite existing files with same name
     options.overwrite = true;
