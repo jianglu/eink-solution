@@ -10,23 +10,161 @@
 // All rights reserved.
 //
 
+use std::{ffi::CString, mem::zeroed};
+
+use anyhow::{bail, Result};
+use log::info;
+use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
+
+use crate::{
+    ITECloseDeviceAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo,
+    ITEGetSystemInfoAPI, ITELoadImage, ITEOpenDeviceAPI, ITESetMIPIModeAPI, GI_MIPI_BROWSER,
+    GI_MIPI_FAST_READER, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,
+};
+
 pub struct IteTconDevice {
     drive_no: u8,
     dev_path: String,
     is_open: bool,
+    img_addrs: [u32; 3],
+    sysinfo: TRSP_SYSTEM_INFO_DATA,
+    latest_image_idx: u32,
+    screen_width: u32,
+    screen_height: u32,
 }
 
 impl IteTconDevice {
-    pub fn new() -> anyhow::Result<Self> {
+    /// 创建设备对象
+    /// TODO: 设备尺寸可配置
+    pub fn new() -> Result<Self> {
         Ok(Self {
             drive_no: 0,
             dev_path: "".to_string(),
             is_open: true,
+            img_addrs: unsafe { zeroed() },
+            sysinfo: unsafe { zeroed() },
+            latest_image_idx: u32::max_value(),
+            screen_width: 2560,
+            screen_height: 1600,
         })
     }
 
+    /// 打开设备
+    pub fn open(&mut self) -> Result<()> {
+        // 获得设备驱动号
+        let mut drive_no: u8 = 0;
+        let ret = unsafe { ITEGetDriveNo(&mut drive_no) };
+        info!("EinkTcon DriveNo: ret: {}, drive_no: {}", ret, drive_no);
+
+        // 打开设备
+        let dev_path = format!("\\\\.\\{}:", (0x41 + drive_no) as char);
+        info!("EinkTcon Dev Path: {}", dev_path);
+
+        let cstr = CString::new(dev_path.clone())?;
+        info!("EinkTcon Dev Path C: {:?}", &cstr);
+
+        if unsafe { ITEOpenDeviceAPI(&cstr) } == INVALID_HANDLE_VALUE {
+            bail!("EinkTcon Open eink device fail, in thread");
+        }
+
+        // 获得设备系统信息
+        let mut sysinfo: TRSP_SYSTEM_INFO_DATA = unsafe { zeroed() };
+        let res = unsafe { ITEGetSystemInfoAPI(&mut sysinfo) };
+        println!("EinkTcon ITEGetSystemInfoAPI: res: {res}");
+
+        // 获得图片地址（支持 3 张图片），支持 3 张图片轮询
+        let mut addrs: [u32; 3] = unsafe { zeroed() };
+        unsafe { ITEGetBufferAddrInfoAPI(&mut addrs) };
+        println!("EinkTcon ITEGetBufferAddrInfoAPI: addrs: {addrs:?}");
+
+        self.drive_no = drive_no;
+        self.dev_path = dev_path;
+        self.img_addrs = addrs;
+        self.sysinfo = sysinfo;
+        self.is_open = true;
+
+        Ok(())
+    }
+
+    /// 关闭设备
+    pub fn close(&mut self) {
+        unsafe { ITECloseDeviceAPI() };
+        info!("ITECloseDeviceAPI");
+        self.is_open = false;
+    }
+
     /// 设置为速度模式
-    pub fn set_speed_mode() {
-        
+    pub fn set_speed_mode(&self) {
+        // 设置 MIPI 快速模式
+        let mut mode = GI_MIPI_FAST_READER;
+        unsafe { ITESetMIPIModeAPI(&mut mode) };
+    }
+
+    /// 设置为 READER 模式
+    pub fn set_reader_mode(&self) {
+        // 设置 MIPI 快速模式
+        let mut mode = GI_MIPI_READER;
+        unsafe { ITESetMIPIModeAPI(&mut mode) };
+    }
+
+    /// 设置为 Cover 图像（SLOW，需要在后台线程运行）
+    pub fn set_cover_image(&mut self, img_path: &str) {
+        //
+        // 计算当前可用图片地址
+        let image_idx = if self.latest_image_idx == u32::max_value() {
+            self.latest_image_idx = 0;
+            0
+        } else {
+            (self.latest_image_idx + 1) % 2
+        };
+
+        let img_addr = self.img_addrs[image_idx as usize];
+        println!("img_addr: {img_addr}");
+
+        // 打开 cover.jpg 格式文件
+        let mut img = image::open(img_path).unwrap();
+
+        // 剪裁图片, 使其居中显示
+        // TODO: 增加其他剪裁算法
+        let (img_w, img_h) = (img.width(), img.height());
+        img.crop(
+            (img_w - self.screen_width) / 2,
+            (img_h - self.screen_height) / 2,
+            self.screen_width,
+            self.screen_height,
+        );
+
+        // 转换为 16bit 灰度图像
+        // TODO: ColorEink 设备和黑白设备有区别，IT8951_USB_API 是否需要更新 ？
+        let mut img_luma16 = img.into_luma16();
+        let img_buf = img_luma16.as_mut_ptr() as *mut u8;
+
+        let ret = unsafe {
+            ITELoadImage(
+                img_buf,
+                img_addr,
+                0,
+                0,
+                self.screen_width,
+                self.screen_height,
+            )
+        };
+        info!("ITELoadImage: {ret}");
+
+        // 保存新的可用图片序号
+        self.latest_image_idx = image_idx;
+
+        let ret = unsafe {
+            ITEDisplayAreaAPI(
+                0,
+                0,
+                self.screen_width,
+                self.screen_height,
+                GI_MIPI_BROWSER, // TODO: ?? 确认此接口的模式指定
+                img_addr,
+                0,
+            )
+        };
+        info!("ITEDisplayAreaAPI: {ret}");
     }
 }
