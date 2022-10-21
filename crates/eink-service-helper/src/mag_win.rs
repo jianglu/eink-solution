@@ -19,9 +19,7 @@ use windows::{
     Win32::{
         Foundation::{BOOL, HINSTANCE, HWND, POINT, RECT, SIZE},
         UI::{
-            Magnification::{
-                MagSetWindowSource, MagSetWindowTransform, MAGTRANSFORM,
-            },
+            Magnification::{MagSetWindowSource, MagSetWindowTransform, MAGTRANSFORM},
             WindowsAndMessaging::{
                 CreateWindowExW, SetWindowPos, HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE,
                 WINDOW_EX_STYLE, WINDOW_STYLE, WS_CHILD, WS_EX_COMPOSITED, WS_VISIBLE,
@@ -106,8 +104,8 @@ impl MagWindow {
                 PCWSTR::from(class_name),
                 PCWSTR::from(window_title),
                 WINDOW_STYLE(style),
-                self._window_position.x,
-                self._window_position.y,
+                self._window_position.x + 50,
+                self._window_position.y + 50,
                 self._window_size.cx,
                 self._window_size.cy,
                 hwnd_host,
@@ -163,7 +161,12 @@ impl MagWindow {
         pan_offset: POINT,
         window_size: SIZE,
     ) -> bool {
-        self.update_source_rect(mouse_point, pan_offset, window_size);
+        // self.update_source_rect(mouse_point, pan_offset, window_size);
+
+        self._source_rect.left = 0;
+        self._source_rect.top = 0;
+        self._source_rect.right = 2560;
+        self._source_rect.bottom = 1600;
 
         // Set the source rectangle for the magnifier control.
         unsafe { MagSetWindowSource(self._hwnd, self._source_rect).as_bool() }

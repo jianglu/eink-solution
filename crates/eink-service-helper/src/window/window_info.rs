@@ -1,10 +1,18 @@
-use std::ffi::CStr;
+//
+// Copyright (C) Lenovo ThinkBook Gen4 Project.
+//
+// This program is protected under international and China copyright laws as
+// an unpublished work. This program is confidential and proprietary to the
+// copyright owners. Reproduction or disclosure, in whole or in part, or the
+// production of derivative works therefrom without the express permission of
+// the copyright owners is prohibited.
+//
+// All rights reserved.
+//
 
-use windows::Win32::Foundation::HWND;
-use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWM_CLOAKED_SHELL};
-use windows::Win32::UI::WindowsAndMessaging::{
-    GetAncestor, GetClassNameA, GetClassNameW, GetShellWindow, GetWindowLongW, GetWindowTextW,
-    IsWindowVisible, GA_ROOT, GWL_EXSTYLE, GWL_STYLE, WS_DISABLED, WS_EX_TOOLWINDOW,
+use windows::Win32::{
+    Foundation::HWND,
+    UI::WindowsAndMessaging::{GetClassNameW, GetWindowTextW},
 };
 
 #[derive(Clone)]

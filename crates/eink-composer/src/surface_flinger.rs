@@ -117,7 +117,7 @@ impl SurfaceFlinger {
         info!("Opening IPC Session...");
 
         let sock = nng::Socket::new(nng::Protocol::Rep0)?;
-        sock.listen("ipc://surface-composer")?;
+        // sock.listen("ipc://surface-composer")?;
 
         let conn_socks = HashMap::new();
 
@@ -177,6 +177,7 @@ impl SurfaceFlinger {
         let mut layers = Vec::<Layer>::with_capacity(4);
 
         if test_layer {
+            info!("Create test_layer");
             // 2560,1600
             // 1941,1600
             let layer = Layer::new(0, dev, ctx, 0, 0, 2941, 1600, 2941, 1600, true)?;
@@ -257,7 +258,10 @@ impl SurfaceFlinger {
                             continue;
                         } else {
                             // let last_error = unsafe { GetLastError() };
-                            info!("TryAgain 2, pid: {:?} BOOL: {:?}, ExitCode: {}", *pid, result, exit_code);
+                            info!(
+                                "TryAgain 2, pid: {:?} BOOL: {:?}, ExitCode: {}",
+                                *pid, result, exit_code
+                            );
                             return Some((*pid, Err(nng::Error::Closed)));
                         }
                     }
