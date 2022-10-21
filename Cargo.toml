@@ -31,6 +31,8 @@ members = [
     # AppBar 控制库
     "crates/eink-appbar",
 
-    "crates/eink-desktop",
+    "crates/eink-itetcon",
+
+    # "crates/eink-desktop",
     # "crates/eink-vdesktop",
 ]

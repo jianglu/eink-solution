@@ -170,3 +170,6 @@ C:\\ProgramData\\Lenovo\\ThinkBookEinkPlus\\
 根键：HKEY_LOCAL_MACHINE\SOFTWARE\Lenovo\ThinkBookEinkPlus\
 
 EinkMode: 0,1,2
+
+
+cargo test --package eink-itetcon --lib -- itetcon::test_get_buffer_addr_info --exact --nocapture
