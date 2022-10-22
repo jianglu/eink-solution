@@ -36,6 +36,7 @@ pub fn copy_to_output(path: &str, target_dir: &str, build_type: &str) -> Result<
 
 fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-changed=dlls/EinkTcon.dll");
+    println!("cargo:rerun-if-changed=dlls/ImgCodec.dll");
 
     let profile = &env::var("PROFILE").unwrap();
     let out_dir = &env::var("OUT_DIR").unwrap();
@@ -46,6 +47,8 @@ fn main() -> anyhow::Result<()> {
     };
 
     copy_to_output("dlls/EinkTcon.dll", &target_dir, profile).expect("Could not copy");
+    copy_to_output("dlls/ImgCodec.dll", &target_dir, profile).expect("Could not copy");
+    copy_to_output("assets/cover.jpg", &target_dir, profile).expect("Could not copy");
 
     Ok(())
 }

@@ -14,11 +14,13 @@ use std::{ffi::CString, mem::zeroed};
 
 use anyhow::{bail, Result};
 use log::info;
+use widestring::U16CString;
 use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
 
 use crate::{
-    ITECloseDeviceAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo,
-    ITEGetSystemInfoAPI, ITELoadImage, ITEOpenDeviceAPI, ITESetMIPIModeAPI, GI_MIPI_BROWSER,
+    EiTurn180, EicConvertToT1000Format, EicLoadImage, EicReleaseImage, ITECloseDeviceAPI,
+    ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo, ITEGetSystemInfoAPI, ITELoadImage,
+    ITEOpenDeviceAPI, ITESetMIPIModeAPI, EIMC_GRAY16, EIMC_IMG_FILL, GI_MIPI_BROWSER,
     GI_MIPI_FAST_READER, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,
 };
 
@@ -121,50 +123,81 @@ impl IteTconDevice {
         let img_addr = self.img_addrs[image_idx as usize];
         println!("img_addr: {img_addr}");
 
-        // 打开 cover.jpg 格式文件
-        let mut img = image::open(img_path).unwrap();
+        // // 打开 cover.jpg 格式文件
+        // let mut img = image::open(img_path).unwrap();
 
-        // 剪裁图片, 使其居中显示
-        // TODO: 增加其他剪裁算法
-        let (img_w, img_h) = (img.width(), img.height());
-        img.crop(
-            (img_w - self.screen_width) / 2,
-            (img_h - self.screen_height) / 2,
-            self.screen_width,
-            self.screen_height,
-        );
+        // // 剪裁图片, 使其居中显示
+        // // TODO: 增加其他剪裁算法
+        // let (img_w, img_h) = (img.width(), img.height());
+        // img.crop(
+        //     (img_w - self.screen_width) / 2,
+        //     (img_h - self.screen_height) / 2,
+        //     self.screen_width,
+        //     self.screen_height,
+        // );
 
-        // 转换为 16bit 灰度图像
-        // TODO: ColorEink 设备和黑白设备有区别，IT8951_USB_API 是否需要更新 ？
-        let mut img_luma16 = img.into_luma16();
-        let img_buf = img_luma16.as_mut_ptr() as *mut u8;
+        // // 转换为 16bit 灰度图像
+        // // // TODO: ColorEink 设备和黑白设备有区别，IT8951_USB_API 是否需要更新 ？
+        // // let mut img_luma16 = img.into_luma16();
+        // // let img_buf = img_luma16.as_mut_ptr() as *mut u8;
 
-        let ret = unsafe {
-            ITELoadImage(
-                img_buf,
-                img_addr,
-                0,
-                0,
+        // // 转换为 8bit 灰度图像
+        // // let mut img_luma8 = img.into_luma8();
+        // // let img_buf = img_luma8.as_mut_ptr() as *mut u8;
+
+        // let mut img_luma8 = img.into_rgb8();
+        // let img_buf = img_luma8.as_mut_ptr() as *mut u8;
+
+        let img_path_cstring = U16CString::from_str(img_path).unwrap();
+        let mut img_width: u32 = 0;
+        let mut img_height: u32 = 0;
+        let img_buf = unsafe {
+            EicLoadImage(
+                img_path_cstring.as_ptr(),
+                EIMC_GRAY16,
+                EIMC_IMG_FILL,
                 self.screen_width,
                 self.screen_height,
+                &mut img_width,
+                &mut img_height,
             )
         };
-        info!("ITELoadImage: {ret}");
 
-        // 保存新的可用图片序号
-        self.latest_image_idx = image_idx;
+        if !img_buf.is_null() {
+            unsafe {
+                EicConvertToT1000Format(img_buf, img_width, img_height);
+                EiTurn180(img_buf, img_width, img_height);
+            }
 
-        let ret = unsafe {
-            ITEDisplayAreaAPI(
-                0,
-                0,
-                self.screen_width,
-                self.screen_height,
-                GI_MIPI_BROWSER, // TODO: ?? 确认此接口的模式指定
-                img_addr,
-                0,
-            )
-        };
-        info!("ITEDisplayAreaAPI: {ret}");
+            let ret = unsafe {
+                ITELoadImage(
+                    img_buf,
+                    img_addr,
+                    0,
+                    0,
+                    self.screen_width,
+                    self.screen_height,
+                )
+            };
+            info!("ITELoadImage: {ret}");
+
+            // 保存新的可用图片序号
+            self.latest_image_idx = image_idx;
+
+            let ret = unsafe {
+                ITEDisplayAreaAPI(
+                    0,
+                    0,
+                    self.screen_width,
+                    self.screen_height,
+                    GI_MIPI_BROWSER, // TODO: ?? 确认此接口的模式指定
+                    img_addr,
+                    0,
+                )
+            };
+            info!("ITEDisplayAreaAPI: {ret}");
+
+            unsafe { EicReleaseImage(img_buf) };
+        }
     }
 }

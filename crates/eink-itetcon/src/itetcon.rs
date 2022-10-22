@@ -85,3 +85,96 @@ fn test_get_buffer_addr_info() {
     unsafe { ITEGetBufferAddrInfoAPI(&mut addrs) };
     println!("ITEGetBufferAddrInfoAPI: addrs: {addrs}");
 }
+
+pub const EIMC_GRAY16: u32 = 1; // 16色灰度，0x00,0x10 ... 0xF0
+pub const EIMC_BLACKWHITE: u32 = 2; // 黑白两色，0x00,0xF0
+pub const EIMC_ARGB: u32 = 4; // ARGB图像
+
+pub const EIMC_FLAG_NONE: u32 = 0;
+pub const EIMC_DITHER_RIGHTDOWN: u32 = 1; // 向右下抖动
+pub const EIMC_ENHANCING_5R1: u32 = 1; // 采用中心像素5，上下左右像素-1的核，做增强
+
+pub const EIMC_IMG_FILL: u32 = 0;
+pub const EIMC_IMG_CENTER: u32 = 1;
+pub const EIMC_IMG_STRETCH: u32 = 2;
+pub const EIMC_IMG_TILE: u32 = 3;
+
+#[windows_dll::dll(ImgCodec)]
+extern "system" {
+
+    // 释放本Wic对象，暂时解决一个wic失效的未知bug，ax Dec.19,2017
+    pub fn EiReleaseWic() -> ();
+
+    // 读取文件，并且转换为指定的格式
+    // 返回的指针，不用时，调用EicReleaseImage释放
+    pub fn EicLoadImage(
+        npPathName: *const u16, // 文件名
+        nuFormat: u32,          // EIMC_GRAY16 or EIMC_BLACKWHITE
+        nuLayout: u32,
+        nuWidth: u32,  // 转换后宽度，也可以是EIMC_AUTO，或者是（width|EIMC_FIX_RATIO)
+        nuHeight: u32, // 转换后高度，也可以是EIMC_AUTO，或者是（width|EIMC_FIX_RATIO)
+        npWidthR: &mut u32, // 返回转换后宽度
+        xnpHeightR: &mut u32, // 返回转换后高度
+    ) -> *mut u8;
+
+    //	when nuFormat == EIMC_GRAY16, nuFlag can be set to EIMC_FLAG_NONE or EIMC_ENHANCING_5R1
+    //		 nuFormat == EIMC_BLACKWHITE, nuFlag can be set to  EIMC_FLAG_NONE or EIMC_DITHER_RIGHTDOWN
+
+    // 将ARGB图像转化为Gray H16图像
+    // 返回转换后的数据，不使用时，调用EicReleaseImage释放
+    pub fn EicConvertToGray16(
+        npArgb: *mut u8,
+        nuLayout: u32,
+        nuWidth: u32,
+        nuHeight: u32,
+        nuImageWidth: u32,
+        nuImageHeight: u32,
+        nbEnhancing: bool,
+    ) -> *mut u8;
+
+    // 将ARGB图像转化为Black&White图像
+    // 返回转换后的数据，不使用时，调用EicReleaseImage释放
+    pub fn EicConvertToBlackWhite(
+        npArgb: *mut u8,
+        nuWidth: u32,
+        nuHeight: u32,
+        nbDither: bool,
+    ) -> *mut u8;
+
+    // 将普通的灰度值转换为T1000支持的灰度值
+    pub fn EicConvertToT1000Format(mpBufImage: *mut u8, nuWidth: u32, nuHeight: u32);
+
+    // 抖动Black&White图像
+    // 返回转换后的数据，不使用时，调用EicReleaseImage释放
+    pub fn EicDither(npGrayH16: *mut u8, nuWidth: u32, nuHeight: u32) -> *mut u8;
+
+    // 将H16数据旋转180度
+    pub fn EiTurn180(npGrayH16: *mut u8, nuWidth: u32, nuHeight: u32);
+
+    // 将H16数据顺时针旋转90、180、270度，旋转90和270度将导致图像的宽度和高度产生交换而改变
+    pub fn EiTurn(
+        npGrayH16: *mut u8,
+        npNewH16: *mut u8,
+        nuWidth: u32,
+        nuHeight: u32,
+        nuAngle: u32, // 90,180,270
+    );
+
+    pub fn EicSaveToImageFile(
+        npPathName: *const u16, // 文件名
+        npArgb: *mut u8,        // 图像缓冲区
+        nuWidth: u32,           // 宽度
+        nuHeight: u32,          // 高度
+    ) -> bool;
+
+    // 将输入图像缩放到指定大小后保存为新文件
+    pub fn EicResizeImage(
+        npFileInput: *const u16,  // 输入文件名
+        npFileOutput: *const u16, // 输出文件名
+        nuWidth: u32,
+        nuHeight: u32,
+        nuColor: u32, // 用于填充空白的像素值
+    ) -> bool;
+
+    pub fn EicReleaseImage(npImage: *mut u8);
+}
