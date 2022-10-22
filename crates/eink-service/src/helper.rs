@@ -16,7 +16,6 @@ use parking_lot::RwLock;
 use pipe_ipc::blocking::{BlockingIpcConnection, BlockingIpcServer};
 use serde_json::json;
 use std::{process::Command, sync::Arc, thread::JoinHandle};
-use viaduct::{ViaductParent, ViaductTx};
 
 use jsonrpc_lite::JsonRpc;
 

@@ -74,17 +74,6 @@ mod wmi;
 
 const EINK_SERVICE_NAME: &str = "Eink Service";
 
-define_windows_service!(ffi_service_main, eink_service_main);
-
-fn eink_service_main(arguments: Vec<OsString>) {
-    info!("{} Started", EINK_SERVICE_NAME);
-
-    if let Err(e) = run_service(arguments) {
-        // Handle errors in some way.
-        error!("{} Error: {:?}", EINK_SERVICE_NAME, e);
-    }
-}
-
 //
 // 将 Native 库设置为 Lazy 全局变量
 //
@@ -103,7 +92,7 @@ async fn main() -> Result<()> {
     let (tx, rx) = channel();
 
     // 将 ctrl-c 响应转化为总线消息，通知各服务
-    ctrlc::set_handler(move || tx.send(())).expect("Error setting Ctrl-C handler");
+    ctrlc::set_handler(move || tx.send(()).unwrap()).expect("Error setting Ctrl-C handler");
 
     println!("Waiting for Ctrl-C...");
 

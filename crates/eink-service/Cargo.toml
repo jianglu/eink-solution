@@ -52,12 +52,10 @@ crossbeam-channel = "0.5"
 eink-common = { path = "../eink-common" }
 eink-eventbus = { path = "../eink-eventbus" }
 eink-logger = { path = "../eink-logger" }
+eink-itetcon= { path = "../eink-itetcon" }
 
 # pipe-ipc = { git = "http://git2.ensurebit.net/lenovo-thinkbook-gen4/pipe-ipc.git" }
 pipe-ipc = { path = "../../../pipe-ipc/crates/pipe-ipc" }
-
-# helper ipc
-viaduct = { version = "0.4.0", features = ["bincode"] }
 
 # binder-ipc
 
