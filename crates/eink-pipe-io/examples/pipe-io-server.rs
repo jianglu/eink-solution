@@ -18,6 +18,17 @@ async fn main() {
     let _on_request_conn = server.on_connection(|socket, req| {
         println!("On connection");
         socket.lock().on_request(|socket, id, req| {
+
+            // 在当前线程上下文执行异步方法
+            let ret = tokio::runtime::Handle::current().block_on(async move {
+                socket
+                    .lock()
+                    .call_with_params("client-method", serde_json::json!({}))
+                    .await
+            });
+
+            println!("client-method: {ret:?}");
+
             JsonRpc::success(id, &json!({"request": req.get_params().unwrap()}))
         });
 

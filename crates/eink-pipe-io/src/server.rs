@@ -4,7 +4,8 @@ use std::{
     time::Duration,
 };
 
-use jsonrpc_lite::{Id, JsonRpc};
+use anyhow::bail;
+use jsonrpc_lite::{Id, JsonRpc, Params};
 use parking_lot::Mutex;
 use remoc::rch;
 use signals2::{connect::ConnectionImpl, Connect2, Connect3, Connection, Emit2, Emit3, Signal};
@@ -120,6 +121,26 @@ impl Socket {
         Callback: Fn(Arc<Mutex<Socket>>, Id, JsonRpc) -> JsonRpc + Send + Sync + 'static,
     {
         self.on_request.connect(cb)
+    }
+
+    pub async fn call_with_params<P: Into<Params>>(
+        &mut self,
+        method: &str,
+        params: P,
+    ) -> anyhow::Result<JsonRpc> {
+        let id = uuid::Uuid::new_v4().to_string();
+        let (reply_tx, mut reply_rx) = rch::mpsc::channel(1);
+        self.tx
+            .send(IpcMsg {
+                payload: JsonRpc::request_with_params(id, method, params),
+                reply_tx: Some(reply_tx),
+            })
+            .await
+            .unwrap();
+        match reply_rx.recv().await {
+            Ok(reply) => return Ok(reply.unwrap()),
+            Err(err) => bail!(err),
+        }
     }
 
     /// 处理输入的请求

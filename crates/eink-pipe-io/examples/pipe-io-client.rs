@@ -13,9 +13,12 @@ async fn main() {
     let mut client = eink_pipe_io::client::connect(PIPE_NAME).await.unwrap();
     {
         let _on_request_conn = client
-            .on_request(|_id, _req| JsonRpc::error(0, jsonrpc_lite::Error::internal_error()))
-            .await
-            .scoped();
+            .on_request(|id, _req| {
+                println!("Call from server: id: {id}");
+                JsonRpc::error(0, jsonrpc_lite::Error::method_not_found())
+            })
+            .await;
+            // .scoped();
     }
 
     for i in 0..10 {
