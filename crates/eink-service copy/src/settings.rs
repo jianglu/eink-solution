@@ -25,7 +25,7 @@ pub static SETTINGS: RwLock<Config> = {
     // 如果配置文件目录不存在则创建
     // TODO: CHECK ERROR
     if !config_dir.exists() {
-        std::fs::create_dir_all(&config_dir).expect("Cannot create config dirs");
+        std::fs::create_dir_all(&config_dir);
     }
 
     let mut file_path = config_dir.clone();
@@ -34,14 +34,14 @@ pub static SETTINGS: RwLock<Config> = {
     // 如果配置文件不存在，写入默认值
     // TODO: CHECK ERROR
     if !file_path.exists() {
-        let bytes = include_bytes!("../default-eink-service-settings.json");
-        std::fs::write(&file_path, bytes).expect("Cannot write default config file");
+        let bytes = include_bytes!("../default-service-settings.json");
+        std::fs::write(&file_path, bytes);
     }
 
     let settings = Config::builder()
         .add_source(config::File::from(file_path))
         .build()
-        .expect("Cannot build config");
+        .unwrap();
 
     RwLock::new(settings)
 };

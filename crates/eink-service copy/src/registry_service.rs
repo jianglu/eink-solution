@@ -16,8 +16,7 @@ use anyhow::Result;
 use cht::HashMap;
 use log::info;
 use parking_lot::{Mutex, RwLock};
-use signals2::{connect::ConnectionImpl, Connect2, Emit0, Signal, Emit2};
-use static_init::raw_static::Static;
+use signals2::{connect::ConnectionImpl, Connect2, Emit0, Emit2, Signal};
 use winreg::enums::HKEY_LOCAL_MACHINE;
 use winreg::RegKey;
 

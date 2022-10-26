@@ -10,4 +10,6 @@
 // All rights reserved.
 //
 
-pub use debug_view_logger::*;
+fn main() {
+    embed_resource::compile("app.manifest.rc");
+}

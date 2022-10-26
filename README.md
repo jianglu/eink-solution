@@ -183,4 +183,4 @@ taskkill /im "StartMenuExperienceHost.exe" /f; start C:\Windows\SystemApps\Micro
 
 
 eink-service
-eink-service-amdin
+eink-service-helper

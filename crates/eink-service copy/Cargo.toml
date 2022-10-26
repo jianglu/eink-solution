@@ -1,0 +1,133 @@
+[package]
+name = "eink-service"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+log = { version = "0.4", features = ["kv_unstable"] }
+windows-service = "0.5"
+static_init = "1.0"
+reg-watcher = "0.1.1"
+winreg = "0.5.1"
+widestring = "1.0.2"
+windows-dll = "0.4.1"
+cmd_lib = "1.3.0"
+windows-hotkeys = "0.1.1"
+
+serde_json = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+
+
+# Windows WMI 接口, Apache-2.0
+wmi = "0.11.3"
+
+# 标准目录 Windows Known Folder, MIT
+dirs = "4.0"
+
+# 配置文件读写, MIT/Apache-2.0
+config = "0.13"
+
+event-listener-primitives = "2.0.1"
+
+# 和 Client 的 Pipe IPC 通讯
+jsonrpc-lite = "0.6"
+
+# 部分使用了 tokio 异步运行时
+futures = "0.3"
+tokio = { version = "1.21", features = ["full"] }
+tokio-util = { version = "0.7", features = ["full"] }
+
+# 无锁 Hashmap, 支持 clone, AGPL-3.0 or later
+cht = "0.5"
+
+# 快速同步设施, MIT or Apcahe-2.0
+parking_lot = "0.12"
+
+# 增强版 channel 通道
+crossbeam-channel = "0.5"
+
+# rust version of boost::signals2
+signals2 = "0.3.2"
+
+eink-common = { path = "../eink-common" }
+eink-eventbus = { path = "../eink-eventbus" }
+eink-logger = { path = "../eink-logger" }
+eink-itetcon= { path = "../eink-itetcon" }
+
+# pipe-ipc = { git = "http://git2.ensurebit.net/lenovo-thinkbook-gen4/pipe-ipc.git" }
+pipe-ipc = { path = "../../../pipe-ipc/crates/pipe-ipc" }
+
+libc = "0.2.134"
+hidapi = "1.4.2"
+ntapi = "0.4.0"
+ctrlc = { version = "3.2", features = ["termination"] }
+
+[dependencies.winapi]
+version = "0.3"
+features = [
+    "winbase",
+    "winnt",
+    "accctrl",
+    "aclapi",
+    "securitybaseapi",
+    "minwinbase",
+    "tlhelp32",
+    "userenv",
+]
+
+
+[dependencies.windows]
+version = "0.42"
+features = [
+    "Devices_Display_Core",
+    "Devices_Enumeration",
+    "Devices_HumanInterfaceDevice",
+    "Foundation_Collections",
+    "Foundation_Numerics",
+    "Foundation",
+    "Graphics_DirectX_Direct3D11",
+    "Graphics_DirectX",
+    "Graphics",
+    "implement",
+    "interface",
+    "Storage",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Devices_Display",
+    "Win32_Devices_Enumeration_Pnp",
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_Devices_Properties",
+    "Win32_Foundation",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct3D_Dxc",
+    "Win32_Graphics_Direct3D_Fxc",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Com",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Environment",
+    "Win32_System_IO",
+    "Win32_System_LibraryLoader",
+    "Win32_System_RemoteDesktop",
+    "Win32_System_Services",
+    "Win32_System_Threading",
+    "Win32_System_WinRT_Display",
+    "Win32_System_WinRT",
+    "Win32_System",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI",
+]
+
+
+[build-dependencies]
+embed-resource = "1.7"

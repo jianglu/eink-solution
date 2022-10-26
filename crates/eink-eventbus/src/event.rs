@@ -10,7 +10,6 @@
 // All rights reserved.
 //
 
-
 use crate::TopicKey;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};

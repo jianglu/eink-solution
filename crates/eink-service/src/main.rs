@@ -11,67 +11,75 @@
 //
 
 // 使用 windows subsystem 子系统
-#![cfg_attr(not(test), windows_subsystem = "windows")]
+// #![cfg_attr(not(test), windows_subsystem = "windows")]
 
-//
-mod global;
-mod ipc_service;
-mod magnify;
-mod registry_service;
+// 当前只能使用 console 子系统，需要从 runner 获得
+
+mod keyboard_manager;
+mod service_helper;
+mod settings;
+mod utils;
 mod win_utils;
-mod window_manager_service;
-mod winrt;
 
-//
-use ipc_service::IPC_SERVICE;
 use log::info;
-use registry_service::REGISTRY_SERVICE;
-use window_manager_service::WINDOW_MANAGER_SERVICE;
-use windows::Win32::System::Threading::ExitProcess;
-use windows_hotkeys::{
-    keys::{ModKey, VKey},
-    HotkeyManager,
-};
+use service_helper::SERVICE_HELPER;
 
+use crate::keyboard_manager::KEYBOARD_MANAGER;
+
+///
 fn main() -> anyhow::Result<()> {
     // 设置当前的活动日志系统为 OutputDebugString 输出
-
     eink_logger::init_with_level(log::Level::Trace)?;
-    reset_current_dir()?;
 
-    // 创建虚拟显示器管理器
-    WINDOW_MANAGER_SERVICE.start()?;
+    std::panic::set_hook(Box::new(|info| {
+        log::error!("PANIC: {:?}", info);
+    }));
 
-    // 创建 IPC 通讯管理器
-    IPC_SERVICE.start()?;
+    // 重置工作目录
+    reset_working_dir().expect("Error reset working dir");
 
-    // 启动注册表服务
-    REGISTRY_SERVICE.start()?;
+    //
+    // 启动各种服务
+    //
 
-    // magnify::start_magnify();
+    // 启动服务助手
+    SERVICE_HELPER
+        .lock()
+        .start()
+        .expect("Error start SERVICE_HELPER");
 
-    // let (tx, rx) = std::sync::mpsc::channel();
+    // 启动键盘管理器
+    KEYBOARD_MANAGER
+        .lock()
+        .start()
+        .expect("Error start KEYBOARD_MANAGER");
 
-    // // 将 ctrl-c 响应转化为总线消息，通知各服务
-    // ctrlc::set_handler(move || tx.send(()).unwrap()).expect("Error setting Ctrl-C handler");
-    // info!("Waiting for Ctrl-C...");
+    //
+    // 等待 CTRL-C 信号，通知服务终止
+    info!("Start waiting for Ctrl-C ...");
+    let (tx, rx) = std::sync::mpsc::channel();
 
-    // rx.recv().expect("Could not receive from channel.");
-    // info!("Got it! Exiting...");
+    ctrlc::set_handler(move || tx.send(()).unwrap()).expect("Error setting Ctrl-C handler");
+    info!("Waiting for Ctrl-C ...");
 
-    // 开启热键响应线程
-    // ALT-SHIFT-B 退出 eink-service
-    let mut hkm = HotkeyManager::new();
-    hkm.register(VKey::B, &[ModKey::Alt, ModKey::Shift], move || {
-        unsafe { ExitProcess(0) };
-    })
-    .unwrap();
-    hkm.event_loop();
+    rx.recv().expect("Could not receive from channel.");
+    info!("Got Ctrl-C, Exiting ...");
+
+    KEYBOARD_MANAGER
+        .lock()
+        .stop()
+        .expect("Error stop KEYBOARD_MANAGER");
+
+    SERVICE_HELPER
+        .lock()
+        .stop()
+        .expect("Error stop SERVICE_HELPER");
 
     Ok(())
 }
 
-fn reset_current_dir() -> anyhow::Result<()> {
+/// 重置当前工作目录为 exe 所在目录
+fn reset_working_dir() -> anyhow::Result<()> {
     info!("current_dir: {:?}", std::env::current_dir());
     info!("current_exe: {:?}", std::env::current_exe());
 
@@ -79,6 +87,7 @@ fn reset_current_dir() -> anyhow::Result<()> {
     let exe_path = std::env::current_exe()?;
     let exe_dir = exe_path.parent().unwrap();
     info!("exe_dir: {:?}", exe_dir);
+
     std::env::set_current_dir(exe_dir)?;
 
     Ok(())

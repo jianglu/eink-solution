@@ -1,0 +1,23 @@
+[env]
+SIMPLE = "SIMPLE VALUE"
+ECHO_CMD = "echo"
+
+# 运行服务
+[tasks.run-service]
+workspace = false
+# command = "sc.exe"
+# args = [
+#     "create",
+#     "EinkService",
+#     "binpath=${CARGO_MAKE_CRATE_TARGET_DIRECTORY}\\debug\\eink-service",
+# ]
+script = '''
+#!@duckscript
+out = set "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}\\debug"
+exec sc.exe stop EinkService
+exec sc.exe delete EinkService
+exec "${out}\\eink-service-runner.exe" add --no-restart --name EinkService -- "${out}\\eink-service"
+exec sc.exe start EinkService
+exec powershell -Command "sleep 1"
+exec sc.exe query EinkService
+'''

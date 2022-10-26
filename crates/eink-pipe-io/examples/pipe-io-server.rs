@@ -10,7 +10,7 @@ use tokio::{
 };
 use windows::Win32::Foundation::ERROR_PIPE_BUSY;
 
-const PIPE_NAME: &str = r"\\.\pipe\pipe-io-idiomatic-server";
+const PIPE_NAME: &str = r"\\.\pipe\lenovo\thinbook-eink-plus\eink-service";
 
 #[tokio::main]
 async fn main() {
@@ -18,7 +18,6 @@ async fn main() {
     let _on_request_conn = server.on_connection(|socket, req| {
         println!("On connection");
         socket.lock().on_request(|socket, id, req| {
-
             // 在当前线程上下文执行异步方法
             let ret = tokio::runtime::Handle::current().block_on(async move {
                 socket
@@ -31,7 +30,6 @@ async fn main() {
 
             JsonRpc::success(id, &json!({"request": req.get_params().unwrap()}))
         });
-
         0
     });
     server.listen().await;
