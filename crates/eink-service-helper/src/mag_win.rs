@@ -21,8 +21,9 @@ use windows::{
         UI::{
             Magnification::{MagSetWindowSource, MagSetWindowTransform, MAGTRANSFORM},
             WindowsAndMessaging::{
-                CreateWindowExW, SetWindowPos, HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE,
-                WINDOW_EX_STYLE, WINDOW_STYLE, WS_CHILD, WS_EX_COMPOSITED, WS_VISIBLE,
+                CreateWindowExW, SetWindowPos, HWND_BOTTOM, HWND_TOP, SWP_ASYNCWINDOWPOS,
+                SWP_NOACTIVATE, SWP_NOMOVE, WINDOW_EX_STYLE, WINDOW_STYLE, WS_CHILD,
+                WS_EX_COMPOSITED, WS_VISIBLE, SWP_NOZORDER,
             },
         },
     },
@@ -104,8 +105,8 @@ impl MagWindow {
                 PCWSTR::from(class_name),
                 PCWSTR::from(window_title),
                 WINDOW_STYLE(style),
-                self._window_position.x + 50,
-                self._window_position.y + 50,
+                self._window_position.x,
+                self._window_position.y,
                 self._window_size.cx,
                 self._window_size.cy,
                 hwnd_host,
@@ -119,7 +120,21 @@ impl MagWindow {
             return false;
         }
 
-        self.set_magnification_factor_internal(self._mag_factor)
+        self.set_magnification_factor_internal(self._mag_factor);
+
+        // unsafe {
+        //     SetWindowPos(
+        //         self._hwnd,
+        //         None,
+        //         0,
+        //         0,
+        //         2560,
+        //         1600,
+        //         SWP_NOZORDER | SWP_ASYNCWINDOWPOS,
+        //     )
+        // };
+
+        true
     }
 
     pub fn get_handle(&self) -> HWND {

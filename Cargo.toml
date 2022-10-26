@@ -15,21 +15,33 @@ members = [
     # 公共库
     "crates/eink-common",
 
+    # Eink Cli 命令行控制台
+    "crates/eink-cli",
+
+    # 任务栏管理器
+    # "crates/eink-taskbar-manager",
+
+    # 键盘管理器，提供键盘映射等功能
+    # "crates/eink-keyboard-manager",
+
+    # 置顶管理器，提供应用程序置顶功能
+    # "crates/eink-topmost-manager",
+
     # 服务
     # TODO：使用 runner 把 service 改为标准应用程序
     "crates/eink-service",
     "crates/eink-service-helper",
-    "crates/eink-service-runner",
+    # "crates/eink-service-runner",
 
     # 合成器 Composer 
-    "crates/eink-composer-lib",
-    "crates/eink-composer",
+    # "crates/eink-composer-lib",
+    # "crates/eink-composer",
 
     # 捕获器
-    "crates/eink-capturer",
+    # "crates/eink-capturer",
 
     # AppBar 控制库
-    "crates/eink-appbar",
+    # "crates/eink-appbar",
 
     "crates/eink-itetcon",
 

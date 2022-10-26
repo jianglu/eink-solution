@@ -10,19 +10,25 @@
 // All rights reserved.
 //
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering::Relaxed},
-    Arc, Mutex, RwLock,
+use std::{
+    hash::Hash,
+    sync::{
+        atomic::{AtomicBool, Ordering::Relaxed},
+        Arc,
+    },
 };
 
 use anyhow::{bail, Result};
+use cht::HashMap;
 use eink_eventbus::Event;
 use event_listener_primitives::{Bag, BagOnce, HandlerId};
 use futures::{SinkExt, StreamExt};
 use jsonrpc_lite::{ErrorCode, JsonRpc, Params};
 use log::{error, info};
+use parking_lot::{Mutex, RwLock};
 use pipe_ipc::{blocking::BlockingIpcConnection, Endpoint, SecurityAttributes};
 use serde::{Deserialize, Serialize};
+use signals2::Signal;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     sync::mpsc::Sender,
@@ -31,7 +37,10 @@ use tokio_util::codec::Decoder;
 
 use tokio::sync::mpsc::channel as tokio_channel;
 
-use crate::global::{CaptureWindowMessage, RegModeUpdateMessage, EVENTBUS, GENERIC_TOPIC_KEY};
+use crate::global::{
+    CaptureWindowMessage, RegModeUpdateMessage, SetLauncherWindowMessage, EVENTBUS,
+    GENERIC_TOPIC_KEY,
+};
 use crate::winrt::HWND;
 // #[derive(Deserialize, Debug)]
 // struct IpcRequest {
@@ -49,9 +58,18 @@ use crate::winrt::HWND;
 // type HandlerFn = dyn Fn(JsonRpc, JsonRpc) + Sync + Send;
 // type HandlerMap = cht::map::HashMap<String, Arc<RwLock<HandlerFn>>>;
 
+///
+/// 应用程序置顶
+/// IPC_SERVICE.register_handler("bring_app_to_topmost", )
+///
+///
+///
+
+type RequestSignal = Signal<(Box<BlockingIpcConnection>, Box<JsonRpc>)>;
+
 struct IpcServiceImpl {
     running: Arc<AtomicBool>,
-    // handlers: HandlerMap,
+    handlers: Arc<RwLock<HashMap<String, RequestSignal>>>,
 }
 
 impl IpcServiceImpl {
@@ -62,6 +80,10 @@ impl IpcServiceImpl {
     /// This function will return an error if .
     fn new() -> Result<Self> {
         let running = Arc::new(AtomicBool::new(true));
+
+        let hanslers_map = HashMap::<String, RequestSignal>::new();
+        let handlers = Arc::new(RwLock::new(hanslers_map));
+        let handlers_cloned = handlers.clone();
 
         std::thread::spawn(move || {
             let server =
@@ -83,7 +105,6 @@ impl IpcServiceImpl {
                         Self::handle_request(conn, request);
 
                         // conn.reply_success(id, &serde_json::Value::Bool(true));
-                        // conn.reply_error(id, jsonrpc_lite::Error::invalid_params());
                     })
                     .detach();
 
@@ -110,7 +131,7 @@ impl IpcServiceImpl {
             info!("IpcServer: End Listening");
         });
 
-        Ok(Self { running })
+        Ok(Self { running, handlers })
     }
 
     pub fn start(&mut self) -> Result<()> {
@@ -125,6 +146,30 @@ impl IpcServiceImpl {
 
         let method = req.get_method().unwrap();
         info!("method: {:?}", method);
+
+        // 设置 Launcher 窗口
+        // set_launcher_window
+        if method == "switch_to_launcher_mode" {
+            let params = req.get_params().unwrap();
+            info!("params: {:?}", params);
+
+            if let Params::Map(map) = params {
+                if map.contains_key("hwnd") {
+                    let hwnd = map.get("hwnd").unwrap().as_i64().unwrap();
+                    // 将捕获消息发送至消息总线
+                    EVENTBUS.post(&Event::new(
+                        GENERIC_TOPIC_KEY.clone(),
+                        SetLauncherWindowMessage {
+                            hwnd: Some(HWND(hwnd as isize)),
+                        },
+                    ));
+                }
+            }
+        }
+        // 设置窗口置顶
+        // set_window_topmost
+        else if method == "" {
+        }
 
         if method == "capture_window" {
             let params = req.get_params().unwrap();
@@ -217,7 +262,16 @@ impl IpcService {
     }
 
     pub fn start(&self) -> Result<()> {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = self.inner.lock();
         guard.start()
     }
 }
+
+//
+// 将 Native 库设置为 Lazy 全局变量
+//
+#[static_init::dynamic(lazy)]
+pub static IPC_SERVICE: IpcService = {
+    info!("IpcService::new");
+    IpcService::new().unwrap()
+};

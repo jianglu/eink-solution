@@ -173,3 +173,14 @@ EinkMode: 0,1,2
 
 
 cargo test --package eink-itetcon --lib -- itetcon::test_get_buffer_addr_info --exact --nocapture
+
+
+
+
+## 重启开始菜单
+
+taskkill /im "StartMenuExperienceHost.exe" /f; start C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe
+
+
+eink-service
+eink-service-amdin

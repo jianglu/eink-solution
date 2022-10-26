@@ -12,16 +12,23 @@
 
 // 放大镜管理模块
 
+use std::{
+    process::{Child, Command},
+    thread,
+    time::Duration,
+};
+
 use cmd_lib::run_cmd;
+use log::info;
 use windows::{
     s,
     Win32::{
         Foundation::HWND,
-        UI::WindowsAndMessaging::{
-            CloseWindow, FindWindowA, ShowWindowAsync, SHOW_WINDOW_CMD, SW_HIDE,
-        },
+        UI::WindowsAndMessaging::{FindWindowA, ShowWindowAsync, SHOW_WINDOW_CMD, SW_HIDE},
     },
 };
+
+use crate::win_utils::{run_as_admin, run_system_privilege};
 
 struct Magnify {}
 
@@ -32,16 +39,21 @@ pub fn start_magnify() {
 
     run_cmd!(powershell -Command "magnify.exe").expect("Cannot start magnify");
 
-    for _i in 0..10 {
+    for i in 0..10 {
         let magnify_ui = find_magnify_ui_window();
-        log::info!("magnify_ui: {magnify_ui:?}");
+        info!("magnify_ui: {magnify_ui:?}");
 
         if magnify_ui != HWND(0) {
             break;
         }
 
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        thread::sleep(Duration::from_secs(1));
     }
+}
+
+#[test]
+fn test_start_magnify() {
+    start_magnify();
 }
 
 /// 查找放大镜窗口
@@ -70,17 +82,6 @@ pub fn hide_magnify_ui_window() -> bool {
     let hwnd = find_magnify_ui_window();
     if hwnd != HWND(0) {
         unsafe { ShowWindowAsync(hwnd, SW_HIDE) };
-        true
-    } else {
-        false
-    }
-}
-
-/// 隐藏放大镜窗口
-pub fn close_magnify_window() -> bool {
-    let hwnd = find_magnify_ui_window();
-    if hwnd != HWND(0) {
-        unsafe { CloseWindow(hwnd) };
         true
     } else {
         false

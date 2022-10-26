@@ -1,0 +1,11 @@
+[package]
+name = "eink-taskbar-manager"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pico-args = "0.5.0"
+anyhow = "1.0"
+log = "0.4.17"
+widestring = "1.0.2"
+notify = { version = "5.0.0", features = ["serde"] }

@@ -73,6 +73,11 @@ pub struct CaptureWindowMessage {
     pub cmdline: Option<String>,
 }
 
+#[derive(Debug)]
+pub struct SetLauncherWindowMessage {
+    pub hwnd: Option<HWND>,
+}
+
 // 测试消息
 pub struct TestMessage {
     pub hwnd: HWND,
@@ -94,3 +99,14 @@ pub struct TestMessage {
 //     let reply = rx.recv().unwrap();
 //     info!("reply: {}", reply);
 // }
+
+/// Eink 模式
+#[derive(Debug, Clone, Copy)]
+pub enum EinkMode {
+    // 壁纸模式
+    Wallpaper,
+    // 系统桌面模式
+    WindowsDesktop,
+    // 启动器模式
+    Launcher,
+}

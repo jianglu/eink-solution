@@ -6,12 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
+anyhow = "1.0.65"
+widestring = "1.0.2"
 
 [dependencies.windows]
 version = "0.42"
 features = [
     "Devices_Display_Core",
+    "Devices_Enumeration",
+    "Devices_HumanInterfaceDevice",
     "Foundation_Collections",
     "Foundation_Numerics",
     "Foundation",
@@ -20,9 +23,11 @@ features = [
     "Graphics",
     "implement",
     "interface",
+    "Storage",
     "Win32_Devices_DeviceAndDriverInstallation",
     "Win32_Devices_Display",
     "Win32_Devices_Enumeration_Pnp",
+    "Win32_Devices_HumanInterfaceDevice",
     "Win32_Devices_Properties",
     "Win32_Foundation",
     "Win32_Graphics_Direct2D",
@@ -37,6 +42,8 @@ features = [
     "Win32_Security",
     "Win32_Storage_FileSystem",
     "Win32_System_Com",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Environment",
     "Win32_System_IO",
     "Win32_System_LibraryLoader",
     "Win32_System_RemoteDesktop",

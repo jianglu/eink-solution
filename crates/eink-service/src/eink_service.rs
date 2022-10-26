@@ -30,17 +30,6 @@ use crate::{
 };
 use crate::{win_utils, winrt};
 
-/// Eink 模式
-#[derive(Debug, Clone, Copy)]
-enum EinkMode {
-    // 壁纸模式
-    Wallpaper,
-    // 系统桌面模式
-    WindowsDesktop,
-    // 启动器模式
-    Launcher,
-}
-
 struct EinkServiceImpl {
     // Eink 当前模式(默认为壁纸模式)
     curr_mode: EinkMode,

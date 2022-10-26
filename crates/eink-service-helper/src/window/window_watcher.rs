@@ -106,13 +106,20 @@ impl Watcher {
                 }
             }
 
+            // Launcher 窗口必须被排除
+            // [18680] INFO  [eink_service_helper::window::window_watcher] OverlappingWin-Title: "ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59"
+
+            if overlapping_win.title.contains("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59") {
+                excluded = true;
+            }
+
             if excluded {
                 // 有窗口被排除的情况
             } else {
                 info!("OverlappingWin-Title: {:?}", overlapping_win.title);
 
                 // TODO: 如果是特权级窗口，比如在更高优先级的 Band 上的窗口
-                unsafe { ShowWindow(overlapping_win.handle, SW_MINIMIZE) };
+                // unsafe { ShowWindow(overlapping_win.handle, SW_MINIMIZE) };
             }
         }
     }

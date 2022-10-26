@@ -10,14 +10,12 @@
 // All rights reserved.
 //
 
-mod window_all;
-mod window_info;
-mod window_overlapping;
-mod window_watcher;
-mod window_capturable;
+/// 置顶管理器
 
-pub use window_all::*;
-pub use window_capturable::*;
-pub use window_info::*;
-pub use window_overlapping::*;
-pub use window_watcher::*;
+// void set_window_topmost()
+
+//
+// eink-cli /set-window-topmost
+// eink-cli /set-window-topmost
+// eink-cli /set-window-topmost
+// eink-cli /set-tcon-

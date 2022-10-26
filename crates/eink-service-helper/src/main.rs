@@ -15,20 +15,23 @@
 
 mod mag_win;
 mod magnify;
+mod topmost;
 mod window;
+mod keyboard_manager;
 
 use std::{
     ffi::c_void,
     sync::{
         atomic::{AtomicBool, AtomicIsize, Ordering},
-        Arc, Mutex,
+        Arc,
     },
 };
 
 use anyhow::bail;
 use log::info;
 use mag_win::MagWindow;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
+use tokio::runtime::Runtime;
 use windows::{
     core::*,
     Win32::Foundation::*,
@@ -39,6 +42,7 @@ use windows::{
             Threading::{CreateThreadpoolTimer, SetThreadpoolTimer, TP_TIMER},
         },
         UI::{
+            Input::KeyboardAndMouse::{keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP},
             Magnification::{
                 MagGetWindowFilterList, MagInitialize, MagSetColorEffect, MagSetWindowFilterList,
                 MagUninitialize, MW_FILTERMODE, MW_FILTERMODE_EXCLUDE, MW_FILTERMODE_INCLUDE,
@@ -51,8 +55,16 @@ use windows::{
         UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2},
     },
 };
+use windows_hotkeys::{
+    keys::{winapi_keycodes::VK_LWIN, ModKey, VKey},
+    HotkeyManager,
+};
+use wineventhook::{
+    raw_event::{OBJECT_CREATE, SYSTEM_FOREGROUND},
+    AccessibleObjectId, EventFilter, WindowEventHook,
+};
 
-use crate::window::enumerate_capturable_windows;
+use crate::window::{enumerate_all_windows, enumerate_capturable_windows};
 
 type AnyResult<T> = anyhow::Result<T>;
 
@@ -104,6 +116,20 @@ unsafe fn refresh_magnifier() {
     let pan_offset = POINT { x: 0, y: 0 };
     let lens_size = SIZE { cx: 2560, cy: 1600 };
     a.update_magnifier(&mut mag_pos, pan_offset, lens_size);
+
+    let topmost_hwnd = FindWindowA(None, s!("DebugView"));
+    let mag_hwnd = a.get_handle();
+
+    SetParent(topmost_hwnd, mag_hwnd);
+    SetWindowPos(
+        topmost_hwnd,
+        HWND_TOPMOST,
+        0,
+        0,
+        0,
+        0,
+        SWP_NOMOVE | SWP_NOSIZE,
+    );
 }
 
 static mut g_enable: AtomicBool = AtomicBool::new(false);
@@ -145,18 +171,42 @@ fn main() -> AnyResult<()> {
     // 排除自身的窗口
     watcher.add_exclude_win(host_hwnd);
 
+    // Create the runtime
+    let rt = Runtime::new()?;
+
+    let mut hwnds = Vec::<HWND>::with_capacity(32);
+
     // Window Filter
     unsafe {
-        let mut hwnds = Vec::<HWND>::with_capacity(32);
+        // keybd_event(VK_LWIN as u8, 0x45, KEYBD_EVENT_FLAGS::default(), 0); //show start menu
+        // keybd_event(VK_LWIN as u8, 0x45, KEYEVENTF_KEYUP, 0);
 
-        let wins = enumerate_capturable_windows();
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
+        let wins = enumerate_all_windows();
+
+        // hwnds.push(GetDesktopWindow());
+
+        // let mut hwnds_guard = hwnds;
         for win in wins.into_iter() {
             if win.title.contains("DebugView") {
                 watcher.set_topmost_app_hwnd(win.handle);
+                // continue;
+            }
+            info!(">> Hide {:?}", win.title);
+            if win
+                .title
+                .contains("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59")
+            {
                 continue;
             }
             hwnds.push(win.handle);
         }
+
+        hwnds.push(FindWindowA(s!("Shell_TrayWnd"), None));
+        hwnds.push(FindWindowA(s!("TaskListOverlayWnd"), None));
+
+        info!("MagSetWindowFilterList: count: {:?}", hwnds.len() as i32);
 
         MagSetWindowFilterList(
             mag.get_handle(),
@@ -166,8 +216,88 @@ fn main() -> AnyResult<()> {
         );
     }
 
+    let mag_hwnd = mag.get_handle();
+
     // 保存到全局变量
     (*g_mag.write().get_mut()) = Some(mag);
+
+    rt.spawn(async move {
+        // Create a new hook
+        let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel();
+        let hook = WindowEventHook::hook(EventFilter::default().events(SYSTEM_FOREGROUND .. OBJECT_CREATE), event_tx)
+            .await
+            .unwrap();
+
+        // Wait and print events
+        while let Some(event) = event_rx.recv().await {
+            use wineventhook::MaybeKnown::Known;
+
+            //
+            // 窗口被置为前台
+            // 1. 如果不是 Launcher 和被选择的应用，移动到后台
+            // 2. 
+            //
+            if event.raw.event_id as i32 == SYSTEM_FOREGROUND {
+                info!("WinEvent: SYSTEM_FOREGROUND");
+                let hwnd = HWND(event.raw.window_handle as isize);
+                if unsafe { IsWindowVisible(hwnd).as_bool() } {
+                    let win_classname = eink_winkits::get_window_class(hwnd).unwrap();
+                    let win_real_classname = eink_winkits::get_window_real_class(hwnd).unwrap();
+                    let win_title = eink_winkits::get_window_text(hwnd).unwrap();
+                    info!("WinEvent: SYSTEM_FOREGROUND {win_classname}, {win_real_classname}, {win_title}");
+
+                    // [22504] INFO  [eink_service_helper] WinEvent: SYSTEM_FOREGROUND XamlExplorerHostIslandWindow, XamlExplorerHostIslandWindow, 任务切换
+
+                    if win_classname == "Windows.UI.Core.CoreWindow" || win_classname == "XamlExplorerHostIslandWindow" {
+                        // let hwnd = unsafe { GetAncestor(hwnd, GA_ROOT) };
+                        // hwnds.push(hwnd);
+                        info!("MagSetWindowFilterList: count: {:?}", hwnds.len() as i32);
+                        unsafe {
+                            MagSetWindowFilterList(
+                                mag_hwnd,
+                                MW_FILTERMODE_EXCLUDE,
+                                hwnds.len() as i32,
+                                hwnds.as_mut_ptr(),
+                            );
+                            refresh_magnifier();
+                        }
+                    }
+                    // [6236] INFO  [eink_service_helper] WinEvent: SYSTEM_FOREGROUND Windows.UI.Core.CoreWindow, Windows.UI.Core.CoreWindow, 搜索
+                }
+            }
+            else if let Known(object_type) = event.object_type() {
+                if object_type == AccessibleObjectId::Window {
+                    let hwnd = HWND(event.raw.window_handle as isize);
+                    let win_classname = eink_winkits::get_window_class(hwnd).unwrap();
+                    let win_real_classname = eink_winkits::get_window_real_class(hwnd).unwrap();
+                    let win_title = eink_winkits::get_window_text(hwnd).unwrap();
+                    info!("WinEvent: Create Window {win_classname}, {win_real_classname}, {win_title}");
+
+                    // [15052] INFO  [eink_service_helper] WinEvent: Create Window OleMainThreadWndClass, OleMainThreadWndClass, OLEChannelWnd
+
+                    // [20172] INFO  [eink_service_helper] WinEvent: Create Window OleMainThreadWndName
+
+                    // [22488] INFO  [eink_service_helper] WinEvent: Create Window TaskListOverlayWnd, TaskListOverlayWnd, 
+
+                    if win_classname == "Windows.UI.Core.CoreWindow" || win_classname == "TaskListOverlayWnd" || win_classname == "OleMainThreadWndName" {
+                        hwnds.push(hwnd);
+                        info!("MagSetWindowFilterList: count: {:?}", hwnds.len() as i32);
+                        unsafe {
+                            MagSetWindowFilterList(
+                                mag_hwnd,
+                                MW_FILTERMODE_EXCLUDE,
+                                hwnds.len() as i32,
+                                hwnds.as_mut_ptr(),
+                            )
+                        };
+                    }
+                }
+            }
+        }
+
+        // Unhook the hook
+        hook.unhook().await.unwrap();
+    });
 
     // Create and start a timer to refresh the window.
     unsafe {
@@ -187,6 +317,16 @@ fn main() -> AnyResult<()> {
         );
     }
 
+    // 开启热键响应线程
+    std::thread::spawn(move || {
+        let mut hkm = HotkeyManager::new();
+        hkm.register(VKey::A, &[ModKey::Alt], move || {
+            unsafe { PostMessageA(host_hwnd, WM_QUIT, WPARAM(0), LPARAM(0)) };
+        })
+        .unwrap();
+        hkm.event_loop();
+    });
+
     // 进入窗口循环
     unsafe {
         ShowWindow(host_hwnd, SW_SHOWNOACTIVATE);
@@ -198,6 +338,8 @@ fn main() -> AnyResult<()> {
             DispatchMessageA(&message);
         }
     }
+
+    magnify::close_magnify_window();
 
     unsafe {
         if !MagUninitialize().as_bool() {
@@ -231,7 +373,12 @@ unsafe fn register_and_create_window_unsafe() -> AnyResult<HWND> {
     debug_assert!(atom != 0);
 
     // 查找系统放大镜窗口
-    let magnifier_hwnd = magnify::find_magnify_window();
+    let mut magnifier_hwnd = magnify::find_magnify_window();
+
+    if magnifier_hwnd == HWND(0) {
+        magnify::start_magnify();
+        magnifier_hwnd = magnify::find_magnify_window();
+    }
 
     magnify::hide_magnify_ui_window();
     magnify::hide_magnify_window();
@@ -242,11 +389,11 @@ unsafe fn register_and_create_window_unsafe() -> AnyResult<HWND> {
         style,
         window_class,
         s!("Screen Magnifier"),
-        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
+        WS_POPUP | WS_VISIBLE,
+        0,
+        0,
+        2560,
+        1600,
         Some(magnifier_hwnd),
         None,
         instance,

@@ -16,6 +16,7 @@ use log::{debug, info};
 use libc::c_void;
 
 use windows::Win32::Foundation::GetLastError;
+use windows::Win32::Foundation::HWND;
 use windows::Win32::Foundation::NO_ERROR;
 use windows::Win32::Foundation::WIN32_ERROR;
 use windows::Win32::Security::DuplicateTokenEx;
@@ -44,6 +45,7 @@ use windows::Win32::System::RemoteDesktop::WTSQueryUserToken;
 use windows::Win32::System::RemoteDesktop::WTS_SESSION_INFOW;
 use windows::Win32::System::Threading::OpenProcessToken;
 use windows::Win32::System::Threading::CREATE_UNICODE_ENVIRONMENT;
+use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
 
 use std::mem::size_of;
 use std::mem::zeroed;
@@ -528,4 +530,8 @@ pub fn get_process_id_by_name(name: &str) -> anyhow::Result<u32> {
         }
     }
     anyhow::bail!("XXX");
+}
+
+pub fn reparent_window_to_desktop(hwnd: HWND) {
+    let desktop_hwnd = unsafe { GetDesktopWindow() };
 }

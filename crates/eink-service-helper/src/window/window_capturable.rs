@@ -30,7 +30,7 @@ struct WindowEnumerationState {
 }
 
 /// 枚举所有和目标区域重合的窗口
-pub fn enumerate_all_windows() -> Vec<WindowInfo> {
+pub fn enumerate_capturable_windows() -> Vec<WindowInfo> {
     unsafe {
         // TODO: This works for Command Prompt but not Terminal
         let console_window = {
@@ -47,14 +47,14 @@ pub fn enumerate_all_windows() -> Vec<WindowInfo> {
             console_window,
         }));
 
-        EnumWindows(Some(enum_all_window), LPARAM(state as isize));
+        EnumWindows(Some(enum_capturable_window), LPARAM(state as isize));
 
         let state = Box::from_raw(state);
         state.windows
     }
 }
 
-extern "system" fn enum_all_window(window: HWND, state: LPARAM) -> BOOL {
+extern "system" fn enum_capturable_window(window: HWND, state: LPARAM) -> BOOL {
     unsafe {
         let state = Box::leak(Box::from_raw(state.0 as *mut WindowEnumerationState));
 
@@ -66,34 +66,9 @@ extern "system" fn enum_all_window(window: HWND, state: LPARAM) -> BOOL {
 
         let window_info = WindowInfo::new(window);
 
-        if window_info.title.is_empty()
-            || window_info.handle == GetShellWindow()
-            || !IsWindowVisible(window_info.handle).as_bool()
-        {
-            return true.into();
+        if window_info.is_capturable_window() {
+            state.windows.push(window_info);
         }
-
-        let ancestor = GetAncestor(window_info.handle, GA_ROOT);
-        if ancestor != window_info.handle {
-            let mut ancestor_class: [u8; 256] = std::mem::zeroed();
-            GetClassNameA(ancestor, &mut ancestor_class); // "ApplicationFrameWindow"
-
-            let class_name = CStr::from_ptr(ancestor_class.as_ptr() as *const _);
-
-            println!("class_name.to_bytes(): {:?}", class_name.to_bytes());
-            println!(
-                "\"ApplicationFrameWindow\".as_bytes(): {:?}",
-                "ApplicationFrameWindow".as_bytes()
-            );
-
-            if class_name.to_bytes() != "ApplicationFrameWindow".as_bytes() {
-                return true.into();
-            }
-        }
-
-        // if window_info.is_capturable_window() {
-        state.windows.push(window_info);
-        // }
     }
     true.into()
 }
