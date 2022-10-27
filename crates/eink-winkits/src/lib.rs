@@ -46,6 +46,7 @@ use windows::{
 };
 
 pub mod process;
+pub mod process_waiter;
 pub mod taskbar;
 
 pub fn get_window_ancestor(hwnd: HWND) -> anyhow::Result<HWND> {

@@ -146,35 +146,6 @@ unsafe fn refresh_magnifier() {
 static mut g_enable: AtomicBool = AtomicBool::new(false);
 static mut g_refresh_timer: AtomicIsize = AtomicIsize::new(0);
 
-mod process_waiter {
-    use windows::Win32::{
-        Foundation::{CloseHandle, GetLastError, ERROR_SUCCESS, WAIT_OBJECT_0, WIN32_ERROR},
-        System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE},
-    };
-
-    pub fn on_process_terminate<F>(pid: u32, cb: F)
-    where
-        F: FnOnce(WIN32_ERROR) + Sync + Send + 'static,
-    {
-        std::thread::spawn(move || unsafe {
-            let process =
-                OpenProcess(PROCESS_SYNCHRONIZE, false, pid).expect("Cannot open parent process");
-            if !process.is_invalid() {
-                const INFINITE: u32 = 0xFFFFFFFFu32;
-                if WaitForSingleObject(process, INFINITE) == WAIT_OBJECT_0 {
-                    CloseHandle(process);
-                    cb(ERROR_SUCCESS);
-                } else {
-                    CloseHandle(process);
-                    cb(GetLastError());
-                }
-            } else {
-                cb(GetLastError());
-            }
-        });
-    }
-}
-
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "Eink Service Helper",
@@ -220,8 +191,9 @@ fn switch_to_oled_windows_desktop_mode() {
 fn main() -> AnyResult<()> {
     let mut opt = Opt::from_args();
 
+    // 监听目标进程关闭，绑定生命周期
     if let Some(pid) = opt.pid.take() {
-        process_waiter::on_process_terminate(pid, |err_code| {
+        eink_winkits::process_waiter::on_process_terminate(pid, |err_code| {
             std::process::exit(err_code.0 as i32);
         });
     }
@@ -233,11 +205,11 @@ fn main() -> AnyResult<()> {
     std::thread::spawn(move || {
         let mut hkm = HotkeyManager::new();
 
-        // ALT-A 退出
-        hkm.register(VKey::A, &[ModKey::Alt], move || {
-            unsafe { PostMessageA(host_hwnd, WM_QUIT, WPARAM(0), LPARAM(0)) };
+        // CTRL-ALT-Q 退出
+        hkm.register(VKey::Q, &[ModKey::Ctrl, ModKey::Alt], move || {
+            std::process::exit(0);
         })
-        .expect("Cannot register hot-key ALT-A");
+        .expect("Cannot register hot-key CTRL-ALT-Q");
 
         // CTRL-SHIFT-M 进入 EINK
         hkm.register(VKey::M, &[ModKey::Ctrl, ModKey::Shift], move || {
