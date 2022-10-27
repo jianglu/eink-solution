@@ -31,7 +31,7 @@ members = [
     # TODO：使用 runner 把 service 改为标准应用程序
     "crates/eink-service",
     "crates/eink-service-helper",
-    # "crates/eink-service-runner",
+    "crates/eink-service-runner",
 
     # 合成器 Composer 
     # "crates/eink-composer-lib",
