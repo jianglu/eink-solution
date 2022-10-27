@@ -47,7 +47,7 @@ impl Client {
         let (reply_tx, mut reply_rx) = rch::mpsc::channel(1);
         self.tx
             .as_mut()
-            .unwrap()
+            .expect("Cannot find tx link")
             .send(IpcMsg {
                 payload: JsonRpc::request_with_params(id, method, params),
                 reply_tx: Some(reply_tx),
@@ -60,13 +60,13 @@ impl Client {
         }
     }
 
-    pub async fn connect(&mut self) {
+    pub async fn connect(&mut self) -> anyhow::Result<()> {
         // 创建底层 pipe 连接
         let pipe_client = loop {
             match ClientOptions::new().open(&self.pipe_name) {
                 Ok(client) => break client,
                 Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => (),
-                Err(e) => return,
+                Err(e) => bail!("Cannot connect: {e:?}"),
             }
 
             time::sleep(Duration::from_millis(50)).await;
@@ -91,6 +91,8 @@ impl Client {
         tokio::spawn(async move {
             Self::process_incoming(handlers, &mut rx).await;
         });
+
+        Ok(())
     }
 
     /// 处理输入的请求
@@ -170,6 +172,6 @@ impl Client {
 
 pub async fn connect(pipe_name: &str) -> anyhow::Result<Client> {
     let mut client = Client::new(pipe_name);
-    client.connect().await;
+    client.connect().await?;
     Ok(client)
 }

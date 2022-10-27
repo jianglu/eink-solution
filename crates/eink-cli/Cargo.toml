@@ -7,3 +7,9 @@ edition = "2021"
 anyhow = "1.0"
 log = { version = "0.4", features = ["kv_unstable"] }
 structopt = "0.3.26"
+
+serde_json = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+
+eink-pipe-io = { path = "../eink-pipe-io" }

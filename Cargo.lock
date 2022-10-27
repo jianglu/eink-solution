@@ -666,7 +666,11 @@ name = "eink-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "eink-pipe-io",
  "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
  "structopt",
 ]
 
