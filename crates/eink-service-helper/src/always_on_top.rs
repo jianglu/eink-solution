@@ -1,17 +1,3 @@
-// //
-// // Copyright (C) Lenovo ThinkBook Gen4 Project.
-// //
-// // This program is protected under international and China copyright laws as
-// // an unpublished work. This program is confidential and proprietary to the
-// // copyright owners. Reproduction or disclosure, in whole or in part, or the
-// // production of derivative works therefrom without the express permission of
-// // the copyright owners is prohibited.
-// //
-// // All rights reserved.
-// //
-
-
-
 //
 // Copyright (C) Lenovo ThinkBook Gen4 Project.
 //
@@ -118,45 +104,6 @@ pub static KEYBOARD_MANAGER: Mutex<KeyboardManager> = {
     Mutex::new(KeyboardManager::new().expect("Cannot instantiate KeyboardManager"))
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // use anyhow::Result;
 // use windows::{Win32::{UI::{HiDpi::{
 //     SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
@@ -208,14 +155,14 @@ pub static KEYBOARD_MANAGER: Mutex<KeyboardManager> = {
 //         };
 
 //         unsafe { RegisterClassExW(&wcex) };
-    
+
 //         m_window = CreateWindowExW(WS_EX_TOOLWINDOW, NonLocalizable::TOOL_WINDOW_CLASS_NAME, L"", WS_POPUP, 0, 0, 0, 0, nullptr, nullptr, m_hinstance, this);
 //         if (!m_window)
 //         {
 //             Logger::error(L"Failed to create AlwaysOnTop window: {}", get_last_error_or_default(GetLastError()));
 //             return false;
 //         }
-    
+
 //     }
 // }
 

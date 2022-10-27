@@ -184,3 +184,16 @@ taskkill /im "StartMenuExperienceHost.exe" /f; start C:\Windows\SystemApps\Micro
 
 eink-service
 eink-service-helper
+
+
+# Compiling
+
+## Install VS2022 / BuildTools
+
+## Install rustup
+
+## Install rust stuff
+
+```
+cargo install cargo-make
+```

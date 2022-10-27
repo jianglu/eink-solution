@@ -53,10 +53,14 @@ crossbeam-channel = "0.5"
 # rust version of boost::signals2
 signals2 = "0.3.2"
 
+# Primitives enums
+num_enum_derive = "0.5.7"
+
 eink-common = { path = "../eink-common" }
 eink-eventbus = { path = "../eink-eventbus" }
 eink-logger = { path = "../eink-logger" }
-eink-itetcon= { path = "../eink-itetcon" }
+eink-itetcon = { path = "../eink-itetcon" }
+eink-pipe-io = { path = "../eink-pipe-io" }
 
 # pipe-ipc = { git = "http://git2.ensurebit.net/lenovo-thinkbook-gen4/pipe-ipc.git" }
 pipe-ipc = { path = "../../../pipe-ipc/crates/pipe-ipc" }

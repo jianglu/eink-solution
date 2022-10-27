@@ -10,11 +10,15 @@
 // All rights reserved.
 //
 
+// !!当前不使用!!
+// 当前只能使用 console 子系统，需要从 runner 获得
+//
 // 使用 windows subsystem 子系统
 // #![cfg_attr(not(test), windows_subsystem = "windows")]
 
-// 当前只能使用 console 子系统，需要从 runner 获得
-
+///////////////////////////////////////////////////////////////////////////////
+/// Mods
+///
 mod keyboard_manager;
 mod service_helper;
 mod settings;
@@ -23,22 +27,30 @@ mod topmost_manager;
 mod utils;
 mod win_utils;
 
+///////////////////////////////////////////////////////////////////////////////
+/// Package Imports
+///
 use log::info;
 use service_helper::SERVICE_HELPER;
 
-use crate::{keyboard_manager::KEYBOARD_MANAGER, topmost_manager::TOPMOST_MANAGER};
+use crate::{
+    keyboard_manager::KEYBOARD_MANAGER, tcon_service::TCON_SERVICE,
+    topmost_manager::TOPMOST_MANAGER,
+};
 
+///////////////////////////////////////////////////////////////////////////////
+/// Functions
 ///
+
+/// 应用程序主入口
+/// 1. 初始化各种服务
+/// 2. 等待 runner 程序发送的 CTRL-C 信号以终止程序
 fn main() -> anyhow::Result<()> {
     // 设置当前的活动日志系统为 OutputDebugString 输出
     eink_logger::init_with_level(log::Level::Trace)?;
 
-    std::panic::set_hook(Box::new(|info| {
-        log::error!("PANIC: {:?}", info);
-    }));
-
-    // 重置工作目录
-    reset_working_dir().expect("Error reset working dir");
+    init_panic_output();
+    init_working_dir().expect("Error reset working dir");
 
     //
     // 启动各种服务
@@ -56,11 +68,17 @@ fn main() -> anyhow::Result<()> {
         .start()
         .expect("Error start KEYBOARD_MANAGER");
 
-    // 启动键盘管理器
+    // 启动窗口置顶管理
     TOPMOST_MANAGER
         .lock()
         .start()
         .expect("Error start TOPMOST_MANAGER");
+
+    // 启动 TCON 管理器
+    TCON_SERVICE
+        .lock()
+        .start()
+        .expect("Error start TCON_SERVICE");
 
     //
     // 等待 CTRL-C 信号，通知服务终止
@@ -72,6 +90,8 @@ fn main() -> anyhow::Result<()> {
 
     rx.recv().expect("Could not receive from channel.");
     info!("Got Ctrl-C, Exiting ...");
+
+    // 依次终止各服务，尽量不要有先后相关性依赖
 
     KEYBOARD_MANAGER
         .lock()
@@ -88,11 +108,20 @@ fn main() -> anyhow::Result<()> {
         .stop()
         .expect("Error stop SERVICE_HELPER");
 
+    TCON_SERVICE.lock().stop().expect("Error stop TCON_SERVICE");
+
     Ok(())
 }
 
+/// 初始化 Panic 的输出为 OutputDebugString
+fn init_panic_output() {
+    std::panic::set_hook(Box::new(|info| {
+        log::error!("PANIC: {:?}", info);
+    }));
+}
+
 /// 重置当前工作目录为 exe 所在目录
-fn reset_working_dir() -> anyhow::Result<()> {
+fn init_working_dir() -> anyhow::Result<()> {
     info!("current_dir: {:?}", std::env::current_dir());
     info!("current_exe: {:?}", std::env::current_exe());
 
