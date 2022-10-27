@@ -18,13 +18,14 @@
 mod keyboard_manager;
 mod service_helper;
 mod settings;
+mod topmost_manager;
 mod utils;
 mod win_utils;
 
 use log::info;
 use service_helper::SERVICE_HELPER;
 
-use crate::keyboard_manager::KEYBOARD_MANAGER;
+use crate::{keyboard_manager::KEYBOARD_MANAGER, topmost_manager::TOPMOST_MANAGER};
 
 ///
 fn main() -> anyhow::Result<()> {
@@ -54,6 +55,12 @@ fn main() -> anyhow::Result<()> {
         .start()
         .expect("Error start KEYBOARD_MANAGER");
 
+    // 启动键盘管理器
+    TOPMOST_MANAGER
+        .lock()
+        .start()
+        .expect("Error start TOPMOST_MANAGER");
+
     //
     // 等待 CTRL-C 信号，通知服务终止
     info!("Start waiting for Ctrl-C ...");
@@ -69,6 +76,11 @@ fn main() -> anyhow::Result<()> {
         .lock()
         .stop()
         .expect("Error stop KEYBOARD_MANAGER");
+
+    TOPMOST_MANAGER
+        .lock()
+        .stop()
+        .expect("Error stop TOPMOST_MANAGER");
 
     SERVICE_HELPER
         .lock()
