@@ -54,7 +54,7 @@ crossbeam-channel = "0.5"
 signals2 = "0.3.2"
 
 # Primitives enums
-num_enum_derive = "0.5.7"
+num_enum = "0.5.7"
 
 eink-common = { path = "../eink-common" }
 eink-eventbus = { path = "../eink-eventbus" }

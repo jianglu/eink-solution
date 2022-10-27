@@ -776,7 +776,7 @@ dependencies = [
  "libc",
  "log",
  "ntapi",
- "num_enum_derive",
+ "num_enum",
  "parking_lot 0.12.1",
  "pipe-ipc",
  "reg-watcher",

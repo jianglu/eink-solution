@@ -18,7 +18,7 @@ use std::{
 use anyhow::{bail, Result};
 use eink_itetcon::{ITEGetDriveNo, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetMIPIModeAPI};
 use eink_pipe_io::server::Socket;
-use jsonrpc_lite::{Id, JsonRpc};
+use jsonrpc_lite::{Id, JsonRpc, Params};
 use log::info;
 use parking_lot::{Mutex, RwLock};
 use serde_json::json;
@@ -79,11 +79,35 @@ impl TconService {
             info!("TconService: On request");
             match req.get_method() {
                 Some("set_mipi_mode") => {
-                    tcon_set_mipi_mode(MipiMode::Picture);
+                    let mode = MipiMode::try_from(0u32).unwrap();
+                    tcon_set_mipi_mode(mode);
                     jsonrpc_success_string(id, "true")
                 }
                 Some("set_mipi_mode") => {
-                    tcon_set_mipi_mode(MipiMode::Picture);
+                    let mode = {
+                        if let Some(Params::Map(map)) = req.get_params() {
+                            if let Some(mode) = map.get("mode") {
+                                if let Some(mode) = mode.as_u64() {
+                                    mode
+                                } else {
+                                    return jsonrpc_error_invalid_params(id);
+                                }
+                            } else {
+                                return jsonrpc_error_invalid_params(id);
+                            }
+                        } else {
+                            return jsonrpc_error_invalid_params(id);
+                        }
+                    };
+
+                    let mode = match MipiMode::try_from(mode as u32) {
+                        Ok(mode) => mode,
+                        Err(_) => {
+                            return jsonrpc_error_invalid_params(id);
+                        }
+                    };
+
+                    tcon_set_mipi_mode(mode);
                     jsonrpc_success_string(id, "true")
                 }
                 Some(&_) => jsonrpc_error_method_not_found(id),
@@ -97,10 +121,6 @@ impl TconService {
     /// 停止服务
     pub fn stop(&mut self) -> Result<()> {
         Ok(())
-    }
-
-    fn on_request(id: Id, req: JsonRpc) -> JsonRpc {
-        JsonRpc::error(id, jsonrpc_lite::Error::internal_error())
     }
 
     /// 启动 IPC 服务器
@@ -165,12 +185,31 @@ impl TconService {
     }
 }
 
-#[derive(num_enum_derive::IntoPrimitive)]
+#[derive(Default, num_enum::IntoPrimitive, num_enum::FromPrimitive)]
 #[repr(u32)]
 enum MipiMode {
-    Speed = 0,
-    Picture,
+    #[default]
+    Reader = 0x00,
+    Mixed = 0x01,
+    Browser = 0x02,
+    FastReader = 0x03,
+    FastUI = 0x04,
+    Sleep = 0x0F,
+    No = 0x10,
+    Refresh = 0x11,
+    Standby = 0x12,
+    HandWriting = 0x13,
+    Hybrid = 0xF0,
 }
+
+// fn get_param(params: &Option<Params>, key: &str) -> Result<&Value> {
+//     if let Some(Params::Map(map)) = req.get_params() {
+//         if let Some(mode) = map.get(key) {
+//             mode
+//         }
+//     }
+//     bail!("Cannot find param {key}")
+// }
 
 fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
     // 设置 MIPI 模式
@@ -185,6 +224,10 @@ fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
 
 fn jsonrpc_success_string(id: Id, result: &str) -> JsonRpc {
     JsonRpc::success(id, &serde_json::Value::String(result.to_owned()))
+}
+
+fn jsonrpc_error_invalid_params(id: Id) -> JsonRpc {
+    JsonRpc::error(id, jsonrpc_lite::Error::invalid_params())
 }
 
 fn jsonrpc_error_method_not_found(id: Id) -> JsonRpc {
