@@ -18,6 +18,7 @@
 mod keyboard_manager;
 mod service_helper;
 mod settings;
+mod tcon_service;
 mod topmost_manager;
 mod utils;
 mod win_utils;
