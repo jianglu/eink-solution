@@ -64,6 +64,7 @@ extern "system" {
     pub fn ITEOpenDeviceAPI(dev_path: &CStr) -> HANDLE;
     pub fn ITECloseDeviceAPI() -> ();
     pub fn ITESet8951KeepAlive(enable: u32) -> u32;
+    pub fn ITESetFA2(enable: u32) -> u32;
     pub fn ITESetMIPIModeAPI(mode: &mut u32) -> u32;
     pub fn ITEGetBufferAddrInfoAPI(addrs: &mut [u32; 3]) -> u32;
     pub fn ITELoadImage(img_buf: *mut u8, img_buf_addr: u32, x: u32, y: u32, w: u32, h: u32)
