@@ -16,10 +16,12 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use eink_itetcon::{ITEGetDriveNo, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetMIPIModeAPI};
+use eink_itetcon::{
+    ITEGetDriveNo, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetFA2, ITESetMIPIModeAPI,
+};
 use eink_pipe_io::server::Socket;
 use jsonrpc_lite::{Id, JsonRpc, Params};
-use log::info;
+use log::{error, info};
 use parking_lot::{Mutex, RwLock};
 use serde_json::json;
 use signals2::{connect::ConnectionImpl, Connect2, Emit2, Signal};
@@ -61,7 +63,7 @@ pub struct TconService {
 
 impl TconService {
     pub fn new() -> Result<Self> {
-        let rt = tokio::runtime::Builder::new_current_thread()
+        let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .expect("Cannot create tokio runtime for TconService");
@@ -74,13 +76,18 @@ impl TconService {
 
     /// 启动服务
     pub fn start(&mut self) -> Result<()> {
-        self.open_tcon_device()?;
+        info!("TconService: start");
+
+        match self.open_tcon_device() {
+            Ok(_) => (),
+            Err(_) => error!("TconService: failed open tcon device"),
+        }
+
         self.on_request.write().connect(|id, req| {
             info!("TconService: On request");
             match req.get_method() {
-                Some("set_mipi_mode") => {
-                    let mode = MipiMode::try_from(0u32).unwrap();
-                    tcon_set_mipi_mode(mode);
+                Some("refresh") => {
+                    tcon_refresh();
                     jsonrpc_success_string(id, "true")
                 }
                 Some("set_mipi_mode") => {
@@ -125,6 +132,7 @@ impl TconService {
 
     /// 启动 IPC 服务器
     fn start_ipc_server(&mut self) -> Result<()> {
+        info!("TconService: start_ipc_server");
         let mut server = eink_pipe_io::server::Server::new(PIPE_NAME);
 
         let on_request = self.on_request.clone();
@@ -145,13 +153,19 @@ impl TconService {
         });
 
         // 在异步运行时启动
-        self.rt.spawn(async move { server.listen().await });
+        self.rt.spawn(async move {
+            info!("TconService: start server listen");
+            server.listen().await;
+            info!("TconService: stop server listen");
+        });
 
         Ok(())
     }
 
     /// 打开 Tcon 设备
     fn open_tcon_device(&self) -> Result<()> {
+        info!("TconService: open_tcon_device");
+
         // 获得设备驱动号
         let mut drive_no: u8 = 0;
         let ret = unsafe { ITEGetDriveNo(&mut drive_no) };
@@ -211,29 +225,43 @@ enum MipiMode {
 //     bail!("Cannot find param {key}")
 // }
 
+fn tcon_refresh() {
+    info!("tcon_refresh");
+}
+
+/// 设置 MIPI 模式
 fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
-    // 设置 MIPI 模式
     let mut mode: u32 = 1;
-    let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
+    let ret = unsafe {
+        ITESetFA2(1);
+        ITESetMIPIModeAPI(&mut mode)
+    };
     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 
     mode = mipi_mode.into();
-    let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
+    let ret = unsafe {
+        ITESetFA2(1);
+        ITESetMIPIModeAPI(&mut mode)
+    };
     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 }
 
+/// 返回成功（字符串值）
 fn jsonrpc_success_string(id: Id, result: &str) -> JsonRpc {
     JsonRpc::success(id, &serde_json::Value::String(result.to_owned()))
 }
 
+/// 返回错误（无效参数）
 fn jsonrpc_error_invalid_params(id: Id) -> JsonRpc {
     JsonRpc::error(id, jsonrpc_lite::Error::invalid_params())
 }
 
+/// 返回错误（找不到方法）
 fn jsonrpc_error_method_not_found(id: Id) -> JsonRpc {
     JsonRpc::error(id, jsonrpc_lite::Error::method_not_found())
 }
 
+/// 返回错误（内部错误）
 fn jsonrpc_error_internal_error(id: Id) -> JsonRpc {
     JsonRpc::error(id, jsonrpc_lite::Error::internal_error())
 }
