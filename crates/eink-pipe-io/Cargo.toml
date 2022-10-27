@@ -15,7 +15,11 @@ parking_lot = "0.12.1"
 signals2 = "*"
 
 tokio = { version = "1.21.2", features = ["full"] }
+
+# Remote multiplexed objects and channels
+# Apache 2 license
 remoc = { version = "0.10.0" }
+
 serde = { version = "1.0.145" }
 serde_json = { version = "1.0.85" }
 jsonrpc-lite = { version = "0.6.0" }

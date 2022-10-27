@@ -13,11 +13,17 @@
 // 使用 windows subsystem 子系统
 #![cfg_attr(not(test), windows_subsystem = "windows")]
 
+mod always_on_top;
+mod hotkey;
+mod keyboard_manager;
 mod mag_win;
 mod magnify;
+mod settings;
+mod specialized;
 mod topmost;
+mod utils;
+mod win_utils;
 mod window;
-mod keyboard_manager;
 
 use std::{
     ffi::c_void,
@@ -31,6 +37,8 @@ use anyhow::bail;
 use log::info;
 use mag_win::MagWindow;
 use parking_lot::{Mutex, RwLock};
+use settings::SETTINGS;
+use structopt::StructOpt;
 use tokio::runtime::Runtime;
 use windows::{
     core::*,
@@ -64,7 +72,10 @@ use wineventhook::{
     AccessibleObjectId, EventFilter, WindowEventHook,
 };
 
-use crate::window::{enumerate_all_windows, enumerate_capturable_windows};
+use crate::{
+    specialized::set_monitor_specialized,
+    window::{enumerate_all_windows, enumerate_capturable_windows},
+};
 
 type AnyResult<T> = anyhow::Result<T>;
 
@@ -135,7 +146,86 @@ unsafe fn refresh_magnifier() {
 static mut g_enable: AtomicBool = AtomicBool::new(false);
 static mut g_refresh_timer: AtomicIsize = AtomicIsize::new(0);
 
+mod process_waiter {
+    use windows::Win32::{
+        Foundation::{CloseHandle, GetLastError, ERROR_SUCCESS, WAIT_OBJECT_0, WIN32_ERROR},
+        System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE},
+    };
+
+    pub fn on_process_terminate<F>(pid: u32, cb: F)
+    where
+        F: FnOnce(WIN32_ERROR) + Sync + Send + 'static,
+    {
+        std::thread::spawn(move || unsafe {
+            let process =
+                OpenProcess(PROCESS_SYNCHRONIZE, false, pid).expect("Cannot open parent process");
+            if !process.is_invalid() {
+                const INFINITE: u32 = 0xFFFFFFFFu32;
+                if WaitForSingleObject(process, INFINITE) == WAIT_OBJECT_0 {
+                    CloseHandle(process);
+                    cb(ERROR_SUCCESS);
+                } else {
+                    CloseHandle(process);
+                    cb(GetLastError());
+                }
+            } else {
+                cb(GetLastError());
+            }
+        });
+    }
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "Eink Service Helper",
+    about = "Bottom-half of eink service, running in admin account"
+)]
+struct Opt {
+    /// verbosity level
+    #[structopt(short = "p", long = "pid")]
+    pid: Option<u32>,
+    #[structopt(short = "c", long = "config-file")]
+    config_file: Option<String>,
+}
+
+/// 切换到 EINK Launcher 模式
+fn switch_to_eink_launcher_mode() {
+    if let Ok(eink_monitor_id) = SETTINGS.read().get_string("eink_monitor_id") {
+        if eink_monitor_id.len() > 8 {
+            set_monitor_specialized(&eink_monitor_id, false).unwrap();
+        }
+        if let Ok(oled_monitor_id) = SETTINGS.read().get_string("oled_monitor_id") {
+            if oled_monitor_id.len() > 8 {
+                set_monitor_specialized(&oled_monitor_id, true).unwrap();
+
+                // 置顶 Launcher
+            }
+        }
+    }
+}
+
+// 切换搭配 OLED Windows 桌面模式
+fn switch_to_oled_windows_desktop_mode() {
+    if let Ok(oled_monitor_id) = SETTINGS.read().get_string("oled_monitor_id") {
+        set_monitor_specialized(&oled_monitor_id, false).unwrap();
+
+        if let Ok(eink_monitor_id) = SETTINGS.read().get_string("eink_monitor_id") {
+            set_monitor_specialized(&eink_monitor_id, true).unwrap();
+
+            // 最小化 Launcher
+        }
+    }
+}
+
 fn main() -> AnyResult<()> {
+    let mut opt = Opt::from_args();
+
+    if let Some(pid) = opt.pid.take() {
+        process_waiter::on_process_terminate(pid, |err_code| {
+            std::process::exit(err_code.0 as i32);
+        });
+    }
+
     // 设置当前的活动日志系统为 OutputDebugString 输出
     eink_logger::init_with_level(log::Level::Trace)?;
 
@@ -320,10 +410,25 @@ fn main() -> AnyResult<()> {
     // 开启热键响应线程
     std::thread::spawn(move || {
         let mut hkm = HotkeyManager::new();
+
+        // ALT-A 退出
         hkm.register(VKey::A, &[ModKey::Alt], move || {
             unsafe { PostMessageA(host_hwnd, WM_QUIT, WPARAM(0), LPARAM(0)) };
         })
-        .unwrap();
+        .expect("Cannot register hot-key ALT-A");
+
+        // CTRL-SHIFT-M 进入 EINK
+        hkm.register(VKey::M, &[ModKey::Ctrl, ModKey::Shift], move || {
+            switch_to_eink_launcher_mode();
+        })
+        .expect("Cannot register hot-key CTRL-SHIFT-M");
+
+        // CTRL-SHIFT-N 进入 OLED
+        hkm.register(VKey::N, &[ModKey::Ctrl, ModKey::Shift], move || {
+            switch_to_oled_windows_desktop_mode();
+        })
+        .expect("Cannot register hot-key CTRL-SHIFT-N");
+
         hkm.event_loop();
     });
 
@@ -383,15 +488,14 @@ unsafe fn register_and_create_window_unsafe() -> AnyResult<HWND> {
     magnify::hide_magnify_ui_window();
     magnify::hide_magnify_window();
 
-    // let style = WINDOW_EX_STYLE::default();
     let style = WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW;
     let hwnd = CreateWindowExA(
         style,
         window_class,
         s!("Screen Magnifier"),
         WS_POPUP | WS_VISIBLE,
-        0,
-        0,
+        100,
+        -50,
         2560,
         1600,
         Some(magnifier_hwnd),

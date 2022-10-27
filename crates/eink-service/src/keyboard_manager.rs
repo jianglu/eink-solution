@@ -36,8 +36,13 @@ impl KeyboardManager {
     }
 
     /// 启动服务
-    /// 1. 启动 eink-keyboard-manager 进程
     pub fn start(&mut self) -> Result<()> {
+        Ok(())
+    }
+
+    /// 禁用 Win / AltTab 按键
+    /// 1. 启动 eink-keyboard-manager 进程
+    pub fn disable_win_key(&mut self) -> Result<()> {
         // keyboard manager 可执行程序和 eink-service 在同一目录
         let exe_dir = get_current_exe_dir();
         let keyboard_manager_exe = exe_dir.join("eink-keyboard-manager.exe");
@@ -68,19 +73,25 @@ impl KeyboardManager {
         )
         .unwrap();
 
+        info!("eink-keyboard-manager pid: {pid}");
+
         self.pid = Some(pid);
 
+        Ok(())
+    }
+
+    /// 启用 Win / AltTab 按键
+    pub fn enable_win_key(&mut self) -> Result<()> {
+        if let Some(pid) = self.pid.take() {
+            kill_process_by_pid(pid, 0);
+        }
         Ok(())
     }
 
     /// 停止服务
     /// 1. 停止 eink-keyboard-manager 进程
     pub fn stop(&mut self) -> Result<()> {
-        if let Some(pid) = self.pid.take() {
-            kill_process_by_pid(pid, 0);
-        }
-
-        Ok(())
+        self.enable_win_key()
     }
 }
 

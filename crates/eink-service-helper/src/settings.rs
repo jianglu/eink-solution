@@ -10,9 +10,9 @@
 // All rights reserved.
 //
 
-use std::sync::RwLock;
 
 use config::Config;
+use parking_lot::RwLock;
 
 //
 // 将 Native 库设置为 Lazy 全局变量
@@ -29,12 +29,12 @@ pub static SETTINGS: RwLock<Config> = {
     }
 
     let mut file_path = config_dir.clone();
-    file_path.push("service-settings.json");
+    file_path.push("service-helper-settings.json");
 
     // 如果配置文件不存在，写入默认值
     // TODO: CHECK ERROR
     if !file_path.exists() {
-        let bytes = include_bytes!("../default-service-settings.json");
+        let bytes = include_bytes!("../default-service-helper-settings.json");
         std::fs::write(&file_path, bytes).expect("Cannot write default config file");
     }
 
