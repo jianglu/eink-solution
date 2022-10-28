@@ -49,6 +49,7 @@ eink-logger = { path = "../eink-logger" }
 eink-common = { path = "../eink-common" }
 eink-pipe-io = { path = "../eink-pipe-io" }
 eink-winkits = { path = "../eink-winkits" }
+eink-service-api = { path = "../eink-service-api" }
 
 [dependencies.windows]
 version = "0.42.0"

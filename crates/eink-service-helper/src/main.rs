@@ -156,7 +156,7 @@ struct Opt {
     #[structopt(short = "p", long = "pid")]
     pid: Option<u32>,
     #[structopt(short = "c", long = "config-file")]
-    config_file: Option<String>,
+    _config_file: Option<String>,
 }
 
 /// 切换到 EINK Launcher 模式
@@ -170,8 +170,58 @@ fn switch_to_eink_launcher_mode() {
                 set_monitor_specialized(&oled_monitor_id, true).unwrap();
 
                 // 置顶 Launcher
+                find_launcher_and_set_topmost();
             }
         }
+    }
+}
+
+fn find_window<P>(name: P) -> anyhow::Result<HWND>
+where
+    P: Into<PCSTR>,
+{
+    let launcher_hwnd = unsafe { FindWindowA(None, name) };
+    if launcher_hwnd == HWND(0) {
+        bail!("Cannot find window");
+    } else {
+        Ok(launcher_hwnd)
+    }
+}
+
+/// 查找 Launcher 并且设置为置顶模式
+fn find_launcher_and_set_topmost() {
+    if let Ok(hwnd) = find_window(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59")) {
+        set_window_topmost(hwnd);
+    } else {
+        log::error!("Cannot find ThinkBook Eink Plus Launcher");
+    }
+}
+
+/// 查找 Launcher 并且设置为隐藏
+fn find_launcher_and_set_hidden() {
+    if let Ok(hwnd) = find_window(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59")) {
+        set_window_hidden(hwnd);
+    } else {
+        log::error!("Cannot find ThinkBook Eink Plus Launcher");
+    }
+}
+
+/// 设置窗口置顶
+/// 1. 通知 Topmost Service
+fn set_window_topmost(hwnd: HWND) {
+    if let Ok(api_hwnd) = find_window(s!("AlwaysOnTopWindow")) {
+        unsafe {
+            SendMessageA(api_hwnd, WM_USER, WPARAM::default(), LPARAM(hwnd.0));
+        }
+    }
+}
+
+/// 设置窗口隐藏
+fn set_window_hidden(hwnd: HWND) {
+    if unsafe { ShowWindow(hwnd, SW_HIDE).as_bool() } {
+        // ignore
+    } else {
+        log::error!("Cannot hide launcher window");
     }
 }
 
@@ -184,6 +234,7 @@ fn switch_to_oled_windows_desktop_mode() {
             set_monitor_specialized(&eink_monitor_id, true).unwrap();
 
             // 最小化 Launcher
+            find_launcher_and_set_hidden();
         }
     }
 }
@@ -201,30 +252,28 @@ fn main() -> AnyResult<()> {
     // 设置当前的活动日志系统为 OutputDebugString 输出
     eink_logger::init_with_level(log::Level::Trace)?;
 
-    // 开启热键响应线程
-    std::thread::spawn(move || {
-        let mut hkm = HotkeyManager::new();
+    // 线程开启热键响应
+    let mut hkm = HotkeyManager::new();
 
-        // CTRL-ALT-Q 退出
-        hkm.register(VKey::Q, &[ModKey::Ctrl, ModKey::Alt], move || {
-            std::process::exit(0);
-        })
-        .expect("Cannot register hot-key CTRL-ALT-Q");
+    // CTRL-ALT-Q 退出
+    hkm.register(VKey::Q, &[ModKey::Ctrl, ModKey::Alt], move || {
+        std::process::exit(0);
+    })
+    .expect("Cannot register hot-key CTRL-ALT-Q");
 
-        // CTRL-SHIFT-M 进入 EINK
-        hkm.register(VKey::M, &[ModKey::Ctrl, ModKey::Shift], move || {
-            switch_to_eink_launcher_mode();
-        })
-        .expect("Cannot register hot-key CTRL-SHIFT-M");
+    // CTRL-SHIFT-M 进入 EINK
+    hkm.register(VKey::M, &[ModKey::Ctrl, ModKey::Shift], move || {
+        switch_to_eink_launcher_mode();
+    })
+    .expect("Cannot register hot-key CTRL-SHIFT-M");
 
-        // CTRL-SHIFT-N 进入 OLED
-        hkm.register(VKey::N, &[ModKey::Ctrl, ModKey::Shift], move || {
-            switch_to_oled_windows_desktop_mode();
-        })
-        .expect("Cannot register hot-key CTRL-SHIFT-N");
+    // CTRL-SHIFT-N 进入 OLED
+    hkm.register(VKey::N, &[ModKey::Ctrl, ModKey::Shift], move || {
+        switch_to_oled_windows_desktop_mode();
+    })
+    .expect("Cannot register hot-key CTRL-SHIFT-N");
 
-        hkm.event_loop();
-    });
+    hkm.event_loop();
 
     Ok(())
 }

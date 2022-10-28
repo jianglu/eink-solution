@@ -10,12 +10,13 @@
 // All rights reserved.
 //
 
-
 use config::Config;
 use parking_lot::RwLock;
 
 //
 // 将 Native 库设置为 Lazy 全局变量
+//
+// C:\Windows\System32\config\systemprofile\AppData\Local\Lenovo\ThinkBookEinkPlus
 //
 #[static_init::dynamic(lazy)]
 pub static SETTINGS: RwLock<Config> = {
