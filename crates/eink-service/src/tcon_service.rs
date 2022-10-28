@@ -17,7 +17,8 @@ use std::{
 
 use anyhow::{bail, Result};
 use eink_itetcon::{
-    ITEGetDriveNo, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetFA2, ITESetMIPIModeAPI,
+    ITECleanUpEInkAPI, ITEGetDriveNo, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetFA2,
+    ITESetMIPIModeAPI,
 };
 use eink_pipe_io::server::Socket;
 use jsonrpc_lite::{Id, JsonRpc, Params};
@@ -78,43 +79,50 @@ impl TconService {
     pub fn start(&mut self) -> Result<()> {
         info!("TconService: start");
 
-        match self.open_tcon_device() {
-            Ok(_) => (),
-            Err(_) => error!("TconService: failed open tcon device"),
-        }
+        let tcon_avail = match self.open_tcon_device() {
+            Ok(_) => true,
+            Err(_) => {
+                error!("TconService: failed open tcon device");
+                false
+            }
+        };
 
-        self.on_request.write().connect(|id, req| {
+        self.on_request.write().connect(move |id, req| {
             info!("TconService: On request");
             match req.get_method() {
                 Some("refresh") => {
-                    tcon_refresh();
+                    if tcon_avail {
+                        tcon_refresh();
+                    }
                     jsonrpc_success_string(id, "true")
                 }
                 Some("set_mipi_mode") => {
-                    let mode = {
-                        if let Some(Params::Map(map)) = req.get_params() {
-                            if let Some(mode) = map.get("mode") {
-                                if let Some(mode) = mode.as_u64() {
-                                    mode
+                    if tcon_avail {
+                        let mode = {
+                            if let Some(Params::Map(map)) = req.get_params() {
+                                if let Some(mode) = map.get("mode") {
+                                    if let Some(mode) = mode.as_u64() {
+                                        mode
+                                    } else {
+                                        return jsonrpc_error_invalid_params(id);
+                                    }
                                 } else {
                                     return jsonrpc_error_invalid_params(id);
                                 }
                             } else {
                                 return jsonrpc_error_invalid_params(id);
                             }
-                        } else {
-                            return jsonrpc_error_invalid_params(id);
-                        }
-                    };
+                        };
 
-                    let mode = match MipiMode::try_from(mode as u32) {
-                        Ok(mode) => mode,
-                        Err(_) => {
-                            return jsonrpc_error_invalid_params(id);
-                        }
-                    };
+                        let mode = match MipiMode::try_from(mode as u32) {
+                            Ok(mode) => mode,
+                            Err(_) => {
+                                return jsonrpc_error_invalid_params(id);
+                            }
+                        };
 
-                    tcon_set_mipi_mode(mode);
+                        tcon_set_mipi_mode(mode);
+                    }
                     jsonrpc_success_string(id, "true")
                 }
                 Some(&_) => jsonrpc_error_method_not_found(id),
@@ -227,6 +235,7 @@ enum MipiMode {
 
 fn tcon_refresh() {
     info!("tcon_refresh");
+    unsafe { ITECleanUpEInkAPI() };
 }
 
 /// 设置 MIPI 模式
