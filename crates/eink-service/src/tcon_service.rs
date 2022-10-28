@@ -91,38 +91,40 @@ impl TconService {
             info!("TconService: On request");
             match req.get_method() {
                 Some("refresh") => {
-                    if tcon_avail {
-                        tcon_refresh();
+                    if !tcon_avail {
+                        return jsonrpc_error_internal_error(id);
                     }
+                    tcon_refresh();
                     jsonrpc_success_string(id, "true")
                 }
                 Some("set_mipi_mode") => {
-                    if tcon_avail {
-                        let mode = {
-                            if let Some(Params::Map(map)) = req.get_params() {
-                                if let Some(mode) = map.get("mode") {
-                                    if let Some(mode) = mode.as_u64() {
-                                        mode
-                                    } else {
-                                        return jsonrpc_error_invalid_params(id);
-                                    }
+                    if !tcon_avail {
+                        return jsonrpc_error_internal_error(id);
+                    }
+                    let mode = {
+                        if let Some(Params::Map(map)) = req.get_params() {
+                            if let Some(mode) = map.get("mode") {
+                                if let Some(mode) = mode.as_u64() {
+                                    mode
                                 } else {
                                     return jsonrpc_error_invalid_params(id);
                                 }
                             } else {
                                 return jsonrpc_error_invalid_params(id);
                             }
-                        };
+                        } else {
+                            return jsonrpc_error_invalid_params(id);
+                        }
+                    };
 
-                        let mode = match MipiMode::try_from(mode as u32) {
-                            Ok(mode) => mode,
-                            Err(_) => {
-                                return jsonrpc_error_invalid_params(id);
-                            }
-                        };
+                    let mode = match MipiMode::try_from(mode as u32) {
+                        Ok(mode) => mode,
+                        Err(_) => {
+                            return jsonrpc_error_invalid_params(id);
+                        }
+                    };
 
-                        tcon_set_mipi_mode(mode);
-                    }
+                    tcon_set_mipi_mode(mode);
                     jsonrpc_success_string(id, "true")
                 }
                 Some(&_) => jsonrpc_error_method_not_found(id),
