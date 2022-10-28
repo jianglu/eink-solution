@@ -29,29 +29,6 @@ use signals2::{connect::ConnectionImpl, Connect2, Emit2, Signal};
 use tokio::runtime::Runtime;
 use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
 
-pub struct SelfKeeper<T> {
-    them: Mutex<Weak<T>>,
-}
-
-impl<T> SelfKeeper<T> {
-    pub fn new() -> Self {
-        Self {
-            them: Mutex::new(Weak::new()),
-        }
-    }
-
-    pub fn save(&self, arc: &Arc<T>) {
-        *self.them.lock().deref_mut() = Arc::downgrade(arc);
-    }
-
-    pub fn get(&self) -> Arc<T> {
-        match self.them.lock().upgrade() {
-            Some(arc) => return arc,
-            None => unreachable!(),
-        }
-    }
-}
-
 const PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\tcon";
 
 pub struct TconService {
