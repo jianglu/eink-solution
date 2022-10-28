@@ -28,6 +28,8 @@ enum Subcommand {
         #[structopt(long)]
         mode: u32,
     },
+    #[structopt(about = "Eink refresh")]
+    EinkRefresh,
 }
 
 #[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
@@ -55,6 +57,15 @@ fn main() {
                 .expect("Cannot connect to tcon service");
             let reply = client
                 .call_with_params("set_mipi_mode", json!({ "mode": mode }))
+                .expect("Cannot invoke remote method to tcon service");
+            println!("reply: {reply:?}");
+        }
+        Subcommand::EinkRefresh => {
+            println!("EinkRefresh");
+            let mut client = eink_pipe_io::blocking::connect(TCON_PIPE_NAME)
+                .expect("Cannot connect to tcon service");
+            let reply = client
+                .call_with_params("refresh", json!({}))
                 .expect("Cannot invoke remote method to tcon service");
             println!("reply: {reply:?}");
         }
