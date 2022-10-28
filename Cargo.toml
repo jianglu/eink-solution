@@ -30,6 +30,7 @@ members = [
     # 服务
     # TODO：使用 runner 把 service 改为标准应用程序
     "crates/eink-service",
+    "crates/eink-service-api",
     "crates/eink-service-helper",
     "crates/eink-service-runner",
 
