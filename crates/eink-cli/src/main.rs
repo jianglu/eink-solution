@@ -10,6 +10,8 @@
 // All rights reserved.
 //
 
+use std::ops::Sub;
+
 use serde_json::json;
 use structopt::StructOpt;
 
@@ -30,6 +32,10 @@ enum Subcommand {
     },
     #[structopt(about = "Eink refresh")]
     EinkRefresh,
+    #[structopt(about = "Disable alt-tab / win key")]
+    DisableWinKey,
+    #[structopt(about = "Enable alt-tab / win key")]
+    EnableWinKey,
 }
 
 #[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
@@ -45,6 +51,8 @@ struct Cli {
 }
 
 const TCON_PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\tcon";
+
+const KEYBOARD_PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\keyboard";
 
 fn main() {
     let cli = Cli::from_args();
@@ -66,6 +74,26 @@ fn main() {
                 .expect("Cannot connect to tcon service");
             let reply = client
                 .call_with_params("refresh", json!({}))
+                .expect("Cannot invoke remote method to tcon service");
+            println!("reply: {reply:?}");
+        }
+
+        Subcommand::DisableWinKey => {
+            println!("DisableWinKey");
+            let mut client = eink_pipe_io::blocking::connect(KEYBOARD_PIPE_NAME)
+                .expect("Cannot connect to keyboard service");
+            let reply = client
+                .call_with_params("disable_win_key", json!({}))
+                .expect("Cannot invoke remote method to tcon service");
+            println!("reply: {reply:?}");
+        }
+
+        Subcommand::EnableWinKey => {
+            println!("EnableWinKey");
+            let mut client = eink_pipe_io::blocking::connect(KEYBOARD_PIPE_NAME)
+                .expect("Cannot connect to keyboard service");
+            let reply = client
+                .call_with_params("enable_win_key", json!({}))
                 .expect("Cannot invoke remote method to tcon service");
             println!("reply: {reply:?}");
         }
