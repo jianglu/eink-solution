@@ -464,8 +464,10 @@ fn test_kill_process_by_name() {
 /// 根据 PID 杀进程
 pub fn kill_process_by_pid(pid: u32, exit_code: u32) -> bool {
     unsafe {
-        let hprocess = OpenProcess(PROCESS_ALL_ACCESS, false, pid).unwrap();
-        kill_process(hprocess, exit_code)
+        if let Ok(hprocess) = OpenProcess(PROCESS_ALL_ACCESS, false, pid) {
+            kill_process(hprocess, exit_code);
+        }
+        true
     }
 }
 

@@ -29,6 +29,11 @@ use signals2::{connect::ConnectionImpl, Connect2, Emit2, Signal};
 use tokio::runtime::Runtime;
 use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
 
+use crate::utils::{
+    jsonrpc_error_internal_error, jsonrpc_error_invalid_params, jsonrpc_error_method_not_found,
+    jsonrpc_success_string,
+};
+
 const PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\tcon";
 
 pub struct TconService {
@@ -108,7 +113,9 @@ impl TconService {
                 None => jsonrpc_error_internal_error(id),
             }
         });
+
         self.start_ipc_server()?;
+
         Ok(())
     }
 
@@ -232,26 +239,6 @@ fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
         ITESetMIPIModeAPI(&mut mode)
     };
     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
-}
-
-/// 返回成功（字符串值）
-fn jsonrpc_success_string(id: Id, result: &str) -> JsonRpc {
-    JsonRpc::success(id, &serde_json::Value::String(result.to_owned()))
-}
-
-/// 返回错误（无效参数）
-fn jsonrpc_error_invalid_params(id: Id) -> JsonRpc {
-    JsonRpc::error(id, jsonrpc_lite::Error::invalid_params())
-}
-
-/// 返回错误（找不到方法）
-fn jsonrpc_error_method_not_found(id: Id) -> JsonRpc {
-    JsonRpc::error(id, jsonrpc_lite::Error::method_not_found())
-}
-
-/// 返回错误（内部错误）
-fn jsonrpc_error_internal_error(id: Id) -> JsonRpc {
-    JsonRpc::error(id, jsonrpc_lite::Error::internal_error())
 }
 
 //
