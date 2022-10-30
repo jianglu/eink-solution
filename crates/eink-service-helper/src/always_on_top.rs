@@ -21,77 +21,67 @@ use windows::Win32::System::Threading::GetCurrentProcessId;
 use crate::{
     settings::SETTINGS,
     utils::{get_current_data_dir, get_current_exe_dir},
-    win_utils::{kill_process_by_pid, run_as_admin},
+    win_utils::{self, kill_process_by_pid, run_as_admin},
 };
 
 /// 键盘管理器
-pub struct KeyboardManager {
+pub struct AlwaysOnTop {
     pid: Option<u32>,
 }
 
-impl KeyboardManager {
+impl AlwaysOnTop {
     ///
     pub fn new() -> Result<Self> {
         Ok(Self { pid: None })
     }
 
-    /// 启动服务
+    /// 启动 AlwaysOnTop 服务
     pub fn start(&mut self) -> Result<()> {
-        Ok(())
-    }
-
-    /// 禁用 Win / AltTab 按键
-    /// 1. 启动 eink-keyboard-manager 进程
-    pub fn disable_win_key(&mut self) -> Result<()> {
         // keyboard manager 可执行程序和 eink-service 在同一目录
         let exe_dir = get_current_exe_dir();
-        let keyboard_manager_exe = exe_dir.join("eink-keyboard-manager.exe");
+        info!(
+            "eink-topmost-manager exe_dir: {}",
+            exe_dir.to_str().unwrap()
+        );
 
-        // .\eink-keyboard-manager.exe /SettingsDir:"C:\Users\JiangLu\AppData\Local\Lenovo\ThinkBookEinkPlus\eink-keyboard-manager"
+        let topmost_manager_exe = exe_dir.join("eink-topmost-manager.exe");
+        let topmost_manager_exe = topmost_manager_exe.to_str().unwrap();
+        info!(
+            "eink-topmost-manager topmost_manager_exe: {}",
+            topmost_manager_exe
+        );
 
         let curr_pid = &unsafe { GetCurrentProcessId() }.to_string();
+        info!("curr_pid: {}", curr_pid);
 
-        let setting_dir = exe_dir.join("EinkKeyboardManager");
-        let setting_dir = setting_dir.to_str().unwrap();
+        let exe_dir = exe_dir.to_str().unwrap();
+        // let topmost_manager_exe = topmost_manager_exe.replace("\\\\?\\", "");
+        // info!(
+        //     "eink-topmost-manager topmost_manager_exe: {}",
+        //     topmost_manager_exe
+        // );
 
-        // let process = Command::new(keyboard_manager_exe)
-        //     .args([
-        //         &format!("/Pid={}", curr_pid),
-        //         &format!("/SettingsDir={}", setting_dir),
-        //     ])
-        //     .spawn()
-        //     .expect("Cannot spawn keyboard manager instance");
+        let proc = Command::new(topmost_manager_exe)
+            .arg(curr_pid)
+            .spawn()
+            .expect("Cannot spawn topmost manager instance");
+        info!("eink-topmost-manager pid: {:?}", proc);
+        self.pid = Some(proc.id());
 
-        let pid = run_as_admin(
-            exe_dir.to_str().unwrap(),
-            &format!(
-                "\"{}\" /Pid={} /SettingsDir=\"{}\"",
-                keyboard_manager_exe.to_str().unwrap(),
-                curr_pid,
-                setting_dir
-            ),
-        )
-        .unwrap();
+        // let pid = win_utils::run_as_admin(exe_dir, &topmost_manager_exe).unwrap();
+        // info!("eink-topmost-manager pid: {}", pid);
+        // self.pid = Some(pid);
 
-        info!("eink-keyboard-manager pid: {pid}");
-
-        self.pid = Some(pid);
-
-        Ok(())
-    }
-
-    /// 启用 Win / AltTab 按键
-    pub fn enable_win_key(&mut self) -> Result<()> {
-        if let Some(pid) = self.pid.take() {
-            kill_process_by_pid(pid, 0);
-        }
         Ok(())
     }
 
     /// 停止服务
     /// 1. 停止 eink-keyboard-manager 进程
     pub fn stop(&mut self) -> Result<()> {
-        self.enable_win_key()
+        if let Some(pid) = self.pid.take() {
+            kill_process_by_pid(pid, 0);
+        }
+        Ok(())
     }
 }
 
@@ -99,9 +89,9 @@ impl KeyboardManager {
 // 将 Native 库设置为 Lazy 全局变量
 //
 #[static_init::dynamic(lazy)]
-pub static KEYBOARD_MANAGER: Mutex<KeyboardManager> = {
-    info!("Create KeyboardManager");
-    Mutex::new(KeyboardManager::new().expect("Cannot instantiate KeyboardManager"))
+pub static ALWAYS_ON_TOP: Mutex<AlwaysOnTop> = {
+    info!("Create AlwaysOnTop");
+    Mutex::new(AlwaysOnTop::new().expect("Cannot instantiate AlwaysOnTop"))
 };
 
 // use anyhow::Result;

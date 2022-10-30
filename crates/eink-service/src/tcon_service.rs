@@ -11,14 +11,16 @@
 //
 
 use std::{
+    mem::zeroed,
     ops::DerefMut,
     sync::{Arc, Weak},
 };
 
 use anyhow::{bail, Result};
 use eink_itetcon::{
-    ITECleanUpEInkAPI, ITEGetDriveNo, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetFA2,
-    ITESetMIPIModeAPI,
+    ITECleanUpEInkAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo, ITEOpenDeviceAPI,
+    ITESet8951KeepAlive, ITESetFA2, ITESetMIPIModeAPI, IteTconDevice, GI_MIPI_FAST_READER,
+    GI_MIPI_READER,
 };
 use eink_pipe_io::server::Socket;
 use jsonrpc_lite::{Id, JsonRpc, Params};
@@ -40,6 +42,8 @@ pub struct TconService {
     /// IPC 接口使用 tokio 异步运行时
     rt: Runtime,
 
+    tcon_device: Arc<RwLock<IteTconDevice>>,
+
     /// IPC 请求响应函数
     on_request: Arc<RwLock<Signal<(Id, JsonRpc), JsonRpc>>>,
 }
@@ -53,6 +57,7 @@ impl TconService {
 
         Ok(Self {
             rt,
+            tcon_device: Arc::new(RwLock::new(IteTconDevice::new()?)),
             on_request: Default::default(),
         })
     }
@@ -61,13 +66,24 @@ impl TconService {
     pub fn start(&mut self) -> Result<()> {
         info!("TconService: start");
 
-        let tcon_avail = match self.open_tcon_device() {
+        let tcon_avail = match self.tcon_device.write().open() {
             Ok(_) => true,
             Err(_) => {
                 error!("TconService: failed open tcon device");
                 false
             }
         };
+
+        // 每隔 30 秒进行 EINK 保活
+        if tcon_avail {
+            std::thread::spawn(|| loop {
+                info!("Start Eink Live Keeper");
+                tcon_keep_alive();
+                std::thread::sleep(std::time::Duration::from_secs(30));
+            });
+        }
+
+        let tcon_device = self.tcon_device.clone();
 
         self.on_request.write().connect(move |id, req| {
             info!("TconService: On request");
@@ -107,6 +123,29 @@ impl TconService {
                     };
 
                     tcon_set_mipi_mode(mode);
+                    jsonrpc_success_string(id, "true")
+                }
+                Some("show_shutdown_cover") => {
+                    tcon_device.write().show_cover_image();
+                    jsonrpc_success_string(id, "true")
+                }
+                Some("set_shutdown_cover") => {
+                    let path = {
+                        if let Some(Params::Map(map)) = req.get_params() {
+                            if let Some(path) = map.get("path") {
+                                if let Some(path) = path.as_str() {
+                                    path.to_owned()
+                                } else {
+                                    return jsonrpc_error_invalid_params(id);
+                                }
+                            } else {
+                                return jsonrpc_error_invalid_params(id);
+                            }
+                        } else {
+                            return jsonrpc_error_invalid_params(id);
+                        }
+                    };
+                    tcon_device.write().set_cover_image(&path);
                     jsonrpc_success_string(id, "true")
                 }
                 Some(&_) => jsonrpc_error_method_not_found(id),
@@ -156,41 +195,49 @@ impl TconService {
         Ok(())
     }
 
-    /// 打开 Tcon 设备
-    fn open_tcon_device(&self) -> Result<()> {
-        info!("TconService: open_tcon_device");
+    // /// 打开 Tcon 设备
+    // fn open_tcon_device(&self) -> Result<()> {
+    //     info!("TconService: open_tcon_device");
 
-        // 获得设备驱动号
-        let mut drive_no: u8 = 0;
-        let ret = unsafe { ITEGetDriveNo(&mut drive_no) };
-        info!("ITEGetDriveNo: ret: {}, drive_no: {}", ret, drive_no);
+    //     // 获得设备驱动号
+    //     let mut drive_no: u8 = 0;
+    //     let ret = unsafe { ITEGetDriveNo(&mut drive_no) };
+    //     info!("ITEGetDriveNo: ret: {}, drive_no: {}", ret, drive_no);
 
-        // 打开设备
-        let dev_path = format!("\\\\.\\{}:", (0x41 + drive_no) as char);
-        info!("Dev Path: {}", dev_path);
+    //     // 打开设备
+    //     let dev_path = format!("\\\\.\\{}:", (0x41 + drive_no) as char);
+    //     info!("Dev Path: {}", dev_path);
 
-        let cstr = std::ffi::CString::new(dev_path).unwrap();
-        info!("Dev Path C: {:?}", &cstr);
+    //     let cstr = std::ffi::CString::new(dev_path).unwrap();
+    //     info!("Dev Path C: {:?}", &cstr);
 
-        if unsafe { ITEOpenDeviceAPI(&cstr) } == INVALID_HANDLE_VALUE {
-            bail!("Open eink device fail, in thread");
-        }
+    //     if unsafe { ITEOpenDeviceAPI(&cstr) } == INVALID_HANDLE_VALUE {
+    //         bail!("Open eink device fail, in thread");
+    //     }
 
-        // 设置 Tcon 为 KeepAlive 模式
-        let ret = unsafe { ITESet8951KeepAlive(1) };
-        info!("ITESet8951KeepAlive(1): {}", ret);
+    //     // 设置 Tcon 为 KeepAlive 模式
+    //     let ret = unsafe { ITESet8951KeepAlive(1) };
+    //     info!("ITESet8951KeepAlive(1): {}", ret);
 
-        // 设置 MIPI 模式
-        let mut mode: u32 = 1;
-        let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
-        info!("ITESetMIPIModeAPI({}): {}", mode, ret);
+    //     // 设置 MIPI 模式
+    //     let mut mode: u32 = 1;
+    //     let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
+    //     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 
-        mode = 2;
-        let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
-        info!("ITESetMIPIModeAPI({}): {}", mode, ret);
+    //     mode = 2;
+    //     let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
+    //     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 
-        Ok(())
-    }
+    //     // 获得图片地址（支持 3 张图片），支持 3 张图片轮询
+    //     // let mut addrs: [u32; 3] = unsafe { zeroed() };
+    //     unsafe { ITEGetBufferAddrInfoAPI(&mut self.image_addrs) };
+    //     println!(
+    //         "EinkTcon ITEGetBufferAddrInfoAPI: addrs: {:?}",
+    //         self.image_addrs
+    //     );
+
+    //     Ok(())
+    // }
 }
 
 #[derive(Default, num_enum::IntoPrimitive, num_enum::FromPrimitive)]
@@ -239,6 +286,20 @@ fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
         ITESetMIPIModeAPI(&mut mode)
     };
     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
+}
+
+/// TCON 保活
+pub fn tcon_keep_alive() {
+    let ret = unsafe { ITESet8951KeepAlive(1) };
+    info!("ITESet8951KeepAlive(1): {}", ret);
+
+    // let mut mode: u32 = 1;
+    // let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
+    // info!("ITESetMIPIModeAPI({}): {}", mode, ret);
+
+    // mode = 2;
+    // let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
+    // info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 }
 
 //

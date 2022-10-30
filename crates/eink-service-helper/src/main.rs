@@ -33,6 +33,7 @@ use std::{
     },
 };
 
+use always_on_top::{AlwaysOnTop, ALWAYS_ON_TOP};
 use anyhow::bail;
 use log::info;
 use mag_win::MagWindow;
@@ -40,6 +41,9 @@ use parking_lot::{Mutex, RwLock};
 use settings::SETTINGS;
 use structopt::StructOpt;
 use tokio::runtime::Runtime;
+use topmost::{set_window_hidden, set_window_topmost, TOPMOST_MANAGER};
+use utils::get_current_exe_dir;
+use win_utils::run_as_admin;
 use windows::{
     core::*,
     Win32::Foundation::*,
@@ -79,73 +83,6 @@ use crate::{
 
 type AnyResult<T> = anyhow::Result<T>;
 
-static mut g_timer_due_time: FILETIME = FILETIME {
-    dwLowDateTime: 0,
-    dwHighDateTime: 0,
-};
-
-#[repr(C)]
-union FILETIME64 {
-    pub ft: FILETIME,
-    pub vl: i64,
-}
-
-fn create_relative_filetime_ms(milliseconds: u32) -> FILETIME {
-    let ft = FILETIME64 {
-        vl: -(milliseconds as i64 * 10000),
-    };
-    return unsafe { ft.ft };
-}
-
-unsafe extern "system" fn timer_tick_event(
-    _: *mut TP_CALLBACK_INSTANCE,
-    _context: *mut c_void,
-    _: *mut TP_TIMER,
-) {
-    refresh_magnifier();
-
-    // Reset timer to expire one time at next interval
-    if g_enable.load(Ordering::Relaxed) {
-        SetThreadpoolTimer(
-            g_refresh_timer.load(Ordering::Relaxed) as *mut TP_TIMER,
-            Some(&g_timer_due_time),
-            0,
-            0,
-        );
-    }
-}
-
-#[static_init::dynamic(lazy)]
-static mut g_mag: RwLock<Option<MagWindow>> = RwLock::new(None);
-
-/// Called in the timer tick event to refresh the magnification area drawn and lens (host window) position and size
-unsafe fn refresh_magnifier() {
-    let mut lock = g_mag.write();
-    let a = lock.get_mut().as_mut().unwrap();
-
-    let mut mag_pos = POINT { x: 0, y: 0 };
-    let pan_offset = POINT { x: 0, y: 0 };
-    let lens_size = SIZE { cx: 2560, cy: 1600 };
-    a.update_magnifier(&mut mag_pos, pan_offset, lens_size);
-
-    let topmost_hwnd = FindWindowA(None, s!("DebugView"));
-    let mag_hwnd = a.get_handle();
-
-    SetParent(topmost_hwnd, mag_hwnd);
-    SetWindowPos(
-        topmost_hwnd,
-        HWND_TOPMOST,
-        0,
-        0,
-        0,
-        0,
-        SWP_NOMOVE | SWP_NOSIZE,
-    );
-}
-
-static mut g_enable: AtomicBool = AtomicBool::new(false);
-static mut g_refresh_timer: AtomicIsize = AtomicIsize::new(0);
-
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "Eink Service Helper",
@@ -176,52 +113,65 @@ fn switch_to_eink_launcher_mode() {
     }
 }
 
-fn find_window<P>(name: P) -> anyhow::Result<HWND>
+/// 查找窗口
+fn find_window_by_title<P>(name: P) -> anyhow::Result<HWND>
 where
     P: Into<PCSTR>,
 {
-    let launcher_hwnd = unsafe { FindWindowA(None, name) };
-    if launcher_hwnd == HWND(0) {
+    let hwnd = unsafe { FindWindowA(None, name) };
+    if hwnd == HWND(0) {
         bail!("Cannot find window");
     } else {
-        Ok(launcher_hwnd)
+        Ok(hwnd)
+    }
+}
+
+/// 查找窗口
+fn find_window_by_classname<P>(name: P) -> anyhow::Result<HWND>
+where
+    P: Into<PCSTR>,
+{
+    let hwnd = unsafe { FindWindowA(name, None) };
+    if hwnd == HWND(0) {
+        bail!("Cannot find window");
+    } else {
+        Ok(hwnd)
     }
 }
 
 /// 查找 Launcher 并且设置为置顶模式
 fn find_launcher_and_set_topmost() {
-    if let Ok(hwnd) = find_window(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59")) {
+    if let Ok(hwnd) =
+        find_window_by_title(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59"))
+    {
         set_window_topmost(hwnd);
     } else {
         log::error!("Cannot find ThinkBook Eink Plus Launcher");
+        start_launcher();
     }
+}
+
+/// 启动 Launcher
+fn start_launcher() {
+    // topmost manager 可执行程序和 eink-service 在同一目录
+    let exe_dir = get_current_exe_dir();
+    let topmost_manager_exe = exe_dir.join("LenovoGen4.Launcher.exe");
+
+    let _pid = run_as_admin(
+        exe_dir.to_str().unwrap(),
+        topmost_manager_exe.to_str().unwrap(),
+    )
+    .unwrap();
 }
 
 /// 查找 Launcher 并且设置为隐藏
 fn find_launcher_and_set_hidden() {
-    if let Ok(hwnd) = find_window(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59")) {
+    if let Ok(hwnd) =
+        find_window_by_title(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59"))
+    {
         set_window_hidden(hwnd);
     } else {
         log::error!("Cannot find ThinkBook Eink Plus Launcher");
-    }
-}
-
-/// 设置窗口置顶
-/// 1. 通知 Topmost Service
-fn set_window_topmost(hwnd: HWND) {
-    if let Ok(api_hwnd) = find_window(s!("AlwaysOnTopWindow")) {
-        unsafe {
-            SendMessageA(api_hwnd, WM_USER, WPARAM::default(), LPARAM(hwnd.0));
-        }
-    }
-}
-
-/// 设置窗口隐藏
-fn set_window_hidden(hwnd: HWND) {
-    if unsafe { ShowWindow(hwnd, SW_HIDE).as_bool() } {
-        // ignore
-    } else {
-        log::error!("Cannot hide launcher window");
     }
 }
 
@@ -235,11 +185,26 @@ fn switch_to_oled_windows_desktop_mode() {
 
             // 最小化 Launcher
             find_launcher_and_set_hidden();
+
+            // 清除当前置顶的窗口
+            TOPMOST_MANAGER.lock().clear_current_topmost_window();
         }
     }
 }
 
+/// 初始化 Panic 的输出为 OutputDebugString
+fn init_panic_output() {
+    std::panic::set_hook(Box::new(|info| {
+        log::error!("PANIC: {:?}", info);
+    }));
+}
+
 fn main() -> AnyResult<()> {
+    // 设置当前的活动日志系统为 OutputDebugString 输出
+    eink_logger::init_with_level(log::Level::Trace)?;
+
+    init_panic_output();
+
     let mut opt = Opt::from_args();
 
     // 监听目标进程关闭，绑定生命周期
@@ -249,8 +214,9 @@ fn main() -> AnyResult<()> {
         });
     }
 
-    // 设置当前的活动日志系统为 OutputDebugString 输出
-    eink_logger::init_with_level(log::Level::Trace)?;
+    ALWAYS_ON_TOP.lock().start().unwrap();
+
+    TOPMOST_MANAGER.lock().start().unwrap();
 
     // 线程开启热键响应
     let mut hkm = HotkeyManager::new();
@@ -275,5 +241,6 @@ fn main() -> AnyResult<()> {
 
     hkm.event_loop();
 
+    ALWAYS_ON_TOP.lock().start().unwrap();
     Ok(())
 }

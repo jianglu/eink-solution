@@ -715,6 +715,8 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "structopt",
+ "windows",
+ "windows-dll",
 ]
 
 [[package]]
@@ -871,6 +873,7 @@ dependencies = [
  "eink-common",
  "eink-logger",
  "eink-pipe-io",
+ "eink-service-api",
  "eink-winkits",
  "embed-resource",
  "futures 0.3.24",
@@ -882,6 +885,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "signals2",
  "static_init",
  "structopt",
  "tokio 1.21.2",

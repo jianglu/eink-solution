@@ -39,7 +39,13 @@ uint32_t eink_set_shutdown_cover(const uint16_t *path, uint32_t disp_type);
 /// 设置窗口为置顶
 uint32_t set_window_topmost(uint32_t hwnd);
 
+/// 设置窗口为置顶
+uint32_t unset_window_topmost(uint32_t hwnd);
+
 /// 清除所有置顶窗口
-uint32_t clear_all_topmost_windows(uint32_t hwnd);
+uint32_t clear_all_windows_topmost();
+
+/// 设置窗口为置顶
+uint32_t adjust_topmost_on_app_launched(intptr_t pid);
 
 } // extern "C"

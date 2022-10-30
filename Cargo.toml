@@ -25,7 +25,7 @@ members = [
     # "crates/eink-keyboard-manager",
 
     # 置顶管理器，提供应用程序置顶功能
-    # "crates/eink-topmost-manager",
+    # "crates/eink-always-on-top",
 
     # 服务
     # TODO：使用 runner 把 service 改为标准应用程序

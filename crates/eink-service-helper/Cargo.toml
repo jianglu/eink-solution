@@ -38,6 +38,9 @@ ntapi = "0.4.0"
 
 winsafe = "0.0.11"
 
+# rust version of boost::signals2
+signals2 = "0.3.2"
+
 # 部分使用了 tokio 异步运行时
 futures = "0.3"
 tokio = { version = "1.21", features = ["full"] }

@@ -12,8 +12,19 @@
 
 use std::ops::Sub;
 
+use anyhow::bail;
 use serde_json::json;
 use structopt::StructOpt;
+use windows::{
+    core::PCSTR,
+    s,
+    Win32::{
+        Foundation::{HWND, LPARAM, WPARAM},
+        UI::WindowsAndMessaging::{
+            FindWindowA, GetForegroundWindow, SendMessageA, WM_HOTKEY, WM_USER,
+        },
+    },
+};
 
 #[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
 enum Subcommand {
@@ -36,6 +47,8 @@ enum Subcommand {
     DisableWinKey,
     #[structopt(about = "Enable alt-tab / win key")]
     EnableWinKey,
+    #[structopt(about = "Test")]
+    Test,
 }
 
 #[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
@@ -57,7 +70,15 @@ const KEYBOARD_PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\keyboard";
 fn main() {
     let cli = Cli::from_args();
     match cli.sub {
-        Subcommand::SetWindowTopmost { hwnd } => todo!(),
+        Subcommand::SetWindowTopmost { hwnd } => {
+            let hwnd = unsafe { GetForegroundWindow() };
+            if let Ok(api_hwnd) = find_window_by_classname(s!("AlwaysOnTopWindow")) {
+                log::info!("Send Topmost Message To AlwaysOnTopWindow");
+                unsafe {
+                    SendMessageA(api_hwnd, WM_USER, WPARAM::default(), LPARAM(hwnd.0));
+                }
+            }
+        }
         Subcommand::HideTaskbar => todo!(),
         Subcommand::EinkSetMipiMode { mode } => {
             println!("EinkSetMipiMode mode: {mode}");
@@ -97,5 +118,43 @@ fn main() {
                 .expect("Cannot invoke remote method to tcon service");
             println!("reply: {reply:?}");
         }
+
+        Subcommand::Test => unsafe {
+            // #[windows_dll::dll(User32)]
+            // extern "system" {
+            //     #[allow(non_snake_case)]
+            //     pub fn GetWindowBand(hwnd: HWND, band: &mut u32) -> bool;
+            // }
+
+            std::thread::sleep(std::time::Duration::from_millis(2000));
+
+            let foreground_hwnd = GetForegroundWindow();
+            // let mut band: u32 = 0;
+            // GetWindowBand(foreground_hwnd, &mut band);
+            // println!("Foreground Band: {band}");
+
+            if let Ok(api_hwnd) = find_window_by_classname(s!("AlwaysOnTopWindow")) {
+                log::error!("Send Topmost Message To AlwaysOnTopWindow");
+                SendMessageA(
+                    api_hwnd,
+                    WM_USER,
+                    WPARAM::default(),
+                    LPARAM(foreground_hwnd.0),
+                );
+            }
+        },
+    }
+}
+
+/// 查找窗口
+fn find_window_by_classname<P>(name: P) -> anyhow::Result<HWND>
+where
+    P: Into<PCSTR>,
+{
+    match unsafe { FindWindowA(name, None) } {
+        HWND(0) => {
+            bail!("Cannot find window");
+        }
+        HWND(hwnd) => Ok(HWND(hwnd)),
     }
 }

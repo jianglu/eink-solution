@@ -60,16 +60,50 @@ pub extern "C" fn set_window_topmost(hwnd: u32) -> u32 {
     0
 }
 
-/// 清除所有置顶窗口
+/// 设置窗口为置顶
 #[no_mangle]
-pub extern "C" fn clear_all_topmost_windows(hwnd: u32) -> u32 {
+pub extern "C" fn unset_window_topmost(hwnd: u32) -> u32 {
     ensure_topmost_client();
     let mut guard = TOPMOST_CLIENT.lock();
     if let Some(client) = guard.as_mut() {
         let reply = client
-            .call_with_params("clear_all_topmost_windows", json!({ "hwnd": hwnd }))
+            .call_with_params("unset_window_topmost", json!({ "hwnd": hwnd }))
             .expect("Cannot invoke remote method to topmost service");
-        info!("set_window_topmost: result: {:?}", reply.get_result());
+        info!("unset_window_topmost: result: {:?}", reply.get_result());
+    }
+    0
+}
+
+/// 清除所有置顶窗口
+#[no_mangle]
+pub extern "C" fn clear_all_windows_topmost() -> u32 {
+    ensure_topmost_client();
+    let mut guard = TOPMOST_CLIENT.lock();
+    if let Some(client) = guard.as_mut() {
+        let reply = client
+            .call_with_params("clear_all_windows_topmost", json!({}))
+            .expect("Cannot invoke remote method to topmost service");
+        info!(
+            "clear_all_windows_topmost: result: {:?}",
+            reply.get_result()
+        );
+    }
+    0
+}
+
+/// 设置窗口为置顶
+#[no_mangle]
+pub extern "C" fn adjust_topmost_on_app_launched(pid: isize) -> u32 {
+    ensure_topmost_client();
+    let mut guard = TOPMOST_CLIENT.lock();
+    if let Some(client) = guard.as_mut() {
+        let reply = client
+            .call_with_params("adjust_topmost_on_app_launched", json!({ "pid": pid }))
+            .expect("Cannot invoke remote method to topmost service");
+        info!(
+            "adjust_topmost_on_app_launched: result: {:?}",
+            reply.get_result()
+        );
     }
     0
 }
