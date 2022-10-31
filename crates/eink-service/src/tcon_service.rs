@@ -22,7 +22,9 @@ use eink_itetcon::{
     ITESet8951KeepAlive, ITESetFA2, ITESetMIPIModeAPI, IteTconDevice, GI_MIPI_FAST_READER,
     GI_MIPI_READER,
 };
+
 use eink_pipe_io::server::Socket;
+use if_chain::if_chain;
 use jsonrpc_lite::{Id, JsonRpc, Params};
 use log::{error, info};
 use parking_lot::{Mutex, RwLock};
@@ -99,54 +101,36 @@ impl TconService {
                     if !tcon_avail {
                         return jsonrpc_error_internal_error(id);
                     }
-                    let mode = {
-                        if let Some(Params::Map(map)) = req.get_params() {
-                            if let Some(mode) = map.get("mode") {
-                                if let Some(mode) = mode.as_u64() {
-                                    mode
-                                } else {
-                                    return jsonrpc_error_invalid_params(id);
-                                }
-                            } else {
-                                return jsonrpc_error_invalid_params(id);
-                            }
+
+                    if_chain! {
+                        if let Some(Params::Map(map)) = req.get_params();
+                        if let Some(mode) = map.get("mode");
+                        if let Some(mode) = mode.as_u64();
+                        if let Ok(mode) = MipiMode::try_from(mode as u32);
+                        then {
+                            tcon_set_mipi_mode(mode);
+                            return jsonrpc_success_string(id, "true");
                         } else {
                             return jsonrpc_error_invalid_params(id);
                         }
-                    };
-
-                    let mode = match MipiMode::try_from(mode as u32) {
-                        Ok(mode) => mode,
-                        Err(_) => {
-                            return jsonrpc_error_invalid_params(id);
-                        }
-                    };
-
-                    tcon_set_mipi_mode(mode);
-                    jsonrpc_success_string(id, "true")
+                    }
                 }
                 Some("show_shutdown_cover") => {
                     tcon_device.write().show_cover_image();
                     jsonrpc_success_string(id, "true")
                 }
                 Some("set_shutdown_cover") => {
-                    let path = {
-                        if let Some(Params::Map(map)) = req.get_params() {
-                            if let Some(path) = map.get("path") {
-                                if let Some(path) = path.as_str() {
-                                    path.to_owned()
-                                } else {
-                                    return jsonrpc_error_invalid_params(id);
-                                }
-                            } else {
-                                return jsonrpc_error_invalid_params(id);
-                            }
+                    if_chain! {
+                        if let Some(Params::Map(map)) = req.get_params();
+                        if let Some(path) = map.get("path");
+                        if let Some(path) = path.as_str();
+                        then {
+                            tcon_device.write().set_cover_image(&path);
+                            return jsonrpc_success_string(id, "true");
                         } else {
                             return jsonrpc_error_invalid_params(id);
                         }
-                    };
-                    tcon_device.write().set_cover_image(&path);
-                    jsonrpc_success_string(id, "true")
+                    }
                 }
                 Some(&_) => jsonrpc_error_method_not_found(id),
                 None => jsonrpc_error_internal_error(id),
@@ -170,7 +154,7 @@ impl TconService {
 
         let on_request = self.on_request.clone();
 
-        let _ = server.on_connection(move |socket, req| {
+        let _ = server.on_connection(move |socket, _req| {
             info!("TconService: On connection");
             let on_request2 = on_request.clone();
             socket
@@ -194,50 +178,6 @@ impl TconService {
 
         Ok(())
     }
-
-    // /// 打开 Tcon 设备
-    // fn open_tcon_device(&self) -> Result<()> {
-    //     info!("TconService: open_tcon_device");
-
-    //     // 获得设备驱动号
-    //     let mut drive_no: u8 = 0;
-    //     let ret = unsafe { ITEGetDriveNo(&mut drive_no) };
-    //     info!("ITEGetDriveNo: ret: {}, drive_no: {}", ret, drive_no);
-
-    //     // 打开设备
-    //     let dev_path = format!("\\\\.\\{}:", (0x41 + drive_no) as char);
-    //     info!("Dev Path: {}", dev_path);
-
-    //     let cstr = std::ffi::CString::new(dev_path).unwrap();
-    //     info!("Dev Path C: {:?}", &cstr);
-
-    //     if unsafe { ITEOpenDeviceAPI(&cstr) } == INVALID_HANDLE_VALUE {
-    //         bail!("Open eink device fail, in thread");
-    //     }
-
-    //     // 设置 Tcon 为 KeepAlive 模式
-    //     let ret = unsafe { ITESet8951KeepAlive(1) };
-    //     info!("ITESet8951KeepAlive(1): {}", ret);
-
-    //     // 设置 MIPI 模式
-    //     let mut mode: u32 = 1;
-    //     let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
-    //     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
-
-    //     mode = 2;
-    //     let ret = unsafe { ITESetMIPIModeAPI(&mut mode) };
-    //     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
-
-    //     // 获得图片地址（支持 3 张图片），支持 3 张图片轮询
-    //     // let mut addrs: [u32; 3] = unsafe { zeroed() };
-    //     unsafe { ITEGetBufferAddrInfoAPI(&mut self.image_addrs) };
-    //     println!(
-    //         "EinkTcon ITEGetBufferAddrInfoAPI: addrs: {:?}",
-    //         self.image_addrs
-    //     );
-
-    //     Ok(())
-    // }
 }
 
 #[derive(Default, num_enum::IntoPrimitive, num_enum::FromPrimitive)]
@@ -273,14 +213,16 @@ fn tcon_refresh() {
 
 /// 设置 MIPI 模式
 fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
-    let mut mode: u32 = 1;
-    let ret = unsafe {
-        ITESetFA2(1);
-        ITESetMIPIModeAPI(&mut mode)
-    };
-    info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 
-    mode = mipi_mode.into();
+    // 不需要先设置模式 1 ，再设置目标模式
+    // let mut mode: u32 = 1;
+    // let ret = unsafe {
+    //     ITESetFA2(1);
+    //     ITESetMIPIModeAPI(&mut mode)
+    // };
+    // info!("ITESetMIPIModeAPI({}): {}", mode, ret);
+
+    let mut mode = mipi_mode.into();
     let ret = unsafe {
         ITESetFA2(1);
         ITESetMIPIModeAPI(&mut mode)
