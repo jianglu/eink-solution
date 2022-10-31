@@ -224,8 +224,9 @@ fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
 
     let mut mode = mipi_mode.into();
     let ret = unsafe {
-        ITESetFA2(1);
-        ITESetMIPIModeAPI(&mut mode)
+        ITESetFA2(1) |
+        ITESetMIPIModeAPI(&mut mode) |
+        ITESetFA2(1)
     };
     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 }

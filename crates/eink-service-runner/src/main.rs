@@ -219,6 +219,8 @@ fn add_service(name: String, cwd: Option<String>, opts: CommonOpts) -> Result<()
     let output = std::process::Command::new("sc.exe")
         .arg("create")
         .arg(&name)
+        .arg("start=")
+        .arg("auto")
         .arg("binPath=")
         .arg(format!(
             "{} {} -- {}",

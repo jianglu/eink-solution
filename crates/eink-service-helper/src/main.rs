@@ -24,6 +24,7 @@ mod topmost;
 mod utils;
 mod win_utils;
 mod window;
+mod tcon_api;
 
 use std::{
     ffi::c_void,
@@ -41,7 +42,7 @@ use parking_lot::{Mutex, RwLock};
 use settings::SETTINGS;
 use structopt::StructOpt;
 use tokio::runtime::Runtime;
-use topmost::{set_window_hidden, set_window_topmost, TOPMOST_MANAGER};
+use topmost::{set_window_topmost, TOPMOST_MANAGER};
 use utils::get_current_exe_dir;
 use win_utils::run_as_admin;
 use windows::{
@@ -96,8 +97,46 @@ struct Opt {
     _config_file: Option<String>,
 }
 
+/// 设置窗口隐藏
+pub fn set_window_minimize(hwnd: HWND) {
+    if unsafe { ShowWindow(hwnd, SW_MINIMIZE).as_bool() } {
+        // ignore
+    } else {
+        log::error!("Cannot hide launcher window");
+    }
+}
+
+/// 设置窗口隐藏
+pub fn set_window_maximize(hwnd: HWND) {
+    if unsafe { ShowWindow(hwnd, SW_MAXIMIZE).as_bool() } {
+        // ignore
+    } else {
+        log::error!("Cannot hide launcher window");
+    }
+}
+
+// 
+pub fn set_window_hidden(hwnd: HWND) {
+    if unsafe { ShowWindow(hwnd, SW_HIDE).as_bool() } {
+        // ignore
+    } else {
+        log::error!("Cannot hide launcher window");
+    }
+}
+
+/// 设置窗口隐藏
+pub fn set_window_shown(hwnd: HWND) {
+    if unsafe { ShowWindow(hwnd, SW_SHOW).as_bool() } {
+        // ignore
+    } else {
+        log::error!("Cannot hide launcher window");
+    }
+}
+
 /// 切换到 EINK Launcher 模式
 fn switch_to_eink_launcher_mode() {
+    log::info!("switch_to_eink_launcher_mode");
+
     if let Ok(eink_monitor_id) = SETTINGS.read().get_string("eink_monitor_id") {
         if eink_monitor_id.len() > 8 {
             set_monitor_specialized(&eink_monitor_id, false).unwrap();
@@ -106,8 +145,17 @@ fn switch_to_eink_launcher_mode() {
             if oled_monitor_id.len() > 8 {
                 set_monitor_specialized(&oled_monitor_id, true).unwrap();
 
+                // OLED 桌面模式采用 Hybrid Hybrid 模式
+
+                // GI_MIPI_BROWSER = 0x02;
+                // GI_MIPI_HYBRID = 0xF0;
+                tcon_api::eink_set_mipi_mode(0xF0);
+
                 // 置顶 Launcher
                 find_launcher_and_set_topmost();
+
+                // 置顶悬浮球
+                find_floating_button_and_set_topmost();
 
                 IS_OLED.store(false, Ordering::Relaxed);
             }
@@ -146,10 +194,35 @@ fn find_launcher_and_set_topmost() {
     if let Ok(hwnd) =
         find_window_by_title(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59"))
     {
-        set_window_topmost(hwnd);
+        set_window_shown(hwnd);
+        set_window_maximize(hwnd);
+
+        // 调用 Windows 的置顶方法
+        unsafe {
+            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE);
+        }
+
+        // set_window_topmost(hwnd);
     } else {
         log::error!("Cannot find ThinkBook Eink Plus Launcher");
         start_launcher();
+    }
+}
+
+
+/// 查找 Launcher 并且设置为置顶模式
+fn find_floating_button_and_set_topmost() {
+    if let Ok(hwnd) =
+        find_window_by_title(s!("86948044-41D9-464B-B533-15FE92A0BA26"))
+    {
+        // 调用 Windows 的置顶方法
+        unsafe {
+            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE);
+        }
+
+        set_window_topmost(hwnd);
+    } else {
+        log::error!("Cannot find ThinkBook Eink Plus Floating Button");
     }
 }
 
@@ -181,11 +254,19 @@ static IS_OLED: AtomicBool = AtomicBool::new(true);
 
 // 切换搭配 OLED Windows 桌面模式
 fn switch_to_oled_windows_desktop_mode() {
+    log::info!("switch_to_oled_windows_desktop_mode");
+
     if let Ok(oled_monitor_id) = SETTINGS.read().get_string("oled_monitor_id") {
         set_monitor_specialized(&oled_monitor_id, false).unwrap();
 
         if let Ok(eink_monitor_id) = SETTINGS.read().get_string("eink_monitor_id") {
             set_monitor_specialized(&eink_monitor_id, true).unwrap();
+
+            // OLED 桌面模式采用 Hybrid Browser 模式
+
+            // GI_MIPI_BROWSER = 0x02;
+            // GI_MIPI_HYBRID = 0xF0;
+            tcon_api::eink_set_mipi_mode(0x02);
 
             // 最小化 Launcher
             find_launcher_and_set_hidden();
@@ -200,11 +281,16 @@ fn switch_to_oled_windows_desktop_mode() {
 
 /// 在 EINK/OLED 模式之间切换
 pub fn switch_eink_oled_display() {
-    if IS_OLED.load(Ordering::Relaxed) {
-        switch_to_eink_launcher_mode();
-    } else {
-        switch_to_oled_windows_desktop_mode();
-    }
+    log::info!("switch_to_oled_windows_desktop_mode");
+
+    // 防止通过 SendMessage 形成进程间死锁
+    std::thread::spawn(|| {
+        if IS_OLED.load(Ordering::Relaxed) {
+            switch_to_eink_launcher_mode();
+        } else {
+            switch_to_oled_windows_desktop_mode();
+        }
+    });
 }
 
 /// 初始化 Panic 的输出为 OutputDebugString
@@ -255,16 +341,24 @@ fn main() -> AnyResult<()> {
     .expect("Cannot register hot-key CTRL-SHIFT-N");
 
      // CTRL-WIN-F13 进入 EINK
-     hkm.register(VKey::F13, &[ModKey::Ctrl, ModKey::Win], move || {
+     match hkm.register(VKey::F13, &[ModKey::Ctrl, ModKey::Win], move || {
          switch_to_eink_launcher_mode();
-     })
-     .expect("Cannot register hot-key CTRL-WIN-F13");
+     }) {
+        Ok(_) => (), // ignore
+        Err(err) => {
+            log::error!("Cannot register hot-key CTRL-WIN-F13: err:{err:?}");
+        },
+    }
     
      // CTRL-WIN-F14 进入 OLED
-     hkm.register(VKey::F14, &[ModKey::Ctrl, ModKey::Win], move || {
+     match hkm.register(VKey::F14, &[ModKey::Ctrl, ModKey::Win], move || {
          switch_to_oled_windows_desktop_mode();
-     })
-     .expect("Cannot register hot-key CTRL-WIN-F14");
+     }) {
+        Ok(_) => (), // ignore
+        Err(err) => {
+            log::error!("Cannot register hot-key CTRL-WIN-F14: err:{err:?}");
+        },
+    }
 
     // 进入 OLED 桌面模式
     switch_to_oled_windows_desktop_mode();

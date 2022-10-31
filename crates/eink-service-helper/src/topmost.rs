@@ -23,7 +23,7 @@ use windows::{
     Win32::{
         Foundation::{HWND, LPARAM, WPARAM},
         UI::WindowsAndMessaging::{
-            GetForegroundWindow, SendMessageA, ShowWindow, SW_HIDE, SW_SHOWMINIMIZED, WM_USER,
+            GetForegroundWindow, SendMessageA, ShowWindow, SW_HIDE, SW_SHOWMINIMIZED, WM_USER, SW_SHOW,
         },
     },
 };
@@ -137,7 +137,7 @@ impl TopmostManager {
         self.rt.spawn(async move {
             if let Some(hwnd) = curr_hwnd.lock().take() {
                 unset_window_topmost(hwnd);
-                set_window_hidden(hwnd);
+                crate::set_window_minimize(hwnd);
             }
 
             // 2s 后
@@ -149,6 +149,9 @@ impl TopmostManager {
                 set_window_topmost(hwnd_in_2s);
                 curr_hwnd.lock().replace(hwnd_in_2s);
             }
+
+            // 重新置顶悬浮球
+            crate::find_floating_button_and_set_topmost();
         });
     }
 
@@ -231,14 +234,6 @@ pub fn clear_all_windows_topmost() {
         unsafe {
             SendMessageA(api_hwnd, WM_USER + 2, WPARAM::default(), LPARAM::default());
         }
-    }
-}
-/// 设置窗口隐藏
-pub fn set_window_hidden(hwnd: HWND) {
-    if unsafe { ShowWindow(hwnd, SW_SHOWMINIMIZED).as_bool() } {
-        // ignore
-    } else {
-        log::error!("Cannot hide launcher window");
     }
 }
 
