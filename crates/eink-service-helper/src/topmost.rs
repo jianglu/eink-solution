@@ -146,8 +146,15 @@ impl TopmostManager {
             let hwnd_in_2s = unsafe { GetForegroundWindow() };
 
             if hwnd_in_2s != HWND(0) {
-                set_window_topmost(hwnd_in_2s);
-                curr_hwnd.lock().replace(hwnd_in_2s);
+                if let Ok(launcher_hwnd) =
+                    find_window_by_title(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59")) {
+
+                    // 不能将 Launcher 置顶的
+                    if hwnd_in_2s != launcher_hwnd {
+                        set_window_topmost(hwnd_in_2s);
+                        curr_hwnd.lock().replace(hwnd_in_2s);
+                    }
+                }
             }
 
             // 重新置顶悬浮球

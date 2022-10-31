@@ -200,6 +200,7 @@ fn find_launcher_and_set_topmost() {
         // 调用 Windows 的置顶方法
         unsafe {
             SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE);
+            SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE);
         }
 
         // set_window_topmost(hwnd);
@@ -220,7 +221,7 @@ fn find_floating_button_and_set_topmost() {
             SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE);
         }
 
-        set_window_topmost(hwnd);
+        // set_window_topmost(hwnd);
     } else {
         log::error!("Cannot find ThinkBook Eink Plus Floating Button");
     }
