@@ -114,6 +114,11 @@ impl TopmostManager {
                         }
                         jsonrpc_success_string(id, "true")
                     }
+                    // 临时
+                    Some("switch_eink_oled_display") => {
+                        crate::switch_eink_oled_display();
+                        jsonrpc_success_string(id, "true")
+                    }
                     Some(&_) => jsonrpc_error_method_not_found(id),
                     None => jsonrpc_error_internal_error(id),
                 }

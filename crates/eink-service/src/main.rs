@@ -27,6 +27,7 @@ mod topmost_manager;
 mod utils;
 mod win_utils;
 
+use anyhow::bail;
 ///////////////////////////////////////////////////////////////////////////////
 /// Package Imports
 ///
@@ -52,6 +53,14 @@ fn main() -> anyhow::Result<()> {
 
     init_panic_output();
     init_working_dir().expect("Error reset working dir");
+
+    // 服务正常启动的前置检查
+    // explorer.exe 必须已经启动
+    let res = win_utils::get_process_pid("explorer.exe");
+    if res.is_err() || res.unwrap() == 0 {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        bail!("Cannot found explorer process");
+    }
 
     //
     // 启动各种服务

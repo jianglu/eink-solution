@@ -108,6 +108,8 @@ fn switch_to_eink_launcher_mode() {
 
                 // 置顶 Launcher
                 find_launcher_and_set_topmost();
+
+                IS_OLED.store(false, Ordering::Relaxed);
             }
         }
     }
@@ -175,6 +177,8 @@ fn find_launcher_and_set_hidden() {
     }
 }
 
+static IS_OLED: AtomicBool = AtomicBool::new(true);
+
 // 切换搭配 OLED Windows 桌面模式
 fn switch_to_oled_windows_desktop_mode() {
     if let Ok(oled_monitor_id) = SETTINGS.read().get_string("oled_monitor_id") {
@@ -188,7 +192,18 @@ fn switch_to_oled_windows_desktop_mode() {
 
             // 清除当前置顶的窗口
             TOPMOST_MANAGER.lock().clear_current_topmost_window();
+
+            IS_OLED.store(true, Ordering::Relaxed);
         }
+    }
+}
+
+/// 在 EINK/OLED 模式之间切换
+pub fn switch_eink_oled_display() {
+    if IS_OLED.load(Ordering::Relaxed) {
+        switch_to_eink_launcher_mode();
+    } else {
+        switch_to_oled_windows_desktop_mode();
     }
 }
 
@@ -238,6 +253,21 @@ fn main() -> AnyResult<()> {
         switch_to_oled_windows_desktop_mode();
     })
     .expect("Cannot register hot-key CTRL-SHIFT-N");
+
+     // CTRL-WIN-F13 进入 EINK
+     hkm.register(VKey::F13, &[ModKey::Ctrl, ModKey::Win], move || {
+         switch_to_eink_launcher_mode();
+     })
+     .expect("Cannot register hot-key CTRL-WIN-F13");
+    
+     // CTRL-WIN-F14 进入 OLED
+     hkm.register(VKey::F14, &[ModKey::Ctrl, ModKey::Win], move || {
+         switch_to_oled_windows_desktop_mode();
+     })
+     .expect("Cannot register hot-key CTRL-WIN-F14");
+
+    // 进入 OLED 桌面模式
+    switch_to_oled_windows_desktop_mode();
 
     hkm.event_loop();
 

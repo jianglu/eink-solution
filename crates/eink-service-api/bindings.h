@@ -48,4 +48,7 @@ uint32_t clear_all_windows_topmost();
 /// 设置窗口为置顶
 uint32_t adjust_topmost_on_app_launched(intptr_t pid);
 
+/// 设置窗口为置顶
+uint32_t switch_eink_oled_display();
+
 } // extern "C"

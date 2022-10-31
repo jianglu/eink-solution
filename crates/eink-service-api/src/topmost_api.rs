@@ -107,3 +107,21 @@ pub extern "C" fn adjust_topmost_on_app_launched(pid: isize) -> u32 {
     }
     0
 }
+
+/// 设置窗口为置顶
+#[no_mangle]
+pub extern "C" fn switch_eink_oled_display() -> u32 {
+    ensure_topmost_client();
+    let mut guard = TOPMOST_CLIENT.lock();
+    if let Some(client) = guard.as_mut() {
+        let reply = client
+            .call_with_params("switch_eink_oled_display", json!({}))
+            .expect("Cannot invoke remote method to topmost service");
+        info!(
+            "switch_eink_oled_display: result: {:?}",
+            reply.get_result()
+        );
+    }
+    0
+}
+
