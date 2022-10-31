@@ -415,8 +415,8 @@ pub unsafe fn run_admin_privilege_unsafe(proc_dir: &str, proc_cmd: &str) -> Resu
     let proc_dir16 = U16CString::from_str(proc_dir)?;
     let mut proc_cmd16 = U16CString::from_str(proc_cmd)?;
 
-    let mut creation_flags =
-        CREATE_NEW_CONSOLE | NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT; // CREATE_NO_WINDOW; //
+    let creation_flags =
+        CREATE_NEW_CONSOLE | NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW; //
 
     let ret = CreateProcessAsUserW(
         unfiltered_token,
