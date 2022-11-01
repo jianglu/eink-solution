@@ -34,7 +34,6 @@ use crate::{
         jsonrpc_error_internal_error, jsonrpc_error_invalid_params, jsonrpc_error_method_not_found,
         jsonrpc_success_string,
     },
-    AnyResult,
 };
 
 const PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\topmost";

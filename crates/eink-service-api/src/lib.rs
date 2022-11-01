@@ -24,6 +24,7 @@ use windows::Win32::{
 mod keyboard_api;
 mod tcon_api;
 mod topmost_api;
+mod wmi_api;
 
 #[no_mangle]
 extern "stdcall" fn DllMain(_hInstDll: HINSTANCE, fdwReason: u32, _lpvReserved: *mut c_void) {

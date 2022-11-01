@@ -878,6 +878,7 @@ dependencies = [
  "eink-winkits",
  "embed-resource",
  "futures 0.3.24",
+ "if_chain",
  "jsonrpc-lite",
  "libc",
  "log",
@@ -896,6 +897,7 @@ dependencies = [
  "windows-hotkeys",
  "wineventhook",
  "winsafe",
+ "wmi",
 ]
 
 [[package]]

@@ -33,6 +33,11 @@ pub fn jsonrpc_success_string(id: Id, result: &str) -> JsonRpc {
     JsonRpc::success(id, &serde_json::Value::String(result.to_owned()))
 }
 
+/// 返回成功（u32值）
+pub fn jsonrpc_success_u32(id: Id, result: u32) -> JsonRpc {
+    JsonRpc::success(id, &serde_json::json!(result))
+}
+
 /// 返回错误（无效参数）
 pub fn jsonrpc_error_invalid_params(id: Id) -> JsonRpc {
     JsonRpc::error(id, jsonrpc_lite::Error::invalid_params())

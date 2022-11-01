@@ -51,4 +51,10 @@ uint32_t adjust_topmost_on_app_launched(intptr_t pid);
 /// 设置窗口为置顶
 uint32_t switch_eink_oled_display();
 
+/// 设置 EINK 阅读灯
+uint32_t eink_set_reading_light_status(uint32_t level);
+
+/// 设置 EINK 阅读灯
+uint32_t eink_get_reading_light_status();
+
 } // extern "C"

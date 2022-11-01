@@ -36,8 +36,8 @@ use service_helper::SERVICE_HELPER;
 
 use crate::{
     keyboard_manager::KEYBOARD_MANAGER,
-    tcon_service::{tcon_keep_alive, TCON_SERVICE},
-    topmost_manager::TOPMOST_MANAGER,
+    tcon_service::TCON_SERVICE,
+    topmost_manager::TOPMOST_MANAGER, 
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -61,10 +61,6 @@ fn main() -> anyhow::Result<()> {
         std::thread::sleep(std::time::Duration::from_secs(1));
         bail!("Cannot found explorer process");
     }
-
-    //
-    // 启动各种服务
-    //
 
     // 启动服务助手
     SERVICE_HELPER

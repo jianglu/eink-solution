@@ -25,6 +25,7 @@ mod utils;
 mod win_utils;
 mod window;
 mod tcon_api;
+mod wmi_service;
 
 use std::{
     ffi::c_void,
@@ -76,6 +77,7 @@ use wineventhook::{
     raw_event::{OBJECT_CREATE, SYSTEM_FOREGROUND},
     AccessibleObjectId, EventFilter, WindowEventHook,
 };
+use wmi_service::WMI_SERVICE;
 
 use crate::{
     specialized::set_monitor_specialized,
@@ -316,9 +318,34 @@ fn main() -> AnyResult<()> {
         });
     }
 
+    //
+    // 启动各种服务
+    //
     ALWAYS_ON_TOP.lock().start().unwrap();
 
     TOPMOST_MANAGER.lock().start().unwrap();
+
+    WMI_SERVICE.lock().on_lid_event(|evt| {
+        info!("Received LidEvent: {:?}", evt);
+    });
+    WMI_SERVICE.lock().on_mode_switch_event(|mode| {
+        info!("Received OnModeSwitchEvent: {:?}", mode);
+
+        match mode {
+            // OLED
+            1 | 2 | 3 | 7 | 9 => {
+                switch_to_oled_windows_desktop_mode();
+            },
+            // EINK
+            4 | 5 | 6 | 8 | 10 => {
+                switch_to_eink_launcher_mode();
+            },
+            _ => {
+                info!("Unused mode : {mode}")
+            }
+        }
+    });
+    wmi_service::start_service(&WMI_SERVICE).expect("Error start WMI_SERVICE");
 
     // 线程开启热键响应
     let mut hkm = HotkeyManager::new();
