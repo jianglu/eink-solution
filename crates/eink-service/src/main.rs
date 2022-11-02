@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     // explorer.exe 必须已经启动
     let res = win_utils::get_process_pid("explorer.exe");
     if res.is_err() || res.unwrap() == 0 {
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(3));
         bail!("Cannot found explorer process");
     }
 

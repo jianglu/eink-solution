@@ -103,10 +103,19 @@ impl WmiService {
 
     pub fn get_reading_light_status(&self) -> u32 {
         let ret = cmd_lib_cf::run_fun! {
-            PowerShell.exe -Command "& Invoke-WmiMethod -Class 'LENOVO_TB_G4_CTRL' -Name 'GetEinkLightLevel' -Namespace 'root/wmi'}"
+            PowerShell.exe -Command "& {(Get-WmiObject -Class LENOVO_TB_G4_CTRL -Namespace ROOT/WMI).GetEinkLightLevel()['ret']}"
         };
         info!("get_reading_light_status: {ret:?}");
-        0
+
+        if_chain::if_chain! {
+            if let Ok(ret) = ret;
+            if let Ok(ret) = ret.parse::<u32>();
+            then {
+                ret
+            } else {
+                u32::max_value()
+            }
+        }
     }
 
     pub fn send_mode_switch_event(&mut self, mode: u32) {
