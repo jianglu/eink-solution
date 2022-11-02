@@ -95,7 +95,7 @@ impl WmiService {
 
     pub fn set_reading_light_status(&mut self, level: u32) -> u32 {
         let ret = cmd_lib_cf::run_cmd! {
-            PowerShell.exe -Command "& Invoke-WmiMethod -Class 'LENOVO_TB_G4_CTRL' -Name 'SetEinkLightLevel' -ArgumentList ${level} -Namespace 'root/wmi'}"
+            PowerShell.exe -Command "& {(Get-WmiObject -Class LENOVO_TB_G4_CTRL -Namespace ROOT/WMI).SetEinkLightLevel(${level})['ret'] }"
         };
         info!("set_reading_light_status: {ret:?}");
         0
