@@ -65,6 +65,10 @@ extern "system" {
     pub fn ITECloseDeviceAPI() -> ();
     pub fn ITESet8951KeepAlive(enable: u32) -> u32;
     pub fn ITECleanUpEInkAPI() -> u32;
+    pub fn StopLoadImg() -> ();
+    pub fn RecoveryLoadImg() -> ();
+    pub fn EnableLoadImg() -> ();
+    pub fn DisableLoadImg() -> ();
     pub fn ITESetFA2(enable: u32) -> u32;
     pub fn ITESetMIPIModeAPI(mode: &mut u32) -> u32;
     pub fn ITEGetBufferAddrInfoAPI(addrs: &mut [u32; 3]) -> u32;

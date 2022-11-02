@@ -18,7 +18,7 @@ use std::{
 
 use anyhow::{bail, Result};
 use eink_itetcon::{
-    ITECleanUpEInkAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo, ITEOpenDeviceAPI,
+    DisableLoadImg, EnableLoadImg, RecoveryLoadImg, StopLoadImg, ITECleanUpEInkAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo, ITEOpenDeviceAPI,
     ITESet8951KeepAlive, ITESetFA2, ITESetMIPIModeAPI, IteTconDevice, GI_MIPI_FAST_READER,
     GI_MIPI_READER,
 };

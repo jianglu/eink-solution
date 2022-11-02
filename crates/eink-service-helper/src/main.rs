@@ -269,7 +269,8 @@ fn switch_to_oled_windows_desktop_mode() {
 
             // GI_MIPI_BROWSER = 0x02;
             // GI_MIPI_HYBRID = 0xF0;
-            tcon_api::eink_set_mipi_mode(0x02);
+            //tcon_api::eink_set_mipi_mode(0x02);
+            tcon_api::eink_show_shutdown_cover();
 
             // 最小化 Launcher
             find_launcher_and_set_hidden();

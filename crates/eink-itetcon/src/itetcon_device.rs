@@ -18,7 +18,7 @@ use widestring::U16CString;
 use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
 
 use crate::{
-    EiTurn180, EicConvertToT1000Format, EicLoadImage, EicReleaseImage, ITECleanUpEInkAPI,
+    EiTurn180, EicConvertToT1000Format, EicLoadImage, EicReleaseImage, ITECleanUpEInkAPI,DisableLoadImg, EnableLoadImg, RecoveryLoadImg, StopLoadImg,
     ITECloseDeviceAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo,
     ITEGetSystemInfoAPI, ITELoadImage, ITEOpenDeviceAPI, ITESetMIPIModeAPI, EIMC_GRAY16,
     EIMC_IMG_FILL, GI_MIPI_BROWSER, GI_MIPI_FAST_READER, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,
@@ -97,38 +97,45 @@ impl IteTconDevice {
 
     pub fn refresh() {
         info!("tcon_refresh");
+        unsafe { StopLoadImg() };
         unsafe { ITECleanUpEInkAPI() };
+        unsafe { RecoveryLoadImg() };
     }
 
     /// 设置为速度模式
     pub fn set_speed_mode(&self) {
         // 设置 MIPI 快速模式
         let mut mode = GI_MIPI_FAST_READER;
+        unsafe { StopLoadImg() };        
         unsafe { ITESetMIPIModeAPI(&mut mode) };
+        unsafe { RecoveryLoadImg() };
     }
 
     /// 设置为 READER 模式
     pub fn set_reader_mode(&self) {
         // 设置 MIPI 快速模式
         let mut mode = GI_MIPI_READER;
+
+        unsafe { StopLoadImg() };  
         unsafe { ITESetMIPIModeAPI(&mut mode) };
+        unsafe { RecoveryLoadImg() };
     }
 
     // 设置显示 Cover 图像
     pub fn show_cover_image(&mut self) {
-        // self.set_reader_mode();
-        // let img_addr = self.img_addrs[self.latest_image_idx as usize];
-        // let ret = unsafe {
-        //     ITEDisplayAreaAPI(
-        //         0,
-        //         0,
-        //         self.screen_width,
-        //         self.screen_height,
-        //         GI_MIPI_BROWSER, // TODO: ?? 确认此接口的模式指定
-        //         img_addr,
-        //         0,
-        //     )
-        // };
+        self.set_speed_mode();
+        let img_addr = self.img_addrs[self.latest_image_idx as usize];
+        let ret = unsafe {
+            ITEDisplayAreaAPI(
+                0,
+                0,
+                self.screen_width,
+                self.screen_height,
+                GI_MIPI_FAST_READER, // TODO: ?? 确认此接口的模式指定
+                img_addr,
+                0,
+            )
+        };
         // info!("ITEDisplayAreaAPI: {ret}");
         // info!("ITEDisplayAreaAPI(1): {}", ret);
     }
@@ -208,18 +215,18 @@ impl IteTconDevice {
             // 保存新的可用图片序号
             self.latest_image_idx = image_idx;
 
-            let ret = unsafe {
-                ITEDisplayAreaAPI(
-                    0,
-                    0,
-                    self.screen_width,
-                    self.screen_height,
-                    GI_MIPI_BROWSER, // TODO: ?? 确认此接口的模式指定
-                    img_addr,
-                    0,
-                )
-            };
-            info!("ITEDisplayAreaAPI: {ret}");
+            // let ret = unsafe {
+            //     ITEDisplayAreaAPI(
+            //         0,
+            //         0,
+            //         self.screen_width,
+            //         self.screen_height,
+            //         GI_MIPI_BROWSER, // TODO: ?? 确认此接口的模式指定
+            //         img_addr,
+            //         0,
+            //     )
+            // };
+            //info!("ITEDisplayAreaAPI: {ret}");
 
             unsafe { EicReleaseImage(img_buf) };
         }
