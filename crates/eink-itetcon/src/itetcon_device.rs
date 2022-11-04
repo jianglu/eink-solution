@@ -124,6 +124,11 @@ impl IteTconDevice {
     // 设置显示 Cover 图像
     pub fn show_cover_image(&mut self) {
         self.set_speed_mode();
+
+        if self.latest_image_idx == u32::max_value() {
+            return;
+        }
+
         let img_addr = self.img_addrs[self.latest_image_idx as usize];
         let ret = unsafe {
             ITEDisplayAreaAPI(

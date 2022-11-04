@@ -352,22 +352,37 @@ fn main() -> AnyResult<()> {
     let mut hkm = HotkeyManager::new();
 
     // CTRL-ALT-Q 退出
-    hkm.register(VKey::Q, &[ModKey::Ctrl, ModKey::Alt], move || {
+    match hkm.register(VKey::Q, &[ModKey::Ctrl, ModKey::Alt], move || {
         std::process::exit(0);
-    })
-    .expect("Cannot register hot-key CTRL-ALT-Q");
+    }) {
+        Ok(_) => (), // ignore
+        Err(err) => {
+            log::error!("Cannot register hot-key CTRL-ALT-Q: err:{err:?}, last_win_error:{:?}",
+                unsafe { GetLastError() });
+        },
+    }
 
     // CTRL-SHIFT-M 进入 EINK
-    hkm.register(VKey::M, &[ModKey::Ctrl, ModKey::Shift], move || {
+    match hkm.register(VKey::M, &[ModKey::Ctrl, ModKey::Shift], move || {
         switch_to_eink_launcher_mode();
-    })
-    .expect("Cannot register hot-key CTRL-SHIFT-M");
+    }) {
+        Ok(_) => (), // ignore
+        Err(err) => {
+            log::error!("Cannot register hot-key CTRL-SHIFT-M: err:{err:?}, last_win_error:{:?}",
+                unsafe { GetLastError() });
+        },
+    }
 
     // CTRL-SHIFT-N 进入 OLED
-    hkm.register(VKey::N, &[ModKey::Ctrl, ModKey::Shift], move || {
+    match hkm.register(VKey::N, &[ModKey::Ctrl, ModKey::Shift], move || {
         switch_to_oled_windows_desktop_mode();
-    })
-    .expect("Cannot register hot-key CTRL-SHIFT-N");
+    }) {
+        Ok(_) => (), // ignore
+        Err(err) => {
+            log::error!("Cannot register hot-key CTRL-SHIFT-N: err:{err:?}, last_win_error:{:?}",
+                unsafe { GetLastError() });
+        },
+    }
 
      // CTRL-WIN-F13 进入 EINK
      match hkm.register(VKey::F13, &[ModKey::Ctrl, ModKey::Win], move || {
