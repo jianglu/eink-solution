@@ -106,7 +106,7 @@ impl IteTconDevice {
     pub fn set_speed_mode(&self) {
         // 设置 MIPI 快速模式
         let mut mode = GI_MIPI_FAST_READER;
-        unsafe { StopLoadImg() };        
+        unsafe { StopLoadImg() };
         unsafe { ITESetMIPIModeAPI(&mut mode) };
         unsafe { RecoveryLoadImg() };
     }
@@ -116,7 +116,7 @@ impl IteTconDevice {
         // 设置 MIPI 快速模式
         let mut mode = GI_MIPI_READER;
 
-        unsafe { StopLoadImg() };  
+        unsafe { StopLoadImg() };
         unsafe { ITESetMIPIModeAPI(&mut mode) };
         unsafe { RecoveryLoadImg() };
     }
