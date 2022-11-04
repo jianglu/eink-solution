@@ -285,7 +285,7 @@ fn switch_to_oled_windows_desktop_mode() {
 
 /// 在 EINK/OLED 模式之间切换
 pub fn switch_eink_oled_display() {
-    log::info!("switch_to_oled_windows_desktop_mode");
+    log::info!("switch_eink_oled_display");
 
     // 防止通过 SendMessage 形成进程间死锁
     std::thread::spawn(|| {
@@ -371,7 +371,7 @@ fn main() -> AnyResult<()> {
 
      // CTRL-WIN-F13 进入 EINK
      match hkm.register(VKey::F13, &[ModKey::Ctrl, ModKey::Win], move || {
-         switch_to_eink_launcher_mode();
+        switch_eink_oled_display();
      }) {
         Ok(_) => (), // ignore
         Err(err) => {
