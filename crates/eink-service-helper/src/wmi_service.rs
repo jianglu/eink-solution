@@ -17,7 +17,7 @@ use std::{
 
 use eink_pipe_io::server::Socket;
 use jsonrpc_lite::{JsonRpc, Id, Params};
-use log::info;
+use log::{info, debug};
 use parking_lot::Mutex;
 use signals2::{Signal, Emit1, Connect1, Connection};
 use tokio::{runtime::Runtime, select};
@@ -172,8 +172,15 @@ pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
         let wmi_con = WMIConnection::with_namespace_path("root/wmi", com_con.into()).unwrap();
 
         let iterator = wmi_con
-            .raw_notification::<HashMap<String, Variant>>("SELECT * FROM Lenovo_LidEvent")
-            .unwrap();
+            .raw_notification::<HashMap<String, Variant>>("SELECT * FROM Lenovo_LidEvent");
+
+        let iterator = match iterator {
+            Ok(v) => v,
+            Err(err) => {
+                debug!("Cannot listen Lenovo_LidEvent: {err:?}");
+                return;
+            },
+        };
 
         // WBEM_E_UNPARSABLE_QUERY 0x80041058
         for result in iterator {
@@ -212,10 +219,17 @@ pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
         let wmi_con = WMIConnection::with_namespace_path("root/wmi", com_con.into()).unwrap();
 
         let iterator = wmi_con
-            .raw_notification::<HashMap<String, Variant>>("SELECT * FROM LENOVO_BASE_MODE_SWITCH_EVENT")
-            .unwrap();
+            .raw_notification::<HashMap<String, Variant>>("SELECT * FROM LENOVO_BASE_MODE_SWITCH_EVENT");
 
-            for result in iterator {
+        let iterator = match iterator {
+            Ok(v) => v,
+            Err(err) => {
+                debug!("Cannot listen LENOVO_BASE_MODE_SWITCH_EVENT: {err:?}");
+                return;
+            },
+        };
+
+        for result in iterator {
             let result = result.unwrap();
             let mode = result.get("ULong").unwrap();
             if let Variant::UI4(mode) = mode {
