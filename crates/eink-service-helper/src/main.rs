@@ -379,15 +379,25 @@ fn main() -> AnyResult<()> {
         },
     }
     
-     // CTRL-WIN-F14 进入 OLED
+     // CTRL-WIN-F14
      match hkm.register(VKey::F14, &[ModKey::Ctrl, ModKey::Win], move || {
-         switch_to_oled_windows_desktop_mode();
+        info!("Clicked: CTRL-WIN-F14")
      }) {
         Ok(_) => (), // ignore
         Err(err) => {
             log::error!("Cannot register hot-key CTRL-WIN-F14: err:{err:?}");
         },
     }
+
+     // CTRL-WIN-F15
+     match hkm.register(VKey::F15, &[ModKey::Ctrl, ModKey::Win], move || {
+        info!("Clicked: CTRL-WIN-F15")
+    }) {
+       Ok(_) => (), // ignore
+       Err(err) => {
+           log::error!("Cannot register hot-key CTRL-WIN-F15: err:{err:?}");
+       },
+   }
 
     // 进入 OLED 桌面模式
     switch_to_oled_windows_desktop_mode();
