@@ -21,7 +21,7 @@ use crate::{
     EiTurn180, EicConvertToT1000Format, EicLoadImage, EicReleaseImage, ITECleanUpEInkAPI,DisableLoadImg, EnableLoadImg, RecoveryLoadImg, StopLoadImg,
     ITECloseDeviceAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo,
     ITEGetSystemInfoAPI, ITELoadImage, ITEOpenDeviceAPI, ITESetMIPIModeAPI, EIMC_GRAY16,
-    EIMC_IMG_FILL, GI_MIPI_BROWSER, GI_MIPI_FAST_READER, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,
+    EIMC_IMG_FILL, GI_MIPI_BROWSER, GI_MIPI_FAST_READER, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,GI_MIPI_HYBRID,
 };
 
 pub struct IteTconDevice {
@@ -95,17 +95,26 @@ impl IteTconDevice {
         self.is_open = false;
     }
 
-    pub fn refresh() {
+    pub fn refresh(&self) {
         info!("tcon_refresh");
         unsafe { StopLoadImg() };
         unsafe { ITECleanUpEInkAPI() };
         unsafe { RecoveryLoadImg() };
     }
 
-    /// 设置为速度模式
+    /// 设置为静态刷新模式
     pub fn set_speed_mode(&self) {
         // 设置 MIPI 快速模式
         let mut mode = GI_MIPI_FAST_READER;
+        unsafe { StopLoadImg() };
+        unsafe { ITESetMIPIModeAPI(&mut mode) };
+        unsafe { RecoveryLoadImg() };
+    }
+
+     /// 设置为静态刷新模式
+     pub fn set_gybrid_mode(&self) {
+        // 设置 MIPI 快速模式
+        let mut mode = GI_MIPI_HYBRID;
         unsafe { StopLoadImg() };
         unsafe { ITESetMIPIModeAPI(&mut mode) };
         unsafe { RecoveryLoadImg() };
@@ -126,7 +135,7 @@ impl IteTconDevice {
         self.set_speed_mode();
 
         if self.latest_image_idx == u32::max_value() {
-            return;
+            self.latest_image_idx = 0;
         }
 
         let img_addr = self.img_addrs[self.latest_image_idx as usize];
@@ -141,6 +150,8 @@ impl IteTconDevice {
                 0,
             )
         };
+
+        self.refresh();
         // info!("ITEDisplayAreaAPI: {ret}");
         // info!("ITEDisplayAreaAPI(1): {}", ret);
     }
@@ -184,6 +195,8 @@ impl IteTconDevice {
         // let mut img_luma8 = img.into_rgb8();
         // let img_buf = img_luma8.as_mut_ptr() as *mut u8;
 
+        self.set_speed_mode();
+        
         let img_path_cstring = U16CString::from_str(img_path).unwrap();
         let mut img_width: u32 = 0;
         let mut img_height: u32 = 0;
@@ -232,7 +245,7 @@ impl IteTconDevice {
             //     )
             // };
             //info!("ITEDisplayAreaAPI: {ret}");
-
+            self.set_gybrid_mode();
             unsafe { EicReleaseImage(img_buf) };
         }
     }
