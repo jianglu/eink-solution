@@ -105,6 +105,8 @@ impl IteTconDevice {
     /// 设置为静态刷新模式
     pub fn set_speed_mode(&self) {
         // 设置 MIPI 快速模式
+        info!("set_speed_mode GI_MIPI_FAST_READER");
+
         let mut mode = GI_MIPI_FAST_READER;
         unsafe { StopLoadImg() };
         unsafe { ITESetMIPIModeAPI(&mut mode) };
@@ -166,9 +168,9 @@ impl IteTconDevice {
         } else {
             (self.latest_image_idx + 1) % 2
         };
-
+        self.latest_image_idx = image_idx;
         let img_addr = self.img_addrs[image_idx as usize];
-        info!("img_addr: {img_addr}");
+        info!("img_addr: {image_idx}");
 
         // // 打开 cover.jpg 格式文件
         // let mut img = image::open(img_path).unwrap();
@@ -197,6 +199,7 @@ impl IteTconDevice {
 
         self.set_speed_mode();
         
+        info!("EicLoadImage");
         let img_path_cstring = U16CString::from_str(img_path).unwrap();
         let mut img_width: u32 = 0;
         let mut img_height: u32 = 0;
@@ -214,10 +217,14 @@ impl IteTconDevice {
 
         if !img_buf.is_null() {
             unsafe {
+                info!("EicConvertToT1000Format");
                 EicConvertToT1000Format(img_buf, img_width, img_height);
+
+                info!("EiTurn180");
                 EiTurn180(img_buf, img_width, img_height);
             }
 
+            info!("ITELoadImage");
             let ret = unsafe {
                 ITELoadImage(
                     img_buf,
