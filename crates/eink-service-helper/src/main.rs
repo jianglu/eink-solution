@@ -77,6 +77,7 @@ use wineventhook::{
     raw_event::{OBJECT_CREATE, SYSTEM_FOREGROUND},
     AccessibleObjectId, EventFilter, WindowEventHook,
 };
+use winreg::{RegKey, enums::HKEY_LOCAL_MACHINE};
 use wmi_service::WMI_SERVICE;
 
 use crate::{
@@ -158,6 +159,9 @@ fn switch_to_eink_launcher_mode() {
 
                 // 置顶悬浮球
                 find_floating_button_and_set_topmost();
+
+                // 将当前模式保存到注册表
+                save_display_mode_to_registry("EINK");
 
                 IS_OLED.store(false, Ordering::Relaxed);
             }
@@ -278,11 +282,37 @@ fn switch_to_oled_windows_desktop_mode() {
             // 清除当前置顶的窗口
             TOPMOST_MANAGER.lock().clear_current_topmost_window();
 
+            // 将当前模式保存到注册表
+            save_display_mode_to_registry("OLED");
+
             IS_OLED.store(true, Ordering::Relaxed);
 
             tcon_api::eink_show_shutdown_cover();
         }
     }
+}
+
+/// 将当前显示模式保存到注册表
+fn save_display_mode_to_registry(mode: &str) {
+    let key_path = r#"SOFTWARE\Lenovo\ThinkBookEinkPlus"#;
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+
+    let mut key = hklm.open_subkey(key_path);
+
+    if key.is_err() {
+        // Maybe notfound, ignore any error
+        let _ = hklm.create_subkey(key_path);
+
+        key = hklm.open_subkey(key_path);
+        if key.is_err() {
+            // 多次错误，只能退出，输出到日志
+            log::error!("Cannot open '{}' registry subkey", key_path);
+            return;
+        }
+    }
+
+    let key = key.unwrap();
+    key.set_value("DisplayMode", &mode.to_owned()).expect("Cannot save 'DisplayMode' to registry");
 }
 
 /// 在 EINK/OLED 模式之间切换

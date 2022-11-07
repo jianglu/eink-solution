@@ -46,6 +46,8 @@ wmi = "0.11.3"
 
 if_chain = "1.0.2"
 
+winreg = "0.10.1"
+
 # 部分使用了 tokio 异步运行时
 futures = "0.3"
 tokio = { version = "1.21", features = ["full"] }
