@@ -39,6 +39,7 @@ use always_on_top::{AlwaysOnTop, ALWAYS_ON_TOP};
 use anyhow::bail;
 use log::info;
 use mag_win::MagWindow;
+use ntapi::winapi::um::winnt;
 use parking_lot::{Mutex, RwLock};
 use settings::SETTINGS;
 use structopt::StructOpt;
@@ -78,6 +79,7 @@ use wineventhook::{
     AccessibleObjectId, EventFilter, WindowEventHook,
 };
 use winreg::{RegKey, enums::HKEY_LOCAL_MACHINE};
+use winnt::KEY_ALL_ACCESS;
 use wmi_service::WMI_SERVICE;
 
 use crate::{
@@ -297,7 +299,7 @@ fn save_display_mode_to_registry(mode: &str) {
     let key_path = r#"SOFTWARE\Lenovo\ThinkBookEinkPlus"#;
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
 
-    let mut key = hklm.open_subkey(key_path);
+    let mut key = hklm.open_subkey_with_flags(key_path,KEY_ALL_ACCESS);
 
     if key.is_err() {
         // Maybe notfound, ignore any error
@@ -416,8 +418,9 @@ fn main() -> AnyResult<()> {
         },
     }
 
-     // CTRL-WIN-F13 进入 EINK
-     match hkm.register(VKey::F13, &[ModKey::Ctrl, ModKey::Win], move || {
+     // CTRL-Shift-F13 进入 EINK
+     match hkm.register(VKey::F13, &[ModKey::Ctrl, ModKey::Shift], move || {
+        info!("Clicked: CTRL-Shift-F13");
         switch_eink_oled_display();
      }) {
         Ok(_) => (), // ignore
@@ -426,9 +429,9 @@ fn main() -> AnyResult<()> {
         },
     }
     
-     // CTRL-WIN-F14
-     match hkm.register(VKey::F14, &[ModKey::Ctrl, ModKey::Win], move || {
-        info!("Clicked: CTRL-WIN-F14")
+     // CTRL-Shift-F14
+     match hkm.register(VKey::F14, &[ModKey::Ctrl, ModKey::Shift], move || {
+        info!("Clicked: CTRL-Shift-F14")
      }) {
         Ok(_) => (), // ignore
         Err(err) => {
@@ -436,9 +439,9 @@ fn main() -> AnyResult<()> {
         },
     }
 
-     // CTRL-WIN-F15
-     match hkm.register(VKey::F15, &[ModKey::Ctrl, ModKey::Win], move || {
-        info!("Clicked: CTRL-WIN-F15")
+     // CTRL-Shift-F15
+     match hkm.register(VKey::F15, &[ModKey::Ctrl, ModKey::Shift], move || {
+        info!("Clicked: CTRL-Shift-F15")
     }) {
        Ok(_) => (), // ignore
        Err(err) => {
