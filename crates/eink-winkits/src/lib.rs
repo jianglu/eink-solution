@@ -10,39 +10,34 @@
 // All rights reserved.
 //
 
-use std::{collections::HashSet, ffi::CStr};
+use std::collections::HashSet;
+use std::ffi::CStr;
 
 use widestring::{U16CStr, U16CString};
-use windows::{
-    core::{PCWSTR, PWSTR},
-    w,
-    Graphics::Capture::{GraphicsCaptureItem, IGraphicsCaptureItem},
-    Win32::{
-        Foundation::{BOOL, HWND, LPARAM},
-        Storage::FileSystem::STANDARD_RIGHTS_REQUIRED,
-        System::{
-            StationsAndDesktops::{
-                CloseDesktop, CreateDesktopW, EnumDesktopWindows, EnumDesktopsW, GetThreadDesktop,
-                OpenDesktopW, SwitchDesktop, DF_ALLOWOTHERACCOUNTHOOK,
-            },
-            SystemServices::{
-                DESKTOP_ACCESS_FLAGS, DESKTOP_CREATEMENU, DESKTOP_CREATEWINDOW, DESKTOP_ENUMERATE,
-                DESKTOP_HOOKCONTROL, DESKTOP_JOURNALPLAYBACK, DESKTOP_JOURNALRECORD,
-                DESKTOP_READOBJECTS, DESKTOP_SWITCHDESKTOP, DESKTOP_WRITEOBJECTS,
-            },
-            Threading::{
-                CreateProcessW, GetCurrentThreadId, CREATE_NEW_CONSOLE, NORMAL_PRIORITY_CLASS,
-                PROCESS_INFORMATION, STARTUPINFOW,
-            },
-            WinRT::Graphics::Capture::IGraphicsCaptureItemInterop,
-        },
-        UI::WindowsAndMessaging::{
-            CloseWindow, EnumWindows, GetAncestor, GetClassNameA, GetDesktopWindow, GetWindowLongA,
-            GetWindowLongW, GetWindowTextA, GetWindowTextW, GetWindowThreadProcessId,
-            PostQuitMessage, PostThreadMessageA, RealGetWindowClassA, GA_ROOT, GET_ANCESTOR_FLAGS,
-            GWL_STYLE, HCF_DEFAULTDESKTOP, WM_QUIT, WNDENUMPROC, WS_VISIBLE,
-        },
-    },
+use windows::core::{PCWSTR, PWSTR};
+use windows::w;
+use windows::Graphics::Capture::{GraphicsCaptureItem, IGraphicsCaptureItem};
+use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
+use windows::Win32::Storage::FileSystem::STANDARD_RIGHTS_REQUIRED;
+use windows::Win32::System::StationsAndDesktops::{
+    CloseDesktop, CreateDesktopW, EnumDesktopWindows, EnumDesktopsW, GetThreadDesktop,
+    OpenDesktopW, SwitchDesktop, DF_ALLOWOTHERACCOUNTHOOK,
+};
+use windows::Win32::System::SystemServices::{
+    DESKTOP_ACCESS_FLAGS, DESKTOP_CREATEMENU, DESKTOP_CREATEWINDOW, DESKTOP_ENUMERATE,
+    DESKTOP_HOOKCONTROL, DESKTOP_JOURNALPLAYBACK, DESKTOP_JOURNALRECORD, DESKTOP_READOBJECTS,
+    DESKTOP_SWITCHDESKTOP, DESKTOP_WRITEOBJECTS,
+};
+use windows::Win32::System::Threading::{
+    CreateProcessW, GetCurrentThreadId, CREATE_NEW_CONSOLE, NORMAL_PRIORITY_CLASS,
+    PROCESS_INFORMATION, STARTUPINFOW,
+};
+use windows::Win32::System::WinRT::Graphics::Capture::IGraphicsCaptureItemInterop;
+use windows::Win32::UI::WindowsAndMessaging::{
+    CloseWindow, EnumWindows, GetAncestor, GetClassNameA, GetDesktopWindow, GetWindowLongA,
+    GetWindowLongW, GetWindowTextA, GetWindowTextW, GetWindowThreadProcessId, PostQuitMessage,
+    PostThreadMessageA, RealGetWindowClassA, GA_ROOT, GET_ANCESTOR_FLAGS, GWL_STYLE,
+    HCF_DEFAULTDESKTOP, WM_QUIT, WNDENUMPROC, WS_VISIBLE,
 };
 
 pub mod process;
