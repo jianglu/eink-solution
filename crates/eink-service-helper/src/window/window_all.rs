@@ -10,8 +10,8 @@
 // All rights reserved.
 //
 
+use super::WindowInfo;
 use std::ffi::CStr;
-
 use windows::Win32::{
     Foundation::{BOOL, HWND, LPARAM},
     Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWM_CLOAKED_SHELL},
@@ -21,8 +21,6 @@ use windows::Win32::{
         GA_ROOT, GWL_EXSTYLE, GWL_STYLE, WS_DISABLED, WS_EX_TOOLWINDOW,
     },
 };
-
-use super::WindowInfo;
 
 struct WindowEnumerationState {
     windows: Vec<WindowInfo>,

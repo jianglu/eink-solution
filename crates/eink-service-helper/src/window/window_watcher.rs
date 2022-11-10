@@ -10,6 +10,10 @@
 // All rights reserved.
 //
 
+use super::window_overlapping;
+use crate::AnyResult;
+use log::info;
+use parking_lot::RwLock;
 use std::{
     sync::{
         atomic::{AtomicIsize, AtomicU32, Ordering},
@@ -17,17 +21,10 @@ use std::{
     },
     thread::JoinHandle,
 };
-
-use log::info;
-use parking_lot::RwLock;
 use windows::Win32::{
     Foundation::HWND,
     UI::WindowsAndMessaging::{BringWindowToTop, ShowWindow, SW_MINIMIZE},
 };
-
-use crate::AnyResult;
-
-use super::window_overlapping;
 
 /// 窗口守望者
 /// 1. 确保 “单一应用” 不被其他应用覆盖
@@ -109,7 +106,10 @@ impl Watcher {
             // Launcher 窗口必须被排除
             // [18680] INFO  [eink_service_helper::window::window_watcher] OverlappingWin-Title: "ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59"
 
-            if overlapping_win.title.contains("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59") {
+            if overlapping_win
+                .title
+                .contains("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59")
+            {
                 excluded = true;
             }
 

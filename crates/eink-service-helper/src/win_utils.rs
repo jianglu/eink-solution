@@ -9,86 +9,47 @@
 //
 // All rights reserved.
 //
+use std::mem::{size_of, zeroed, MaybeUninit};
+
+use anyhow::{bail, Result};
+use libc::c_void;
 #[allow(non_snake_case)]
 use log::Level;
 use log::{debug, info};
-
-use libc::c_void;
-
-use windows::Win32::Foundation::GetLastError;
-use windows::Win32::Foundation::HWND;
-use windows::Win32::Foundation::NO_ERROR;
-use windows::Win32::Foundation::WIN32_ERROR;
-use windows::Win32::Security::DuplicateTokenEx;
-use windows::Win32::Security::GetTokenInformation;
-use windows::Win32::Security::SecurityIdentification;
-use windows::Win32::Security::SecurityImpersonation;
-use windows::Win32::Security::SetTokenInformation;
-use windows::Win32::Security::TokenLinkedToken;
-use windows::Win32::Security::TokenPrimary;
-use windows::Win32::Security::TokenSessionId;
-use windows::Win32::Security::TOKEN_ADJUST_PRIVILEGES;
-use windows::Win32::Security::TOKEN_ADJUST_SESSIONID;
-use windows::Win32::Security::TOKEN_ALL_ACCESS;
-use windows::Win32::Security::TOKEN_ASSIGN_PRIMARY;
-use windows::Win32::Security::TOKEN_DUPLICATE;
-use windows::Win32::Security::TOKEN_QUERY;
-use windows::Win32::Security::TOKEN_READ;
-use windows::Win32::Security::TOKEN_WRITE;
-use windows::Win32::System::Environment::CreateEnvironmentBlock;
-use windows::Win32::System::Environment::DestroyEnvironmentBlock;
-use windows::Win32::System::RemoteDesktop::WTSActive;
-use windows::Win32::System::RemoteDesktop::WTSEnumerateSessionsW;
-use windows::Win32::System::RemoteDesktop::WTSFreeMemory;
-use windows::Win32::System::RemoteDesktop::WTSGetActiveConsoleSessionId;
-use windows::Win32::System::RemoteDesktop::WTSQueryUserToken;
-use windows::Win32::System::RemoteDesktop::WTS_SESSION_INFOW;
-use windows::Win32::System::Threading::OpenProcessToken;
-use windows::Win32::System::Threading::CREATE_UNICODE_ENVIRONMENT;
-use windows::Win32::UI::WindowsAndMessaging::GetDesktopWindow;
-
-use std::mem::size_of;
-use std::mem::zeroed;
-use std::mem::MaybeUninit;
-use widestring::U16CStr;
-use widestring::U16CString;
-
+use widestring::{U16CStr, U16CString};
 use windows::core::{PCWSTR, PWSTR};
 use windows::w;
-use windows::Win32::Foundation::CloseHandle;
-use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
-use windows::Win32::Foundation::LPARAM;
-use windows::Win32::Foundation::{BOOL, HANDLE};
-use windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES;
-use windows::Win32::System::Diagnostics::ToolHelp::CreateToolhelp32Snapshot;
-use windows::Win32::System::Diagnostics::ToolHelp::Process32FirstW;
-use windows::Win32::System::Diagnostics::ToolHelp::PROCESSENTRY32W;
-use windows::Win32::System::Diagnostics::ToolHelp::TH32CS_SNAPPROCESS;
-use windows::Win32::System::Diagnostics::ToolHelp::{Process32NextW, PROCESSENTRY32};
-use windows::Win32::System::SystemServices::MAXIMUM_ALLOWED;
-use windows::Win32::System::Threading::CreateProcessAsUserW;
-use windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
-use windows::Win32::System::Threading::CREATE_NO_WINDOW;
-use windows::Win32::System::Threading::NORMAL_PRIORITY_CLASS;
-use windows::Win32::System::Threading::PROCESS_CREATION_FLAGS;
-use windows::Win32::System::Threading::PROCESS_INFORMATION;
-use windows::Win32::System::Threading::STARTUPINFOW;
-use windows::Win32::System::Threading::{
-    OpenProcess, TerminateProcess, PROCESS_ALL_ACCESS, PROCESS_TERMINATE,
+use windows::Win32::Foundation::{
+    CloseHandle, GetLastError, BOOL, HANDLE, HWND, INVALID_HANDLE_VALUE, LPARAM, NO_ERROR,
+    WIN32_ERROR,
 };
-use windows::Win32::UI::Shell::SHAppBarMessage;
-use windows::Win32::UI::Shell::SHGetFileInfoW;
-use windows::Win32::UI::Shell::StrStrW;
-use windows::Win32::UI::Shell::ABM_SETSTATE;
-use windows::Win32::UI::Shell::ABS_ALWAYSONTOP;
-use windows::Win32::UI::Shell::ABS_AUTOHIDE;
-use windows::Win32::UI::Shell::SHFILEINFOW;
-use windows::Win32::UI::Shell::SHGFI_ICON;
-use windows::Win32::UI::Shell::SHGFI_SMALLICON;
-use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
-
-use anyhow::bail;
-use anyhow::Result;
+use windows::Win32::Security::{
+    DuplicateTokenEx, GetTokenInformation, SecurityIdentification, SecurityImpersonation,
+    SetTokenInformation, TokenLinkedToken, TokenPrimary, TokenSessionId, TOKEN_ADJUST_PRIVILEGES,
+    TOKEN_ADJUST_SESSIONID, TOKEN_ALL_ACCESS, TOKEN_ASSIGN_PRIMARY, TOKEN_DUPLICATE, TOKEN_QUERY,
+    TOKEN_READ, TOKEN_WRITE,
+};
+use windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES;
+use windows::Win32::System::Diagnostics::ToolHelp::{
+    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32, PROCESSENTRY32W,
+    TH32CS_SNAPPROCESS,
+};
+use windows::Win32::System::Environment::{CreateEnvironmentBlock, DestroyEnvironmentBlock};
+use windows::Win32::System::RemoteDesktop::{
+    WTSActive, WTSEnumerateSessionsW, WTSFreeMemory, WTSGetActiveConsoleSessionId,
+    WTSQueryUserToken, WTS_SESSION_INFOW,
+};
+use windows::Win32::System::SystemServices::MAXIMUM_ALLOWED;
+use windows::Win32::System::Threading::{
+    CreateProcessAsUserW, OpenProcess, OpenProcessToken, TerminateProcess, CREATE_NEW_CONSOLE,
+    CREATE_NO_WINDOW, CREATE_UNICODE_ENVIRONMENT, NORMAL_PRIORITY_CLASS, PROCESS_ALL_ACCESS,
+    PROCESS_CREATION_FLAGS, PROCESS_INFORMATION, PROCESS_TERMINATE, STARTUPINFOW,
+};
+use windows::Win32::UI::Shell::{
+    SHAppBarMessage, SHGetFileInfoW, StrStrW, ABM_SETSTATE, ABS_ALWAYSONTOP, ABS_AUTOHIDE,
+    SHFILEINFOW, SHGFI_ICON, SHGFI_SMALLICON,
+};
+use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetDesktopWindow};
 
 /// 通过进程名获取进程 PID
 pub fn get_process_pid(name: &str) -> Result<u32> {

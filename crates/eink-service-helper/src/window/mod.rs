@@ -11,10 +11,10 @@
 //
 
 mod window_all;
+mod window_capturable;
 mod window_info;
 mod window_overlapping;
 mod window_watcher;
-mod window_capturable;
 
 pub use window_all::*;
 pub use window_capturable::*;

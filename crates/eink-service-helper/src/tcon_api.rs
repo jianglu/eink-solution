@@ -10,12 +10,11 @@
 // All rights reserved.
 //
 
-use std::ffi::c_void;
-
 use eink_pipe_io::blocking::BlockingClient;
 use log::{error, info};
 use parking_lot::Mutex;
 use serde_json::json;
+use std::ffi::c_void;
 use windows::Win32::{
     Foundation::{GetLastError, HINSTANCE},
     System::SystemServices::DLL_PROCESS_ATTACH,

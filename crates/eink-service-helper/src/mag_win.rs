@@ -12,7 +12,6 @@
 
 use anyhow::Result;
 use std::mem::zeroed;
-
 use windows::{
     core::{HSTRING, PCWSTR},
     w,
@@ -22,8 +21,8 @@ use windows::{
             Magnification::{MagSetWindowSource, MagSetWindowTransform, MAGTRANSFORM},
             WindowsAndMessaging::{
                 CreateWindowExW, SetWindowPos, HWND_BOTTOM, HWND_TOP, SWP_ASYNCWINDOWPOS,
-                SWP_NOACTIVATE, SWP_NOMOVE, WINDOW_EX_STYLE, WINDOW_STYLE, WS_CHILD,
-                WS_EX_COMPOSITED, WS_VISIBLE, SWP_NOZORDER,
+                SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOZORDER, WINDOW_EX_STYLE, WINDOW_STYLE, WS_CHILD,
+                WS_EX_COMPOSITED, WS_VISIBLE,
             },
         },
     },

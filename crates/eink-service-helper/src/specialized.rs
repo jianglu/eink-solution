@@ -10,15 +10,14 @@
 // All rights reserved.
 //
 
+use crate::{utils::get_current_exe_dir, win_utils};
 use anyhow::Result;
+use ntapi::winapi::shared::ntdef::{PWCH, UNICODE_STRING};
 use std::{
     mem::{size_of, zeroed},
     process::Command,
 };
-
-use ntapi::winapi::shared::ntdef::{PWCH, UNICODE_STRING};
 use widestring::U16String;
-
 use windows::{
     core::GUID,
     Devices::Display::Core::DisplayTarget,
@@ -30,8 +29,6 @@ use windows::{
         Foundation::{ERROR_GEN_FAILURE, LUID},
     },
 };
-
-use crate::{utils::get_current_exe_dir, win_utils};
 
 fn hash_unicode_string(slice: &str) -> u32 {
     let mut hash_value = 0u32;

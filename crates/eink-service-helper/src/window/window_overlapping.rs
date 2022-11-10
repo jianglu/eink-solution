@@ -10,6 +10,7 @@
 // All rights reserved.
 //
 
+use super::WindowInfo;
 use log::info;
 use windows::Win32::{
     Foundation::{BOOL, HWND, LPARAM, RECT},
@@ -17,8 +18,6 @@ use windows::Win32::{
     System::{Console::GetConsoleWindow, StationsAndDesktops::EnumDesktopWindows},
     UI::WindowsAndMessaging::{GetParent, GetWindowRect, IsIconic, IsWindowVisible},
 };
-
-use super::WindowInfo;
 
 struct WindowEnumerationState {
     windows: Vec<WindowInfo>,

@@ -12,10 +12,8 @@
 
 use eink_pipe_io::blocking::BlockingIpcConnection;
 use jsonrpc_lite::Error;
-use windows::{
-    w,
-    Win32::UI::WindowsAndMessaging::{FindWindowW, ShowWindow, SW_HIDE, SW_RESTORE},
-};
+use windows::w;
+use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, ShowWindow, SW_HIDE, SW_RESTORE};
 
 /// 启动服务线程
 pub fn start_helper_thread() {

@@ -16,17 +16,30 @@
 mod always_on_top;
 mod hotkey;
 mod keyboard_manager;
+mod ls_note_starter;
 mod mag_win;
 mod magnify;
 mod settings;
 mod specialized;
+mod tcon_api;
 mod topmost;
 mod utils;
 mod win_utils;
 mod window;
-mod tcon_api;
 mod wmi_service;
 
+use crate::{
+    specialized::set_monitor_specialized,
+    window::{enumerate_all_windows, enumerate_capturable_windows},
+};
+use always_on_top::{AlwaysOnTop, ALWAYS_ON_TOP};
+use anyhow::bail;
+use log::info;
+use ls_note_starter::LockScreenNoteManager;
+use mag_win::MagWindow;
+use ntapi::winapi::um::winnt;
+use parking_lot::{Mutex, RwLock};
+use settings::SETTINGS;
 use std::{
     ffi::c_void,
     sync::{
@@ -34,14 +47,6 @@ use std::{
         Arc,
     },
 };
-
-use always_on_top::{AlwaysOnTop, ALWAYS_ON_TOP};
-use anyhow::bail;
-use log::info;
-use mag_win::MagWindow;
-use ntapi::winapi::um::winnt;
-use parking_lot::{Mutex, RwLock};
-use settings::SETTINGS;
 use structopt::StructOpt;
 use tokio::runtime::Runtime;
 use topmost::{set_window_topmost, TOPMOST_MANAGER};
@@ -78,14 +83,9 @@ use wineventhook::{
     raw_event::{OBJECT_CREATE, SYSTEM_FOREGROUND},
     AccessibleObjectId, EventFilter, WindowEventHook,
 };
-use winreg::{RegKey, enums::HKEY_LOCAL_MACHINE};
 use winnt::KEY_ALL_ACCESS;
+use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 use wmi_service::WMI_SERVICE;
-
-use crate::{
-    specialized::set_monitor_specialized,
-    window::{enumerate_all_windows, enumerate_capturable_windows},
-};
 
 type AnyResult<T> = anyhow::Result<T>;
 
@@ -120,7 +120,7 @@ pub fn set_window_maximize(hwnd: HWND) {
     }
 }
 
-// 
+//
 pub fn set_window_hidden(hwnd: HWND) {
     if unsafe { ShowWindow(hwnd, SW_HIDE).as_bool() } {
         // ignore
@@ -207,8 +207,24 @@ fn find_launcher_and_set_topmost() {
 
         // 调用 Windows 的置顶方法
         unsafe {
-            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE);
-            SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE);
+            SetWindowPos(
+                hwnd,
+                HWND_TOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE,
+            );
+            SetWindowPos(
+                hwnd,
+                HWND_NOTOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE,
+            );
         }
 
         // set_window_topmost(hwnd);
@@ -218,15 +234,20 @@ fn find_launcher_and_set_topmost() {
     }
 }
 
-
 /// 查找 Launcher 并且设置为置顶模式
 fn find_floating_button_and_set_topmost() {
-    if let Ok(hwnd) =
-        find_window_by_title(s!("86948044-41D9-464B-B533-15FE92A0BA26"))
-    {
+    if let Ok(hwnd) = find_window_by_title(s!("86948044-41D9-464B-B533-15FE92A0BA26")) {
         // 调用 Windows 的置顶方法
         unsafe {
-            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE);
+            SetWindowPos(
+                hwnd,
+                HWND_TOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE,
+            );
         }
 
         // set_window_topmost(hwnd);
@@ -276,7 +297,6 @@ fn switch_to_oled_windows_desktop_mode() {
             // GI_MIPI_BROWSER = 0x02;
             // GI_MIPI_HYBRID = 0xF0;
             //tcon_api::eink_set_mipi_mode(0x02);
-            
 
             // 最小化 Launcher
             find_launcher_and_set_hidden();
@@ -299,7 +319,7 @@ fn save_display_mode_to_registry(mode: &str) {
     let key_path = r#"SOFTWARE\Lenovo\ThinkBookEinkPlus"#;
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
 
-    let mut key = hklm.open_subkey_with_flags(key_path,KEY_ALL_ACCESS);
+    let mut key = hklm.open_subkey_with_flags(key_path, KEY_ALL_ACCESS);
 
     if key.is_err() {
         // Maybe notfound, ignore any error
@@ -314,7 +334,8 @@ fn save_display_mode_to_registry(mode: &str) {
     }
 
     let key = key.unwrap();
-    key.set_value("DisplayMode", &mode.to_owned()).expect("Cannot save 'DisplayMode' to registry");
+    key.set_value("DisplayMode", &mode.to_owned())
+        .expect("Cannot save 'DisplayMode' to registry");
 }
 
 /// 在 EINK/OLED 模式之间切换
@@ -370,17 +391,36 @@ fn main() -> AnyResult<()> {
             // OLED
             1 | 2 | 3 | 7 | 9 => {
                 switch_to_oled_windows_desktop_mode();
-            },
+            }
             // EINK
             4 | 5 | 6 | 8 | 10 => {
                 switch_to_eink_launcher_mode();
-            },
+            }
             _ => {
                 info!("Unused mode : {mode}")
             }
         }
     });
     wmi_service::start_service(&WMI_SERVICE).expect("Error start WMI_SERVICE");
+
+    // 开启锁屏笔记启动管理器
+    let _deteched = std::thread::spawn(move || {
+        let lsn_starter = Arc::new(Mutex::new(
+            LockScreenNoteManager::new().expect("Cannot instantiate LOCKSCREEN_NOTE_STARTER"),
+        ));
+
+        match lsn_starter.lock().start() {
+            Ok(_) => (),
+            Err(err) => {
+                log::error!(
+                    "Cannot register LockScreen Detecter: err:{err:?}, last_win_error:{:?}",
+                    unsafe { GetLastError() }
+                );
+            }
+        }
+
+        lsn_starter.lock().event_loop();
+    });
 
     // 线程开启热键响应
     let mut hkm = HotkeyManager::new();
@@ -391,9 +431,11 @@ fn main() -> AnyResult<()> {
     }) {
         Ok(_) => (), // ignore
         Err(err) => {
-            log::error!("Cannot register hot-key CTRL-ALT-Q: err:{err:?}, last_win_error:{:?}",
-                unsafe { GetLastError() });
-        },
+            log::error!(
+                "Cannot register hot-key CTRL-ALT-Q: err:{err:?}, last_win_error:{:?}",
+                unsafe { GetLastError() }
+            );
+        }
     }
 
     // CTRL-SHIFT-M 进入 EINK
@@ -402,9 +444,11 @@ fn main() -> AnyResult<()> {
     }) {
         Ok(_) => (), // ignore
         Err(err) => {
-            log::error!("Cannot register hot-key CTRL-SHIFT-M: err:{err:?}, last_win_error:{:?}",
-                unsafe { GetLastError() });
-        },
+            log::error!(
+                "Cannot register hot-key CTRL-SHIFT-M: err:{err:?}, last_win_error:{:?}",
+                unsafe { GetLastError() }
+            );
+        }
     }
 
     // CTRL-SHIFT-N 进入 OLED
@@ -413,41 +457,43 @@ fn main() -> AnyResult<()> {
     }) {
         Ok(_) => (), // ignore
         Err(err) => {
-            log::error!("Cannot register hot-key CTRL-SHIFT-N: err:{err:?}, last_win_error:{:?}",
-                unsafe { GetLastError() });
-        },
+            log::error!(
+                "Cannot register hot-key CTRL-SHIFT-N: err:{err:?}, last_win_error:{:?}",
+                unsafe { GetLastError() }
+            );
+        }
     }
 
-     // CTRL-Shift-F13 进入 EINK
-     match hkm.register(VKey::F13, &[ModKey::Ctrl, ModKey::Shift], move || {
+    // CTRL-Shift-F13 进入 EINK
+    match hkm.register(VKey::F13, &[ModKey::Ctrl, ModKey::Shift], move || {
         info!("Clicked: CTRL-Shift-F13");
         switch_eink_oled_display();
-     }) {
+    }) {
         Ok(_) => (), // ignore
         Err(err) => {
             log::error!("Cannot register hot-key CTRL-WIN-F13: err:{err:?}");
-        },
+        }
     }
-    
-     // CTRL-Shift-F14
-     match hkm.register(VKey::F14, &[ModKey::Ctrl, ModKey::Shift], move || {
+
+    // CTRL-Shift-F14
+    match hkm.register(VKey::F14, &[ModKey::Ctrl, ModKey::Shift], move || {
         info!("Clicked: CTRL-Shift-F14")
-     }) {
+    }) {
         Ok(_) => (), // ignore
         Err(err) => {
             log::error!("Cannot register hot-key CTRL-WIN-F14: err:{err:?}");
-        },
+        }
     }
 
-     // CTRL-Shift-F15
-     match hkm.register(VKey::F15, &[ModKey::Ctrl, ModKey::Shift], move || {
+    // CTRL-Shift-F15
+    match hkm.register(VKey::F15, &[ModKey::Ctrl, ModKey::Shift], move || {
         info!("Clicked: CTRL-Shift-F15")
     }) {
-       Ok(_) => (), // ignore
-       Err(err) => {
-           log::error!("Cannot register hot-key CTRL-WIN-F15: err:{err:?}");
-       },
-   }
+        Ok(_) => (), // ignore
+        Err(err) => {
+            log::error!("Cannot register hot-key CTRL-WIN-F15: err:{err:?}");
+        }
+    }
 
     // 进入 OLED 桌面模式
     switch_to_oled_windows_desktop_mode();

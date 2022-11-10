@@ -10,9 +10,8 @@
 // All rights reserved.
 //
 
-use std::path::PathBuf;
-
 use jsonrpc_lite::{Id, JsonRpc};
+use std::path::PathBuf;
 
 /// 获得当前 exe 所在目录
 pub fn get_current_exe_dir() -> PathBuf {

@@ -10,29 +10,24 @@
 // All rights reserved.
 //
 
-use std::{
-    collections::HashMap,
-    sync::{Arc},
+use crate::utils::{
+    jsonrpc_error_internal_error, jsonrpc_error_method_not_found, jsonrpc_success_u32,
 };
-
 use eink_pipe_io::server::Socket;
-use jsonrpc_lite::{JsonRpc, Id, Params};
-use log::{info, debug};
+use jsonrpc_lite::{Id, JsonRpc, Params};
+use log::{debug, info};
 use parking_lot::Mutex;
-use signals2::{Signal, Emit1, Connect1, Connection};
+use signals2::{Connect1, Connection, Emit1, Signal};
+use std::{collections::HashMap, sync::Arc};
 use tokio::{runtime::Runtime, select};
 use tokio_util::sync::CancellationToken;
 use wmi::{COMLibrary, Variant, WMIConnection};
 
-use crate::utils::{jsonrpc_error_method_not_found, jsonrpc_success_u32, jsonrpc_error_internal_error};
-
-
 #[derive(Clone, Debug)]
 pub enum LidEvent {
     Open,
-    Close
+    Close,
 }
-
 
 pub struct WmiService {
     /// IPC 接口使用 tokio 异步运行时
@@ -69,17 +64,19 @@ impl WmiService {
 
     pub fn on_lid_event<F>(&mut self, f: F) -> Connection
     where
-        F: Fn(LidEvent) -> () + Send + Sync + 'static, {
+        F: Fn(LidEvent) -> () + Send + Sync + 'static,
+    {
         self.on_lid_event.connect(f)
     }
 
     pub fn on_mode_switch_event<F>(&mut self, f: F) -> Connection
     where
-        F: Fn(u32) -> () + Send + Sync + 'static, {
+        F: Fn(u32) -> () + Send + Sync + 'static,
+    {
         self.on_move_switch_event.connect(f)
     }
 
-    /// WMI interface for set ALS function for light function. 
+    /// WMI interface for set ALS function for light function.
     /// Below are the interface details:
     /// Name space L"root\\wmi"
     /// Class Name: L"LENOVO_TB_G4_CTRL"
@@ -90,8 +87,7 @@ impl WmiService {
     ///         0xAA : Function enable
     /// Output parameter: uint32 ret:
     ///     return the value of execution status
-    pub fn set_als_for_eink_light(&self) {
-    }
+    pub fn set_als_for_eink_light(&self) {}
 
     pub fn set_reading_light_status(&mut self, level: u32) -> u32 {
         let ret = cmd_lib_cf::run_cmd! {
@@ -143,9 +139,7 @@ impl WmiService {
 
         // 保存 token
         self.token.replace(token);
-
     }
-
 }
 
 //
@@ -171,15 +165,15 @@ pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
         let com_con = COMLibrary::new().unwrap();
         let wmi_con = WMIConnection::with_namespace_path("root/wmi", com_con.into()).unwrap();
 
-        let iterator = wmi_con
-            .raw_notification::<HashMap<String, Variant>>("SELECT * FROM Lenovo_LidEvent");
+        let iterator =
+            wmi_con.raw_notification::<HashMap<String, Variant>>("SELECT * FROM Lenovo_LidEvent");
 
         let iterator = match iterator {
             Ok(v) => v,
             Err(err) => {
                 debug!("Cannot listen Lenovo_LidEvent: {err:?}");
                 return;
-            },
+            }
         };
 
         // WBEM_E_UNPARSABLE_QUERY 0x80041058
@@ -218,15 +212,16 @@ pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
         let com_con = COMLibrary::new().unwrap();
         let wmi_con = WMIConnection::with_namespace_path("root/wmi", com_con.into()).unwrap();
 
-        let iterator = wmi_con
-            .raw_notification::<HashMap<String, Variant>>("SELECT * FROM LENOVO_BASE_MODE_SWITCH_EVENT");
+        let iterator = wmi_con.raw_notification::<HashMap<String, Variant>>(
+            "SELECT * FROM LENOVO_BASE_MODE_SWITCH_EVENT",
+        );
 
         let iterator = match iterator {
             Ok(v) => v,
             Err(err) => {
                 debug!("Cannot listen LENOVO_BASE_MODE_SWITCH_EVENT: {err:?}");
                 return;
-            },
+            }
         };
 
         for result in iterator {

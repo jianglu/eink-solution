@@ -10,6 +10,4 @@
 // All rights reserved.
 //
 
-struct HotKey {
-    
-}
+struct HotKey {}

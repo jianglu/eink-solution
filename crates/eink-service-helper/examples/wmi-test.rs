@@ -10,9 +10,8 @@
 // All rights reserved.
 //
 
-use std::mem::zeroed;
-
 use anyhow::Result;
+use std::mem::zeroed;
 use windows::{
     core::{IUnknown, PCWSTR},
     s, w,

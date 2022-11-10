@@ -10,29 +10,28 @@
 // All rights reserved.
 //
 
-use std::sync::Arc;
-
+use crate::{
+    find_window_by_classname, find_window_by_title,
+    utils::{
+        jsonrpc_error_internal_error, jsonrpc_error_invalid_params, jsonrpc_error_method_not_found,
+        jsonrpc_success_string,
+    },
+};
 use eink_pipe_io::server::Socket;
 use jsonrpc_lite::{Id, JsonRpc, Params};
 use log::info;
 use parking_lot::{Mutex, RwLock};
 use signals2::{Connect2, Emit2, Signal};
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 use windows::{
     s,
     Win32::{
         Foundation::{HWND, LPARAM, WPARAM},
         UI::WindowsAndMessaging::{
-            GetForegroundWindow, SendMessageA, ShowWindow, SW_HIDE, SW_SHOWMINIMIZED, WM_USER, SW_SHOW,
+            GetForegroundWindow, SendMessageA, ShowWindow, SW_HIDE, SW_SHOW, SW_SHOWMINIMIZED,
+            WM_USER,
         },
-    },
-};
-
-use crate::{
-    find_window_by_classname, find_window_by_title,
-    utils::{
-        jsonrpc_error_internal_error, jsonrpc_error_invalid_params, jsonrpc_error_method_not_found,
-        jsonrpc_success_string,
     },
 };
 
@@ -145,9 +144,9 @@ impl TopmostManager {
             let hwnd_in_2s = unsafe { GetForegroundWindow() };
 
             if hwnd_in_2s != HWND(0) {
-                if let Ok(launcher_hwnd) =
-                    find_window_by_title(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59")) {
-
+                if let Ok(launcher_hwnd) = find_window_by_title(s!(
+                    "ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59"
+                )) {
                     // 不能将 Launcher 置顶的
                     if hwnd_in_2s != launcher_hwnd {
                         set_window_topmost(hwnd_in_2s);

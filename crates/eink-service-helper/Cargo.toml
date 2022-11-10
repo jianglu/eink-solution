@@ -21,6 +21,8 @@ static_init = "1.0.3"
 cmd_lib = "1.3.0"
 wineventhook = "0.5.0"
 
+bitfield-struct = "0.1.7"
+
 # 快速同步设施, MIT or Apcahe-2.0
 parking_lot = "0.12"
 

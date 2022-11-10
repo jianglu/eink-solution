@@ -18,11 +18,9 @@ use log::info;
 use parking_lot::Mutex;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 
-use crate::{
-    settings::SETTINGS,
-    utils::{get_current_data_dir, get_current_exe_dir},
-    win_utils::{self, kill_process_by_pid, run_as_admin},
-};
+use crate::settings::SETTINGS;
+use crate::utils::{get_current_data_dir, get_current_exe_dir};
+use crate::win_utils::{self, kill_process_by_pid, run_as_admin};
 
 /// 键盘管理器
 pub struct AlwaysOnTop {
