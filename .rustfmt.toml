@@ -1,0 +1,10 @@
+reorder_imports = true
+
+# Controls the strategy for how consecutive imports are grouped together.
+group_imports = "StdExternalCrate"
+
+# Item layout inside a imports block
+imports_layout = "Mixed" # "HorizontalVertical"
+
+# Merge imports from the same module into a single use statement. Conversely, imports from different modules are split into separate statements.
+imports_granularity = "Module"
