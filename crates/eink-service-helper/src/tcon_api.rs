@@ -111,3 +111,16 @@ pub fn eink_set_shutdown_cover(path: *const u16, disp_type: u32) -> u32 {
 
     0
 }
+
+/// 设置 Eink 显示关机壁纸
+pub fn eink_start_lockscreen_note() -> u32 {
+    ensure_tcon_client();
+    let mut guard = TCON_CLIENT.lock();
+    if let Some(client) = guard.as_mut() {
+        let reply = client
+            .call_with_params("start_lockscreen_note", json!({}))
+            .expect("Cannot invoke remote method to tcon service");
+        info!("start_lockscreen_note: result: {:?}", reply.get_result());
+    }
+    0
+}

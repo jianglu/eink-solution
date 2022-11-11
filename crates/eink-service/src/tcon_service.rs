@@ -132,6 +132,16 @@ impl TconService {
                         }
                     }
                 }
+                Some("start_lockscreen_note") => {
+                    // 临时借这个地方
+                    // 启动锁屏笔记
+                    std::thread::spawn(|| {
+                        let dir = r"C:\Windows\System32";
+                        let exe = r"C:\Windows\System32\Magnify.exe";
+                        let _ = crate::win_utils::run_as_admin(dir, exe);
+                    });
+                    jsonrpc_success_string(id, "true")
+                }
                 Some(&_) => jsonrpc_error_method_not_found(id),
                 None => jsonrpc_error_internal_error(id),
             }

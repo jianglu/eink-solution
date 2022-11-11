@@ -348,15 +348,18 @@ impl LockScreenNoteManager {
 
 /// 启动锁屏笔记
 fn start_lockscreen_note() {
-    let _ = std::thread::spawn(|| {
-        let exe_path = "C:\\Program Files\\Lenovo\\ThinkBookNotePlus\\EInkLockSNote.exe";
-        match Command::new(exe_path).spawn() {
-            Ok(_) => (),
-            Err(err) => {
-                log::error!("Cannot spawn EInkLockSNote: {:?}", err);
-            }
-        }
-    });
+    // let _ = std::thread::spawn(|| {
+    //     let exe_path = "C:\\Program Files\\Lenovo\\ThinkBookNotePlus\\EInkLockSNote.exe";
+    //     match Command::new(exe_path).spawn() {
+    //         Ok(_) => (),
+    //         Err(err) => {
+    //             log::error!("Cannot spawn EInkLockSNote: {:?}", err);
+    //         }
+    //     }
+    // });
+
+    // 临时借用 TCON-API 通道访问 eink-service
+    crate::tcon_api::eink_start_lockscreen_note();
 }
 
 /// 判断是否处于锁屏界面
