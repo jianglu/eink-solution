@@ -18,9 +18,10 @@ use std::{
 
 use anyhow::{bail, Result};
 use eink_itetcon::{
-    DisableLoadImg, EnableLoadImg, RecoveryLoadImg, StopLoadImg, ITECleanUpEInkAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo, ITEOpenDeviceAPI,
-    ITESet8951KeepAlive, ITESetFA2, ITESetMIPIModeAPI, IteTconDevice, GI_MIPI_FAST_READER,
-    GI_MIPI_READER,GI_MIPI_HYBRID,
+    DisableLoadImg, EnableLoadImg, ITECleanUpEInkAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI,
+    ITEGetDriveNo, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetFA2, ITESetMIPIModeAPI,
+    IteTconDevice, RecoveryLoadImg, StopLoadImg, GI_MIPI_FAST_READER, GI_MIPI_HYBRID,
+    GI_MIPI_READER,
 };
 
 use eink_pipe_io::server::Socket;
@@ -138,7 +139,7 @@ impl TconService {
                     std::thread::spawn(|| {
                         let dir = r"C:\Windows\System32";
                         let exe = r"C:\Windows\System32\Magnify.exe";
-                        let _ = crate::win_utils::run_as_admin(dir, exe);
+                        let _ = crate::win_utils::run_with_ui_access(dir, exe);
                     });
                     jsonrpc_success_string(id, "true")
                 }
@@ -223,7 +224,6 @@ fn tcon_refresh() {
 
 /// 设置 MIPI 模式
 fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
-
     // 不需要先设置模式 1 ，再设置目标模式
     // let mut mode: u32 = 1;
     // let ret = unsafe {
@@ -233,11 +233,7 @@ fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
     // info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 
     let mut mode = mipi_mode.into();
-    let ret = unsafe {
-        ITESetFA2(1) |
-        ITESetMIPIModeAPI(&mut mode) |
-        ITESetFA2(1)
-    };
+    let ret = unsafe { ITESetFA2(1) | ITESetMIPIModeAPI(&mut mode) | ITESetFA2(1) };
     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 }
 
