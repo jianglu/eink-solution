@@ -226,7 +226,8 @@ pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
 
         for result in iterator {
             let result = result.unwrap();
-            let mode = result.get("ULong").unwrap();
+            info!("LENOVO_BASE_MODE_SWITCH_EVENT: result: {:?}", result);
+            let mode = result.get("ret").unwrap();
             if let Variant::UI4(mode) = mode {
                 info!("LENOVO_BASE_MODE_SWITCH_EVENT: mode: {:?}", *mode);
                 this_cloned.lock().send_mode_switch_event(*mode);
