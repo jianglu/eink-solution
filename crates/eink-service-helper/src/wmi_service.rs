@@ -114,6 +114,44 @@ impl WmiService {
         }
     }
 
+    /// WMI interface for set display working status.
+    /// In software Display Switch solution, application using this interface to notify the display 
+    /// working status to EC. That means, every time after application successfully switch the display, 
+    /// application must use this API to send the current display status to EC.
+    /// Also, when application is cracked or re-install, application also must use this API to 
+    /// re-sync the current display status to EC.
+    /// (Reserved for HW switch solution: If in HW solution, application use this API to trigger EC 
+    /// to switch display. And in HW solution, application uses another get API to get the current 
+    /// Display Working status)
+    /// uint32 Data: The control data for function
+    /// 0:  Initial status, Both OLED and E-ink are working
+    /// 1 : OLED is Working
+    /// 2 : E-ink is Working
+    pub fn set_display_working_status(&mut self, status: u32) -> u32 {
+        let ret = cmd_lib_cf::run_cmd! {
+            PowerShell.exe -Command "& {(Get-WmiObject -Class LENOVO_TB_G4_CTRL -Namespace ROOT/WMI).SetDisplayWorkingStatus(${status})['ret'] }"
+        };
+        info!("set_display_working_status: {ret:?}");
+        0
+    }
+
+    pub fn get_display_working_status(&self) -> u32 {
+        let ret = cmd_lib_cf::run_fun! {
+            PowerShell.exe -Command "& {(Get-WmiObject -Class LENOVO_TB_G4_CTRL -Namespace ROOT/WMI).GetDisplayWorkingStatus()['ret']}"
+        };
+        info!("get_display_working_status: {ret:?}");
+
+        if_chain::if_chain! {
+            if let Ok(ret) = ret;
+            if let Ok(ret) = ret.parse::<u32>();
+            then {
+                ret
+            } else {
+                u32::max_value()
+            }
+        }
+    }
+
     pub fn send_mode_switch_event(&mut self, mode: u32) {
         // 取消上一次未触发的事件
         if let Some(token) = self.token.take() {

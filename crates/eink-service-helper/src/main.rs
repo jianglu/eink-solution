@@ -165,6 +165,9 @@ fn switch_to_eink_launcher_mode() {
                 // 将当前模式保存到注册表
                 save_display_mode_to_registry("EINK");
 
+                // 使用 WMI 接口通知主板, 1 : OLED is Working
+                WMI_SERVICE.lock().set_display_working_status(1);
+
                 IS_OLED.store(false, Ordering::Relaxed);
             }
         }
@@ -306,6 +309,9 @@ fn switch_to_oled_windows_desktop_mode() {
 
             // 将当前模式保存到注册表
             save_display_mode_to_registry("OLED");
+
+            // 使用 WMI 接口通知主板, 2 : E-ink is Working
+            WMI_SERVICE.lock().set_display_working_status(2);
 
             IS_OLED.store(true, Ordering::Relaxed);
 
