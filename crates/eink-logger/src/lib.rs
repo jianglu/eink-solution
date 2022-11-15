@@ -76,9 +76,7 @@ pub fn init_with_level(level: Level) -> anyhow::Result<()> {
 
     // Write all error, warn, and info messages
     flexi_logger::Logger::try_with_str(level.as_str())?
-        .log_to_file(
-            flexi_logger::FileSpec::default().directory(local_dir),
-        )
+        .log_to_file(flexi_logger::FileSpec::default().directory(local_dir))
         // do not truncate the log file when the program is restarted
         .append()
         .rotate(
@@ -95,6 +93,7 @@ pub fn init_with_level(level: Level) -> anyhow::Result<()> {
                 &record.args()
             )
         })
+        .add_writer("_Default", Box::new(DebugViewLogWriter {}))
         .start()?;
 
     Ok(())

@@ -132,6 +132,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcb6dd1c2376d2e096796e234a70e17e94cc2d5d54ff8ce42b28cef1d0d359a4"
 
 [[package]]
+name = "bitfield-struct"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0baacb7d5b6e94369201d5807e086d3f36e2bd35057ca2c5a680af3737e35fa"
+dependencies = [
+ "proc-macro2 1.0.47",
+ "quote 1.0.21",
+ "syn 1.0.103",
+]
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -719,7 +730,7 @@ version = "0.1.0"
 source = "git+http://git2.ensurebit.net/lenovo-thinkbook-gen4/debug-view-logger.git#1a296ae75e320911cbe0b5d73d5ebda130074056"
 dependencies = [
  "log",
- "windows",
+ "windows 0.42.0",
 ]
 
 [[package]]
@@ -769,7 +780,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "structopt",
- "windows",
+ "windows 0.42.0",
  "windows-dll",
 ]
 
@@ -784,7 +795,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "widestring 1.0.2",
- "windows",
+ "windows 0.42.0",
 ]
 
 [[package]]
@@ -808,7 +819,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "widestring 1.0.2",
- "windows",
+ "windows 0.42.0",
 ]
 
 [[package]]
@@ -822,7 +833,7 @@ dependencies = [
  "image",
  "log",
  "widestring 1.0.2",
- "windows",
+ "windows 0.42.0",
  "windows-dll",
 ]
 
@@ -830,7 +841,11 @@ dependencies = [
 name = "eink-logger"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "debug-view-logger",
+ "dirs",
+ "flexi_logger 0.24.1",
+ "windows 0.43.0",
 ]
 
 [[package]]
@@ -848,7 +863,7 @@ dependencies = [
  "signals2",
  "tokio 1.21.2",
  "uuid 1.2.1",
- "windows",
+ "windows 0.42.0",
 ]
 
 [[package]]
@@ -889,7 +904,7 @@ dependencies = [
  "tokio-util",
  "widestring 1.0.2",
  "winapi 0.3.9",
- "windows",
+ "windows 0.42.0",
  "windows-dll",
  "windows-hotkeys",
  "windows-service",
@@ -912,7 +927,7 @@ dependencies = [
  "serde_json",
  "static_init",
  "widestring 1.0.2",
- "windows",
+ "windows 0.42.0",
 ]
 
 [[package]]
@@ -920,6 +935,7 @@ name = "eink-service-helper"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitfield-struct",
  "clap 4.0.19",
  "cmd_lib",
  "cmd_lib_cf",
@@ -947,7 +963,7 @@ dependencies = [
  "tokio 1.21.2",
  "tokio-util",
  "widestring 1.0.2",
- "windows",
+ "windows 0.42.0",
  "windows-hotkeys",
  "wineventhook",
  "winreg 0.10.1",
@@ -961,7 +977,7 @@ version = "0.1.0"
 dependencies = [
  "ctrlc",
  "eink-common",
- "flexi_logger",
+ "flexi_logger 0.23.3",
  "log",
  "regex",
  "speculate",
@@ -977,7 +993,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "widestring 1.0.2",
- "windows",
+ "windows 0.42.0",
 ]
 
 [[package]]
@@ -1106,6 +1122,23 @@ dependencies = [
  "rustversion",
  "thiserror",
  "time 0.3.17",
+]
+
+[[package]]
+name = "flexi_logger"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99659bcfd52cfece972bd00acb9dba7028094d47e699ea8b193b9aaebd5c362b"
+dependencies = [
+ "ansi_term",
+ "atty",
+ "chrono",
+ "glob",
+ "lazy_static",
+ "log",
+ "regex",
+ "rustversion",
+ "thiserror",
 ]
 
 [[package]]
@@ -3224,6 +3257,21 @@ checksum = "0286ba339aa753e70765d521bb0242cc48e1194562bfa2a2ad7ac8a6de28f5d5"
 dependencies = [
  "windows-implement",
  "windows-interface",
+ "windows_aarch64_gnullvm",
+ "windows_aarch64_msvc 0.42.0",
+ "windows_i686_gnu 0.42.0",
+ "windows_i686_msvc 0.42.0",
+ "windows_x86_64_gnu 0.42.0",
+ "windows_x86_64_gnullvm",
+ "windows_x86_64_msvc 0.42.0",
+]
+
+[[package]]
+name = "windows"
+version = "0.43.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04662ed0e3e5630dfa9b26e4cb823b817f1a9addda855d973a9458c236556244"
+dependencies = [
  "windows_aarch64_gnullvm",
  "windows_aarch64_msvc 0.42.0",
  "windows_i686_gnu 0.42.0",
