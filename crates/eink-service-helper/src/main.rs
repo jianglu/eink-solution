@@ -380,6 +380,8 @@ fn main() -> AnyResult<()> {
     WMI_SERVICE.lock().on_lid_event(|evt| {
         info!("Received LidEvent: {:?}", evt);
     });
+
+    // State: 4 -> 11 -> 3
     WMI_SERVICE.lock().on_mode_switch_event(|mode| {
         info!("Received OnModeSwitchEvent: {:?}", mode);
 
@@ -404,6 +406,9 @@ fn main() -> AnyResult<()> {
         }
     });
     wmi_service::start_service(&WMI_SERVICE).expect("Error start WMI_SERVICE");
+
+    // Give BIOS a trigger，disable default Lid Event processing
+    WMI_SERVICE.lock().get_display_working_status();
 
     // 开启锁屏笔记启动管理器
     let _deteched = std::thread::spawn(move || {
@@ -498,6 +503,7 @@ fn main() -> AnyResult<()> {
     }
 
     // 进入 OLED 桌面模式
+    info!("After system-up, switch to oled desktop mode");
     switch_to_oled_windows_desktop_mode();
 
     hkm.event_loop();
