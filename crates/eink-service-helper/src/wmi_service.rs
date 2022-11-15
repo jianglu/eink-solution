@@ -13,6 +13,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use anyhow::bail;
 use eink_pipe_io::server::Socket;
 use jsonrpc_lite::{Id, JsonRpc, Params};
 use log::{debug, info};
@@ -21,7 +22,9 @@ use signals2::{Connect1, Connection, Emit1, Signal};
 use tokio::runtime::Runtime;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
-use wmi::{COMLibrary, Variant, WMIConnection};
+use windows::core::HRESULT;
+use windows::Win32::Foundation::RPC_E_TOO_LATE;
+use wmi::{COMLibrary, Variant, WMIConnection, WMIError};
 
 use crate::utils::{
     jsonrpc_error_internal_error, jsonrpc_error_method_not_found, jsonrpc_success_u32,
@@ -176,7 +179,10 @@ impl WmiService {
                 }
                 // 200ms 保护间隔
                 _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {
-                    on_move_switch_event2.emit(mode);
+                    // Tokio Runtime -> Normal Thread
+                    std::thread::spawn(move || {
+                        on_move_switch_event2.emit(mode);
+                    });
                 }
             }
         });
@@ -197,6 +203,26 @@ pub static WMI_SERVICE: Arc<Mutex<WmiService>> = {
     ))
 };
 
+/// 初始化 COM 基础设施，如果 COM 已经被初始化，将会返回 RPC_E_TOO_LATE 错误，忽略即可
+pub fn wmi_create_com_library() -> anyhow::Result<COMLibrary> {
+    match COMLibrary::new() {
+        Ok(com) => Ok(com),
+        Err(WMIError::HResultError { hres }) => {
+            if HRESULT(hres) == RPC_E_TOO_LATE {
+                match COMLibrary::without_security() {
+                    Ok(com) => Ok(com),
+                    Err(_) => bail!("Cannot create COMLibrary without security"),
+                }
+            } else {
+                bail!("Cannot create COMLibrary, Call failed with: {:#X}", hres)
+            }
+        }
+        Err(err) => {
+            bail!("Cannot create COMLibrary, err: {}", &err.to_string())
+        }
+    }
+}
+
 /// 启动服务
 pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
     info!("WmiService: start_service");
@@ -206,8 +232,24 @@ pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
 
     // 接受 Lenovo_LidEvent 事件
     std::thread::spawn(move || {
-        let com_con = COMLibrary::new().unwrap();
-        let wmi_con = WMIConnection::with_namespace_path("root/wmi", com_con.into()).unwrap();
+        //
+        // 初始化 COM 基础设施，如果 COM 已经被初始化，将会返回 RPC_E_TOO_LATE 错误，忽略即可
+        let com = match wmi_create_com_library() {
+            Ok(com) => com,
+            Err(err) => {
+                log::error!("{:?}", err);
+                return;
+            }
+        };
+
+        // 创建 WMI 链接
+        let wmi_con = match WMIConnection::with_namespace_path("root/wmi", com.into()) {
+            Ok(conn) => conn,
+            Err(err) => {
+                log::error!("Cannot create WMIConnection, err: {}", &err.to_string());
+                return;
+            }
+        };
 
         let iterator =
             wmi_con.raw_notification::<HashMap<String, Variant>>("SELECT * FROM Lenovo_LidEvent");
@@ -253,8 +295,24 @@ pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
     // Other：reserve
     let this_cloned = this.clone();
     std::thread::spawn(move || {
-        let com_con = COMLibrary::new().unwrap();
-        let wmi_con = WMIConnection::with_namespace_path("root/wmi", com_con.into()).unwrap();
+        //
+        // 初始化 COM 基础设施，如果 COM 已经被初始化，将会返回 RPC_E_TOO_LATE 错误，忽略即可
+        let com = match wmi_create_com_library() {
+            Ok(com) => com,
+            Err(err) => {
+                log::error!("{:?}", err);
+                return;
+            }
+        };
+
+        // 创建 WMI 链接
+        let wmi_con = match WMIConnection::with_namespace_path("root/wmi", com.into()) {
+            Ok(conn) => conn,
+            Err(err) => {
+                log::error!("Cannot create WMIConnection, err: {}", &err.to_string());
+                return;
+            }
+        };
 
         let iterator = wmi_con.raw_notification::<HashMap<String, Variant>>(
             "SELECT * FROM LENOVO_BASE_MODE_SWITCH_EVENT",
