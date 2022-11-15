@@ -17,7 +17,7 @@ use windows::Win32::System::Threading::GetCurrentProcessId;
 
 use crate::{
     utils::{self, get_current_exe_dir},
-    win_utils::{run_as_admin, kill_process_by_pid},
+    win_utils::{kill_process_by_pid, run_as_admin},
 };
 
 pub struct ServiceHelper {

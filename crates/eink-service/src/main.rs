@@ -35,9 +35,8 @@ use log::info;
 use service_helper::SERVICE_HELPER;
 
 use crate::{
-    keyboard_manager::KEYBOARD_MANAGER,
-    tcon_service::TCON_SERVICE,
-    topmost_manager::TOPMOST_MANAGER, 
+    keyboard_manager::KEYBOARD_MANAGER, tcon_service::TCON_SERVICE,
+    topmost_manager::TOPMOST_MANAGER,
 };
 
 ///////////////////////////////////////////////////////////////////////////////

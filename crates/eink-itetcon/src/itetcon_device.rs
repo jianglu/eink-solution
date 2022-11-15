@@ -18,10 +18,11 @@ use widestring::U16CString;
 use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
 
 use crate::{
-    EiTurn180, EicConvertToT1000Format, EicLoadImage, EicReleaseImage, ITECleanUpEInkAPI,DisableLoadImg, EnableLoadImg, RecoveryLoadImg, StopLoadImg,
-    ITECloseDeviceAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo,
-    ITEGetSystemInfoAPI, ITELoadImage, ITEOpenDeviceAPI, ITESetMIPIModeAPI, EIMC_GRAY16,
-    EIMC_IMG_FILL, GI_MIPI_BROWSER, GI_MIPI_FAST_READER, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,GI_MIPI_HYBRID,
+    DisableLoadImg, EiTurn180, EicConvertToT1000Format, EicLoadImage, EicReleaseImage,
+    EnableLoadImg, ITECleanUpEInkAPI, ITECloseDeviceAPI, ITEDisplayAreaAPI,
+    ITEGetBufferAddrInfoAPI, ITEGetDriveNo, ITEGetSystemInfoAPI, ITELoadImage, ITEOpenDeviceAPI,
+    ITESetMIPIModeAPI, RecoveryLoadImg, StopLoadImg, EIMC_GRAY16, EIMC_IMG_FILL, GI_MIPI_BROWSER,
+    GI_MIPI_FAST_READER, GI_MIPI_HYBRID, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,
 };
 
 pub struct IteTconDevice {
@@ -72,12 +73,12 @@ impl IteTconDevice {
         // 获得设备系统信息
         let mut sysinfo: TRSP_SYSTEM_INFO_DATA = unsafe { zeroed() };
         let res = unsafe { ITEGetSystemInfoAPI(&mut sysinfo) };
-        println!("EinkTcon ITEGetSystemInfoAPI: res: {res}");
+        info!("EinkTcon ITEGetSystemInfoAPI: res: {res}");
 
         // 获得图片地址（支持 3 张图片），支持 3 张图片轮询
         let mut addrs: [u32; 3] = unsafe { zeroed() };
         unsafe { ITEGetBufferAddrInfoAPI(&mut addrs) };
-        println!("EinkTcon ITEGetBufferAddrInfoAPI: addrs: {addrs:?}");
+        info!("EinkTcon ITEGetBufferAddrInfoAPI: addrs: {addrs:?}");
 
         self.drive_no = drive_no;
         self.dev_path = dev_path;
@@ -113,8 +114,8 @@ impl IteTconDevice {
         unsafe { RecoveryLoadImg() };
     }
 
-     /// 设置为静态刷新模式
-     pub fn set_gybrid_mode(&self) {
+    /// 设置为静态刷新模式
+    pub fn set_gybrid_mode(&self) {
         // 设置 MIPI 快速模式
         let mut mode = GI_MIPI_HYBRID;
         unsafe { StopLoadImg() };
@@ -198,7 +199,7 @@ impl IteTconDevice {
         // let img_buf = img_luma8.as_mut_ptr() as *mut u8;
 
         self.set_speed_mode();
-        
+
         info!("EicLoadImage");
         let img_path_cstring = U16CString::from_str(img_path).unwrap();
         let mut img_width: u32 = 0;
