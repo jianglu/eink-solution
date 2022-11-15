@@ -28,10 +28,10 @@ mod win_utils;
 mod window;
 mod wmi_service;
 
-use crate::{
-    specialized::set_monitor_specialized,
-    window::{enumerate_all_windows, enumerate_capturable_windows},
-};
+use std::ffi::c_void;
+use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
+use std::sync::Arc;
+
 use always_on_top::{AlwaysOnTop, ALWAYS_ON_TOP};
 use anyhow::bail;
 use log::info;
@@ -40,52 +40,42 @@ use mag_win::MagWindow;
 use ntapi::winapi::um::winnt;
 use parking_lot::{Mutex, RwLock};
 use settings::SETTINGS;
-use std::{
-    ffi::c_void,
-    sync::{
-        atomic::{AtomicBool, AtomicIsize, Ordering},
-        Arc,
-    },
-};
 use structopt::StructOpt;
 use tokio::runtime::Runtime;
 use topmost::{set_window_topmost, TOPMOST_MANAGER};
 use utils::get_current_exe_dir;
 use win_utils::run_as_admin;
-use windows::{
-    core::*,
-    Win32::Foundation::*,
-    Win32::Graphics::Gdi::ValidateRect,
-    Win32::{
-        System::{
-            Console::GetConsoleWindow,
-            Threading::{CreateThreadpoolTimer, SetThreadpoolTimer, TP_TIMER},
-        },
-        UI::{
-            Input::KeyboardAndMouse::{keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP},
-            Magnification::{
-                MagGetWindowFilterList, MagInitialize, MagSetColorEffect, MagSetWindowFilterList,
-                MagUninitialize, MW_FILTERMODE, MW_FILTERMODE_EXCLUDE, MW_FILTERMODE_INCLUDE,
-            },
-            WindowsAndMessaging::*,
-        },
-    },
-    Win32::{
-        System::{LibraryLoader::GetModuleHandleA, Threading::TP_CALLBACK_INSTANCE},
-        UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2},
-    },
+use windows::core::*;
+use windows::Win32::Foundation::*;
+use windows::Win32::Graphics::Gdi::ValidateRect;
+use windows::Win32::System::Console::GetConsoleWindow;
+use windows::Win32::System::LibraryLoader::GetModuleHandleA;
+use windows::Win32::System::Threading::{
+    CreateThreadpoolTimer, SetThreadpoolTimer, TP_CALLBACK_INSTANCE, TP_TIMER,
 };
-use windows_hotkeys::{
-    keys::{winapi_keycodes::VK_LWIN, ModKey, VKey},
-    HotkeyManager,
+use windows::Win32::UI::HiDpi::{
+    SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
-use wineventhook::{
-    raw_event::{OBJECT_CREATE, SYSTEM_FOREGROUND},
-    AccessibleObjectId, EventFilter, WindowEventHook,
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP,
 };
+use windows::Win32::UI::Magnification::{
+    MagGetWindowFilterList, MagInitialize, MagSetColorEffect, MagSetWindowFilterList,
+    MagUninitialize, MW_FILTERMODE, MW_FILTERMODE_EXCLUDE, MW_FILTERMODE_INCLUDE,
+};
+use windows::Win32::UI::WindowsAndMessaging::*;
+use windows_hotkeys::keys::winapi_keycodes::VK_LWIN;
+use windows_hotkeys::keys::{ModKey, VKey};
+use windows_hotkeys::HotkeyManager;
+use wineventhook::raw_event::{OBJECT_CREATE, SYSTEM_FOREGROUND};
+use wineventhook::{AccessibleObjectId, EventFilter, WindowEventHook};
 use winnt::KEY_ALL_ACCESS;
-use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
+use winreg::enums::HKEY_LOCAL_MACHINE;
+use winreg::RegKey;
 use wmi_service::WMI_SERVICE;
+
+use crate::specialized::set_monitor_specialized;
+use crate::window::{enumerate_all_windows, enumerate_capturable_windows};
 
 type AnyResult<T> = anyhow::Result<T>;
 
@@ -395,11 +385,17 @@ fn main() -> AnyResult<()> {
 
         match mode {
             // OLED
-            1 | 2 | 3 | 7 | 9 => {
+            1 | 2 | 9 => {
+                // ignore
+            }
+            3 | 7 => {
                 switch_to_oled_windows_desktop_mode();
             }
             // EINK
-            4 | 5 | 6 | 8 | 10 => {
+            5 | 6 | 10 => {
+                // ignore
+            }
+            4 | 8 => {
                 switch_to_eink_launcher_mode();
             }
             _ => {
