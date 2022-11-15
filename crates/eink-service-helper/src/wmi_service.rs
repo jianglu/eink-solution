@@ -10,18 +10,22 @@
 // All rights reserved.
 //
 
-use crate::utils::{
-    jsonrpc_error_internal_error, jsonrpc_error_method_not_found, jsonrpc_success_u32,
-};
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use eink_pipe_io::server::Socket;
 use jsonrpc_lite::{Id, JsonRpc, Params};
 use log::{debug, info};
 use parking_lot::Mutex;
 use signals2::{Connect1, Connection, Emit1, Signal};
-use std::{collections::HashMap, sync::Arc};
-use tokio::{runtime::Runtime, select};
+use tokio::runtime::Runtime;
+use tokio::select;
 use tokio_util::sync::CancellationToken;
 use wmi::{COMLibrary, Variant, WMIConnection};
+
+use crate::utils::{
+    jsonrpc_error_internal_error, jsonrpc_error_method_not_found, jsonrpc_success_u32,
+};
 
 #[derive(Clone, Debug)]
 pub enum LidEvent {
@@ -115,13 +119,13 @@ impl WmiService {
     }
 
     /// WMI interface for set display working status.
-    /// In software Display Switch solution, application using this interface to notify the display 
-    /// working status to EC. That means, every time after application successfully switch the display, 
+    /// In software Display Switch solution, application using this interface to notify the display
+    /// working status to EC. That means, every time after application successfully switch the display,
     /// application must use this API to send the current display status to EC.
-    /// Also, when application is cracked or re-install, application also must use this API to 
+    /// Also, when application is cracked or re-install, application also must use this API to
     /// re-sync the current display status to EC.
-    /// (Reserved for HW switch solution: If in HW solution, application use this API to trigger EC 
-    /// to switch display. And in HW solution, application uses another get API to get the current 
+    /// (Reserved for HW switch solution: If in HW solution, application use this API to trigger EC
+    /// to switch display. And in HW solution, application uses another get API to get the current
     /// Display Working status)
     /// uint32 Data: The control data for function
     /// 0:  Initial status, Both OLED and E-ink are working
@@ -141,15 +145,17 @@ impl WmiService {
         };
         info!("get_display_working_status: {ret:?}");
 
-        if_chain::if_chain! {
+        let ret = if_chain::if_chain! {
             if let Ok(ret) = ret;
-            if let Ok(ret) = ret.parse::<u32>();
+            if let Ok(ret) = ret.trim().parse::<u32>();
             then {
                 ret
             } else {
                 u32::max_value()
             }
-        }
+        };
+        info!("get_display_working_status: {ret}");
+        ret
     }
 
     pub fn send_mode_switch_event(&mut self, mode: u32) {
