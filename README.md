@@ -197,3 +197,8 @@ eink-service-helper
 ```
 cargo install cargo-make
 ```
+
+
+# cargo fmt
+
+rustup toolchain add nightly-x86_64-pc-windows-msvc

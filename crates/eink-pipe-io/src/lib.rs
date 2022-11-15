@@ -16,8 +16,8 @@ pub mod jsonrpc {
     pub use jsonrpc_lite::*;
 }
 
-pub mod msg;
 pub mod blocking;
+pub mod msg;
 
 pub mod client;
 pub mod server;

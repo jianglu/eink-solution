@@ -33,7 +33,7 @@ use windows::{
                 HSWDEVICE, SW_DEVICE_CREATE_INFO,
             },
         },
-        Foundation::{HANDLE, HWND, WAIT_OBJECT_0, CloseHandle},
+        Foundation::{CloseHandle, HANDLE, HWND, WAIT_OBJECT_0},
         Storage::FileSystem::{
             CreateFileW, FILE_ACCESS_FLAGS, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_MODE,
             FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
@@ -41,7 +41,8 @@ use windows::{
         System::{
             Com::CLSIDFromString,
             SystemServices::{GENERIC_READ, GENERIC_WRITE},
-            Threading::{CreateEventW, SetEvent, WaitForSingleObject}, IO::DeviceIoControl,
+            Threading::{CreateEventW, SetEvent, WaitForSingleObject},
+            IO::DeviceIoControl,
         },
     },
 };

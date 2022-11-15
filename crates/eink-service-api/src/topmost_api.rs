@@ -117,11 +117,7 @@ pub extern "C" fn switch_eink_oled_display() -> u32 {
         let reply = client
             .call_with_params("switch_eink_oled_display", json!({}))
             .expect("Cannot invoke remote method to topmost service");
-        info!(
-            "switch_eink_oled_display: result: {:?}",
-            reply.get_result()
-        );
+        info!("switch_eink_oled_display: result: {:?}", reply.get_result());
     }
     0
 }
-

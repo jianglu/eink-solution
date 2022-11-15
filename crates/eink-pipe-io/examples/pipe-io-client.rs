@@ -18,7 +18,7 @@ async fn main() {
                 JsonRpc::error(0, jsonrpc_lite::Error::method_not_found())
             })
             .await;
-            // .scoped();
+        // .scoped();
     }
 
     for i in 0..10 {

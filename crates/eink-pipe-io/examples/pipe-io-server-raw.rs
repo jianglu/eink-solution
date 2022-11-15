@@ -112,7 +112,7 @@ async fn run_server(
                                 ))
                                 .await
                                 .unwrap();
-                                println!("[{conn_id}] Sended Reply Message");
+                            println!("[{conn_id}] Sended Reply Message");
                         });
                     }
                     JsonRpc::Notification(_) => {
@@ -127,7 +127,10 @@ async fn run_server(
                 },
                 _ => {
                     // ignore
-                    eprintln!("[{conn_id}] Received Empty Message, tx.is_closed(): {}", tx.is_closed());
+                    eprintln!(
+                        "[{conn_id}] Received Empty Message, tx.is_closed(): {}",
+                        tx.is_closed()
+                    );
                     // rx.close().await;
                     break;
                 }

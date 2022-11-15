@@ -10,14 +10,9 @@
 // All rights reserved.
 //
 
-use eink_iddcx::{recreate_iddcx_device, get_iddcx_device_path};
-
-
+use eink_iddcx::{get_iddcx_device_path, recreate_iddcx_device};
 
 fn main() -> anyhow::Result<()> {
-
-
-
     log::info!("recreate_iddcx_device");
     recreate_iddcx_device();
 
