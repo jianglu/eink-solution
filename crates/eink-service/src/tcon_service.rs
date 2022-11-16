@@ -36,7 +36,7 @@ use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
 
 use crate::utils::{
     jsonrpc_error_internal_error, jsonrpc_error_invalid_params, jsonrpc_error_method_not_found,
-    jsonrpc_success_string,
+    jsonrpc_success_string, jsonrpc_success_u32,
 };
 
 const PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\tcon";
@@ -123,8 +123,8 @@ impl TconService {
 
                     if_chain! {
                         then {
-                            tcon_set_mipi_mode(mode);
-                            return jsonrpc_success_string(id, "true");
+                            let mode = tcon_get_mipi_mode();
+                            return jsonrpc_success_u32(id, mode.into());
                         } else {
                             return jsonrpc_error_invalid_params(id);
                         }
