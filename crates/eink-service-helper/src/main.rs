@@ -141,14 +141,11 @@ fn switch_to_eink_launcher_mode() {
             if oled_monitor_id.len() > 8 {
                 set_monitor_specialized(&oled_monitor_id, true).unwrap();
 
+                // Sleep 200ms 等待 TCON 稳定后才重置
+                std::thread::sleep(std::time::Duration::from_millis(200));
+
                 //切换到eink时，要软件启动一下
                 tcon_api::eink_software_reset_tcon();
-
-                // OLED 桌面模式采用 Hybrid Hybrid 模式
-
-                // GI_MIPI_BROWSER = 0x02;
-                // GI_MIPI_HYBRID = 0xF0;
-                tcon_api::eink_set_mipi_mode(0xF0);
 
                 // 置顶 Launcher
                 find_launcher_and_set_topmost();
@@ -174,6 +171,12 @@ fn switch_to_eink_launcher_mode() {
                     } else {
                         find_launcher_and_set_topmost();
                     }
+
+                    // OLED 桌面模式采用 Hybrid Hybrid 模式
+
+                    // GI_MIPI_BROWSER = 0x02;
+                    // GI_MIPI_HYBRID = 0xF0;
+                    tcon_api::eink_set_mipi_mode(0xF0);
                 });
             }
         }
