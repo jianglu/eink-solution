@@ -10,4 +10,12 @@
 // All rights reserved.
 //
 
-pub mod always_on_top;
+use eink_always_on_top::always_on_top::AlwaysOnTop;
+use log::Level;
+
+fn main() -> anyhow::Result<()> {
+    eink_logger::init_with_level(Level::Info)?;
+    let mut always_on_top = AlwaysOnTop::new()?;
+    always_on_top.event_loop();
+    Ok(())
+}

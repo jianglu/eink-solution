@@ -8,40 +8,45 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 log = "0.4"
+static_init = "1.0.3"
+
 
 # eink stuff
 eink-logger = { path = "../eink-logger" }
 
 
 [dependencies.windows]
-version = "0.42.0"
+version = "0.43.0"
 features = [
     "Foundation",
+    "Graphics_Capture",
+    "Graphics_DirectX_Direct3D11",
+    "Graphics_DirectX",
+    "Graphics_Imaging",
+    "Graphics",
+    "Storage_Streams",
+    "Storage",
+    "UI",
     "Win32_Foundation",
-    "Win32_UI",
-    "Win32_UI_Shell",
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_Security",
-    "Win32_System_Console",
-    "Win32_Graphics_Dwm",
-    "Win32_Graphics_Gdi",
-    "Win32_Graphics_Dxgi",
-    "Win32_Graphics_Dxgi_Common",
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D11",
-    "Win32_System_WinRT",
-    "Win32_System_WinRT_Direct3D11",
-    "Win32_System_WinRT_Graphics_Capture",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_LibraryLoader",
     "Win32_System_StationsAndDesktops",
     "Win32_System_SystemServices",
-    "Win32_Storage_FileSystem",
     "Win32_System_Threading",
-    "UI",
-    "Storage",
-    "Storage_Streams",
-    "Graphics",
-    "Graphics_Capture",
-    "Graphics_DirectX",
-    "Graphics_DirectX_Direct3D11",
-    "Graphics_Imaging",
+    "Win32_System_WinRT_Direct3D11",
+    "Win32_System_WinRT_Graphics_Capture",
+    "Win32_System_WinRT",
+    "Win32_UI_Accessibility",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI",
 ]
