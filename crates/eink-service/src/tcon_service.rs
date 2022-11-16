@@ -21,7 +21,7 @@ use eink_itetcon::{
     DisableLoadImg, EnableLoadImg, ITECleanUpEInkAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI,
     ITEGetDriveNo, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetFA2, ITESetMIPIModeAPI,
     IteTconDevice, RecoveryLoadImg, StopLoadImg, GI_MIPI_FAST_READER, GI_MIPI_HYBRID,
-    GI_MIPI_READER,
+    GI_MIPI_READER,ITEResetTcon,
 };
 
 use eink_pipe_io::server::Socket;
@@ -137,10 +137,15 @@ impl TconService {
                     // 临时借这个地方
                     // 启动锁屏笔记
                     std::thread::spawn(|| {
-                        let dir = r"C:\Windows\System32";
-                        let exe = r"C:\Windows\System32\Magnify.exe";
+                        let dir = r"C:\Program Files\Lenovo\ThinkBookNotePlus";
+                        let exe = r"C:\Program Files\Lenovo\ThinkBookNotePlus\EInkLockSNote.exe";
                         let _ = crate::win_utils::run_with_ui_access(dir, exe);
                     });
+                    jsonrpc_success_string(id, "true")
+                }
+                Some("software_reset_api") => {
+                    info!("TconService: software_reset_api");
+                    unsafe { ITEResetTcon() };
                     jsonrpc_success_string(id, "true")
                 }
                 Some(&_) => jsonrpc_error_method_not_found(id),
@@ -235,6 +240,14 @@ fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
     let mut mode = mipi_mode.into();
     let ret = unsafe { ITESetFA2(1) | ITESetMIPIModeAPI(&mut mode) | ITESetFA2(1) };
     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
+}
+
+
+/// 软reset t1000
+fn tcon_software_reset(mipi_mode: MipiMode) {
+    unsafe {ITEResetTcon();}
+
+    info!("ITEResetTcon");
 }
 
 /// TCON 保活

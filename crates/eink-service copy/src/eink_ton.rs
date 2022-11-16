@@ -30,6 +30,9 @@ extern "system" {
 
     #[allow(non_snake_case)]
     pub fn ITESetMIPIModeAPI(mode: &mut u32) -> u32;
+
+    #[allow(non_snake_case)]
+    pub fn ITEResetTcon() -> u32;
 }
 
 pub fn eink_enable() {

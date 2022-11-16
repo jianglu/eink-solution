@@ -71,6 +71,7 @@ extern "system" {
     pub fn DisableLoadImg() -> ();
     pub fn ITESetFA2(enable: u32) -> u32;
     pub fn ITESetMIPIModeAPI(mode: &mut u32) -> u32;
+    pub fn ITEResetTcon() -> u32;
     pub fn ITEGetBufferAddrInfoAPI(addrs: &mut [u32; 3]) -> u32;
     pub fn ITELoadImage(img_buf: *mut u8, img_buf_addr: u32, x: u32, y: u32, w: u32, h: u32)
         -> u32;

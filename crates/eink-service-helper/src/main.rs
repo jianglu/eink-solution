@@ -140,6 +140,9 @@ fn switch_to_eink_launcher_mode() {
             if oled_monitor_id.len() > 8 {
                 set_monitor_specialized(&oled_monitor_id, true).unwrap();
 
+                //切换到eink时，要软件启动一下
+                tcon_api::eink_software_reset_tcon();
+
                 // OLED 桌面模式采用 Hybrid Hybrid 模式
 
                 // GI_MIPI_BROWSER = 0x02;
@@ -156,8 +159,10 @@ fn switch_to_eink_launcher_mode() {
                 save_display_mode_to_registry("EINK");
 
                 // 使用 WMI 接口通知主板, 1 : OLED is Working
-                WMI_SERVICE.lock().set_display_working_status(1);
+                WMI_SERVICE.lock().set_display_working_status(2);
 
+                WMI_SERVICE.lock().get_display_working_status();
+                
                 IS_OLED.store(false, Ordering::Relaxed);
             }
         }
@@ -301,7 +306,9 @@ fn switch_to_oled_windows_desktop_mode() {
             save_display_mode_to_registry("OLED");
 
             // 使用 WMI 接口通知主板, 2 : E-ink is Working
-            WMI_SERVICE.lock().set_display_working_status(2);
+            WMI_SERVICE.lock().set_display_working_status(1);
+
+            WMI_SERVICE.lock().get_display_working_status();
 
             IS_OLED.store(true, Ordering::Relaxed);
 

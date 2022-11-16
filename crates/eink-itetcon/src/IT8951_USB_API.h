@@ -52,7 +52,7 @@ DWORD IT8951SFIPageWriteAPI(TSPICmdArgData* pstSPIArg, BYTE* pWBuf);
 DWORD IT8951SFIPageReadAPI(TSPICmdArgData* pstSPIArg, BYTE* pRBuf);
 DWORD ITEFSetTempCtrlAPI(T_F_SET_TEMP* pstFTempCtrl);
 DWORD ITEGetSetTempAPI(BYTE ucSet, BYTE ucSetValue);
-DWORD IT8951SoftwareResetAPI();
+DWORD ITEResetTcon();
 DWORD ITESendMailBoxCmdArgAPI(TUDefCmdArg* pstUDefCmdArg);
 DWORD ITESetTConCfgAPI(BYTE* pCfgFile,  DWORD ulWrMemAddr, DWORD ulSize);
 void ITEWaitDpyReady();
@@ -96,14 +96,15 @@ DWORD ITESetHWArea(DWORD dwAreaID, DWORD dwX1, DWORD dwX2, DWORD dwY1, DWORD dwY
 DWORD ITESetHWRect1(DWORD dwAreaID, DWORD dwX1, DWORD dwX2, DWORD dwY1, DWORD dwY2);//enable direct handwriting in one rectangle
 DWORD ITESetHWRect2(DWORD dwAreaID, DWORD dwX1, DWORD dwX2, DWORD dwX3, DWORD dwX4, DWORD dwY1, DWORD dwY2);//enable direct handwriting in two rectangles which are same in the Y coordinate
 DWORD ITEGetHWRect(DWORD& dwCnt, WORD* dwPoint);
-DWORD ITESetEinkMinPenWidth(DWORD dwMinW, DWORD dwWidth, DWORD dwOffset, DWORD deOffsetY);//×îÐ¡±Ê¿í£¬±Ê¿í¡£Á½¸öÖµÈç¹ûÊ®·Ö½Ó½ü£¬Ñ¹¸Ð¾Í»áÃ»ÓÐÐ§¹û
+DWORD ITESetEinkMinPenWidth(DWORD dwMinW, DWORD dwWidth, DWORD dwOffset, DWORD deOffsetY);//ï¿½ï¿½Ð¡ï¿½Ê¿ï¿½ï¿½ï¿½ï¿½Ê¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½Ê®ï¿½Ö½Ó½ï¿½ï¿½ï¿½Ñ¹ï¿½Ð¾Í»ï¿½Ã»ï¿½ï¿½Ð§ï¿½ï¿½
 DWORD ITESetEinkPenPressureLevel(DWORD dwPressure);
 DWORD ITEEnableHWWriting(DWORD dwPenMode, DWORD bDisableHover=0);
 DWORD ITEGetDHWMode(DWORD& dwPenMode); 
-DWORD ITESetEinkEraserWidth(DWORD dwMinW, DWORD dwWidth, DWORD dwOffX, DWORD dwOffY);//×îÐ¡±Ê¿í£¬±Ê¿í¡£Á½¸öÖµÈç¹ûÊ®·Ö½Ó½ü£¬Ñ¹¸Ð¾Í»áÃ»ÓÐÐ§¹û
+DWORD ITESetEinkEraserWidth(DWORD dwMinW, DWORD dwWidth, DWORD dwOffX, DWORD dwOffY);//ï¿½ï¿½Ð¡ï¿½Ê¿ï¿½ï¿½ï¿½ï¿½Ê¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½Ê®ï¿½Ö½Ó½ï¿½ï¿½ï¿½Ñ¹ï¿½Ð¾Í»ï¿½Ã»ï¿½ï¿½Ð§ï¿½ï¿½
 DWORD ITEGetDHWPenWidth(DWORD& dwMin, DWORD& dwGlobal);
 DWORD ITEGetDHWEraserSetting(DWORD& dwMin, DWORD& dwGlobal, DWORD& dwEraser);
 DWORD ITESetHighBandWidthRecovery();
+DWORD ITESetMIPIModeAPI(DWORD& ulMode);
 
 //WA for load image
 void StopLoadImg();

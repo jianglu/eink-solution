@@ -22,7 +22,7 @@ use crate::{
     EnableLoadImg, ITECleanUpEInkAPI, ITECloseDeviceAPI, ITEDisplayAreaAPI,
     ITEGetBufferAddrInfoAPI, ITEGetDriveNo, ITEGetSystemInfoAPI, ITELoadImage, ITEOpenDeviceAPI,
     ITESetMIPIModeAPI, RecoveryLoadImg, StopLoadImg, EIMC_GRAY16, EIMC_IMG_FILL, GI_MIPI_BROWSER,
-    GI_MIPI_FAST_READER, GI_MIPI_HYBRID, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,
+    GI_MIPI_FAST_READER, GI_MIPI_HYBRID, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,ITEResetTcon,
 };
 
 pub struct IteTconDevice {

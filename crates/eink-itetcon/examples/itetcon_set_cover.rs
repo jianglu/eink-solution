@@ -16,7 +16,7 @@ use anyhow::bail;
 use eink_itetcon::{
     ITECloseDeviceAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI, ITEGetDriveNo,
     ITEGetSystemInfoAPI, ITELoadImage, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetMIPIModeAPI,
-    GI_MIPI_FAST_READER, GI_MIPI_HYBRID, TRSP_SYSTEM_INFO_DATA,
+    GI_MIPI_FAST_READER, GI_MIPI_HYBRID, TRSP_SYSTEM_INFO_DATA,ITEResetTcon,
 };
 use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
 

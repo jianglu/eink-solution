@@ -33,6 +33,9 @@ extern "system" {
 
     #[allow(non_snake_case)]
     pub fn ITESetMIPIModeAPI(mode: &mut DWORD) -> DWORD;
+
+    #[allow(non_snake_case)]
+    pub fn ITEResetTcon() -> DWORD;
 }
 
 pub unsafe fn eink_enable() {

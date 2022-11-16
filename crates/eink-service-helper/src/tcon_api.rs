@@ -70,6 +70,20 @@ pub fn eink_set_mipi_mode(mode: u32) -> u32 {
     0
 }
 
+/// 软件启动tcon
+pub fn eink_software_reset_tcon() -> u32 {
+    ensure_tcon_client();
+    let mut guard = TCON_CLIENT.lock();
+    if let Some(client) = guard.as_mut() {
+        let reply = client
+            .call_with_params("software_reset_api
+            ", json!({}))
+            .expect("Cannot invoke remote method to tcon service");
+        info!("eink_software_reset_tcon: result: {:?}", reply.get_result());
+    }
+    0
+}
+
 /// 设置 Eink 显示关机壁纸
 pub fn eink_show_shutdown_cover() -> u32 {
     ensure_tcon_client();
