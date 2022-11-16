@@ -26,6 +26,9 @@ mod tcon_service;
 mod topmost_manager;
 mod utils;
 mod win_utils;
+mod service_main;
+
+use std::ffi::OsString;
 
 use anyhow::bail;
 ///////////////////////////////////////////////////////////////////////////////
@@ -34,89 +37,13 @@ use anyhow::bail;
 use log::info;
 use service_helper::SERVICE_HELPER;
 
-use crate::{
-    keyboard_manager::KEYBOARD_MANAGER, tcon_service::TCON_SERVICE,
-    topmost_manager::TOPMOST_MANAGER,
-};
+use crate::keyboard_manager::KEYBOARD_MANAGER;
+use crate::tcon_service::TCON_SERVICE;
+use crate::topmost_manager::TOPMOST_MANAGER;
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Functions
 ///
-
-/// 应用程序主入口
-/// 1. 初始化各种服务
-/// 2. 等待 runner 程序发送的 CTRL-C 信号以终止程序
-fn main() -> anyhow::Result<()> {
-    // 设置当前的活动日志系统为 OutputDebugString 输出
-    eink_logger::init_with_level(log::Level::Trace)?;
-
-    init_panic_output();
-    init_working_dir().expect("Error reset working dir");
-
-    // 服务正常启动的前置检查
-    // explorer.exe 必须已经启动
-    let res = win_utils::get_process_pid("explorer.exe");
-    if res.is_err() || res.unwrap() == 0 {
-        std::thread::sleep(std::time::Duration::from_secs(3));
-        bail!("Cannot found explorer process");
-    }
-
-    // 启动服务助手
-    SERVICE_HELPER
-        .lock()
-        .start()
-        .expect("Error start SERVICE_HELPER");
-
-    // 启动键盘管理器
-    KEYBOARD_MANAGER
-        .lock()
-        .start()
-        .expect("Error start KEYBOARD_MANAGER");
-
-    // 启动窗口置顶管理
-    TOPMOST_MANAGER
-        .lock()
-        .start()
-        .expect("Error start TOPMOST_MANAGER");
-
-    // 启动 TCON 管理器
-    TCON_SERVICE
-        .lock()
-        .start()
-        .expect("Error start TCON_SERVICE");
-
-    //
-    // 等待 CTRL-C 信号，通知服务终止
-    info!("Start waiting for Ctrl-C ...");
-    let (tx, rx) = std::sync::mpsc::channel();
-
-    ctrlc::set_handler(move || tx.send(()).unwrap()).expect("Error setting Ctrl-C handler");
-    info!("Waiting for Ctrl-C ...");
-
-    rx.recv().expect("Could not receive from channel.");
-    info!("Got Ctrl-C, Exiting ...");
-
-    // 依次终止各服务，尽量不要有先后相关性依赖
-
-    KEYBOARD_MANAGER
-        .lock()
-        .stop()
-        .expect("Error stop KEYBOARD_MANAGER");
-
-    TOPMOST_MANAGER
-        .lock()
-        .stop()
-        .expect("Error stop TOPMOST_MANAGER");
-
-    SERVICE_HELPER
-        .lock()
-        .stop()
-        .expect("Error stop SERVICE_HELPER");
-
-    TCON_SERVICE.lock().stop().expect("Error stop TCON_SERVICE");
-
-    Ok(())
-}
 
 /// 初始化 Panic 的输出为 OutputDebugString
 fn init_panic_output() {
@@ -133,9 +60,54 @@ fn init_working_dir() -> anyhow::Result<()> {
     // 更新当前工作目录为 exe 所在目录
     let exe_path = std::env::current_exe()?;
     let exe_dir = exe_path.parent().unwrap();
-    info!("exe_dir: {:?}", exe_dir);
+    info!("set_current_dir: {:?}", exe_dir);
 
     std::env::set_current_dir(exe_dir)?;
 
+    Ok(())
+}
+
+windows_service::define_windows_service!(ffi_service_main, service_main);
+
+fn service_main(arguments: Vec<OsString>) -> anyhow::Result<()> {
+    //
+    // 初始化日志系统
+    eink_logger::init_with_level(log::Level::Trace)?;
+
+    // 设置 PANIC 错误输出
+    init_panic_output();
+    init_working_dir().expect("Error reset working dir");
+
+    // 服务正常启动的前置检查
+    // explorer.exe 必须已经启动
+    loop {
+        let res = win_utils::get_process_pid("explorer.exe");
+        if res.is_err() || res.unwrap() == 0 {
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            log::info!("Cannot found explorer process, wait for 3 secs");
+        } else {
+            break;
+        }
+    }
+
+    // 前置条件准备就绪
+    // 1. 如果是新启动计算机，当前 User 并没有准备就绪，service 上半部先执行，等待时机执行下半部
+    // 2. 如果是重启等情况，当前 User 会很快准备好，service 下半部会很快得到执行机会
+    if let Err(e) = service_main::run_service(arguments) {
+        // Handle errors in some way.
+        log::error!("ERROR: {:?}", e);
+    }
+
+    Ok(())
+}
+
+fn main() -> anyhow::Result<()> {
+    // 根据启动参数，判断功能
+    // --install 安装服务
+    // --uninstall 卸载服务
+
+    // Register generated `ffi_service_main` with the system and start the service, blocking
+    // this thread until the service is stopped.
+    windows_service::service_dispatcher::start("EinkService", ffi_service_main)?;
     Ok(())
 }
