@@ -230,54 +230,54 @@ pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
     // 服务内部初始化
     let this_cloned = this.clone();
 
-    // 接受 Lenovo_LidEvent 事件 不需要处理该事件，全部由mode switch响应 Niuxj 2022-11-16
-    // std::thread::spawn(move || {
-    //     //
-    //     // 初始化 COM 基础设施，如果 COM 已经被初始化，将会返回 RPC_E_TOO_LATE 错误，忽略即可
-    //     let com = match wmi_create_com_library() {
-    //         Ok(com) => com,
-    //         Err(err) => {
-    //             log::error!("{:?}", err);
-    //             return;
-    //         }
-    //     };
+    // 接受 Lenovo_LidEvent 事件
+    std::thread::spawn(move || {
+        //
+        // 初始化 COM 基础设施，如果 COM 已经被初始化，将会返回 RPC_E_TOO_LATE 错误，忽略即可
+        let com = match wmi_create_com_library() {
+            Ok(com) => com,
+            Err(err) => {
+                log::error!("{:?}", err);
+                return;
+            }
+        };
 
-    //     // 创建 WMI 链接
-    //     let wmi_con = match WMIConnection::with_namespace_path("root/wmi", com.into()) {
-    //         Ok(conn) => conn,
-    //         Err(err) => {
-    //             log::error!("Cannot create WMIConnection, err: {}", &err.to_string());
-    //             return;
-    //         }
-    //     };
+        // 创建 WMI 链接
+        let wmi_con = match WMIConnection::with_namespace_path("root/wmi", com.into()) {
+            Ok(conn) => conn,
+            Err(err) => {
+                log::error!("Cannot create WMIConnection, err: {}", &err.to_string());
+                return;
+            }
+        };
 
-    //     let iterator =
-    //         wmi_con.raw_notification::<HashMap<String, Variant>>("SELECT * FROM LENOVO_LID_CHANGE_EVENT");
+        let iterator =
+            wmi_con.raw_notification::<HashMap<String, Variant>>("SELECT * FROM LENOVO_LID_CHANGE_EVENT");
 
-    //     let iterator = match iterator {
-    //         Ok(v) => v,
-    //         Err(err) => {
-    //             debug!("Cannot listen LENOVO_LID_CHANGE_EVENT: {err:?}");
-    //             return;
-    //         }
-    //     };
+        let iterator = match iterator {
+            Ok(v) => v,
+            Err(err) => {
+                debug!("Cannot listen LENOVO_LID_CHANGE_EVENT: {err:?}");
+                return;
+            }
+        };
 
-    //     // WBEM_E_UNPARSABLE_QUERY 0x80041058
-    //     for result in iterator {
-    //         let result = result.unwrap();
-    //         let status = result.get("ULong").unwrap();
-    //         if let Variant::UI4(status) = status {
-    //             info!("Lenovo_LidEvent: status: {:?}", status);
+        // WBEM_E_UNPARSABLE_QUERY 0x80041058
+        for result in iterator {
+            let result = result.unwrap();
+            let status = result.get("ULong").unwrap();
+            if let Variant::UI4(status) = status {
+                info!("Lenovo_LidEvent: status: {:?}", status);
 
-    //             let on_lid_event_cloned = this_cloned.lock().on_lid_event.clone();
-    //             if status == &0 {
-    //                 on_lid_event_cloned.emit(LidEvent::Open);
-    //             } else if status == &1 {
-    //                 on_lid_event_cloned.emit(LidEvent::Close);
-    //             }
-    //         }
-    //     }
-    // });
+                let on_lid_event_cloned = this_cloned.lock().on_lid_event.clone();
+                if status == &0 {
+                    on_lid_event_cloned.emit(LidEvent::Open);
+                } else if status == &1 {
+                    on_lid_event_cloned.emit(LidEvent::Close);
+                }
+            }
+        }
+    });
 
     // 接受 LENOVO_BASE_MODE_SWITCH_EVENT 事件
     // uint32 ret: return current base mode

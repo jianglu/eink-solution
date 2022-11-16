@@ -86,6 +86,7 @@ impl IteTconDevice {
         self.sysinfo = sysinfo;
         self.is_open = true;
 
+        self.set_cover_image("C:\\Program Files\\Lenovo\\ThinkbookEinkPlus\\default_cover.jpg");
         Ok(())
     }
 
@@ -222,7 +223,7 @@ impl IteTconDevice {
                 EicConvertToT1000Format(img_buf, img_width, img_height);
 
                 info!("EiTurn180");
-                EiTurn180(img_buf, img_width, img_height);
+                //EiTurn180(img_buf, img_width, img_height);
             }
 
             info!("ITELoadImage");
