@@ -92,6 +92,10 @@ pub unsafe fn get_process_pid_unsafe(name: &str) -> Result<u32> {
         CloseHandle(process_snap);
     }
 
+    if pid == 0 {
+        bail!("Cannot found process: {name}")
+    }
+
     Ok(pid)
 }
 

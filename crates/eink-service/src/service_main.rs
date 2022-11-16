@@ -111,10 +111,9 @@ pub fn run_service(_arguments: Vec<OsString>) -> anyhow::Result<()> {
                 // 用户登录
                 if param.reason == SessionChangeReason::SessionLogon {
                     // 启动服务助手
-                    SERVICE_HELPER
-                        .lock()
-                        .start()
-                        .expect("Error start SERVICE_HELPER");
+                    if let Err(_err) = SERVICE_HELPER.lock().start() {
+                        log::error!("Error start SERVICE_HELPER")
+                    }
                 }
 
                 ServiceControlHandlerResult::NoError
@@ -135,23 +134,25 @@ pub fn run_service(_arguments: Vec<OsString>) -> anyhow::Result<()> {
 
     // 从这里开始，服务处于 START_PENDING 状态
 
+    // 启动服务助手
+    if let Err(_err) = SERVICE_HELPER.lock().start() {
+        log::error!("Error start SERVICE_HELPER")
+    }
+
     // 启动键盘管理器
-    KEYBOARD_MANAGER
-        .lock()
-        .start()
-        .expect("Error start KEYBOARD_MANAGER");
+    if let Err(_err) = KEYBOARD_MANAGER.lock().start() {
+        log::error!("Error start KEYBOARD_MANAGER")
+    }
 
     // 启动窗口置顶管理
-    TOPMOST_MANAGER
-        .lock()
-        .start()
-        .expect("Error start TOPMOST_MANAGER");
+    if let Err(_err) = TOPMOST_MANAGER.lock().start() {
+        log::error!("Error start TOPMOST_MANAGER")
+    }
 
     // 启动 TCON 管理器
-    TCON_SERVICE
-        .lock()
-        .start()
-        .expect("Error start TCON_SERVICE");
+    if let Err(_err) = TCON_SERVICE.lock().start() {
+        log::error!("Error start TCON_SERVICE")
+    }
 
     // 服务完整初始化，将服务切换为 RUNNING 状态
     status_handle.set_service_status(ServiceStatus {
