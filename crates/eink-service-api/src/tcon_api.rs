@@ -73,6 +73,27 @@ pub extern "C" fn eink_set_mipi_mode(mode: u32) -> u32 {
     0
 }
 
+/// 获得当前 Eink MIPI Mode
+/// 返回值为 i32 带符号类型，<1 表示错误，>=0 表示正确
+#[no_mangle]
+pub extern "C" fn eink_get_mipi_mode() -> i32 {
+    ensure_tcon_client();
+    let mut guard = TCON_CLIENT.lock();
+    if let Some(client) = guard.as_mut() {
+        let reply = client
+            .call_with_params("get_mipi_mode", json!({}))
+            .expect("Cannot invoke remote method to tcon service");
+        let result = reply.get_result();
+        info!("get_mipi_mode: result: {:?}", result);
+        if let Some(result) = result {
+            if result.is_i64() {
+                return result.as_i64().unwrap_or(-1) as i32;
+            }
+        }
+    }
+    -1
+}
+
 /// 设置 Eink 显示关机壁纸
 #[no_mangle]
 pub extern "C" fn eink_show_shutdown_cover() -> u32 {

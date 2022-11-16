@@ -19,9 +19,9 @@ use std::{
 use anyhow::{bail, Result};
 use eink_itetcon::{
     DisableLoadImg, EnableLoadImg, ITECleanUpEInkAPI, ITEDisplayAreaAPI, ITEGetBufferAddrInfoAPI,
-    ITEGetDriveNo, ITEOpenDeviceAPI, ITESet8951KeepAlive, ITESetFA2, ITESetMIPIModeAPI,
-    IteTconDevice, RecoveryLoadImg, StopLoadImg, GI_MIPI_FAST_READER, GI_MIPI_HYBRID,
-    GI_MIPI_READER,ITEResetTcon,
+    ITEGetDriveNo, ITEGetMIPIModeAPI, ITEOpenDeviceAPI, ITEResetTcon, ITESet8951KeepAlive,
+    ITESetFA2, ITESetMIPIModeAPI, IteTconDevice, RecoveryLoadImg, StopLoadImg, GI_MIPI_FAST_READER,
+    GI_MIPI_HYBRID, GI_MIPI_READER,
 };
 
 use eink_pipe_io::server::Socket;
@@ -108,6 +108,20 @@ impl TconService {
                         if let Some(mode) = map.get("mode");
                         if let Some(mode) = mode.as_u64();
                         if let Ok(mode) = MipiMode::try_from(mode as u32);
+                        then {
+                            tcon_set_mipi_mode(mode);
+                            return jsonrpc_success_string(id, "true");
+                        } else {
+                            return jsonrpc_error_invalid_params(id);
+                        }
+                    }
+                }
+                Some("get_mipi_mode") => {
+                    if !tcon_avail {
+                        return jsonrpc_error_internal_error(id);
+                    }
+
+                    if_chain! {
                         then {
                             tcon_set_mipi_mode(mode);
                             return jsonrpc_success_string(id, "true");
@@ -242,10 +256,28 @@ fn tcon_set_mipi_mode(mipi_mode: MipiMode) {
     info!("ITESetMIPIModeAPI({}): {}", mode, ret);
 }
 
+/// 设置 MIPI 模式
+fn tcon_get_mipi_mode() -> MipiMode {
+    // 不需要先设置模式 1 ，再设置目标模式
+    // let mut mode: u32 = 1;
+    // let ret = unsafe {
+    //     ITESetFA2(1);
+    //     ITESetMIPIModeAPI(&mut mode)
+    // };
+    // info!("ITESetMIPIModeAPI({}): {}", mode, ret);
+
+    let mut mode = 0;
+    let ret = unsafe { ITESetFA2(1) | ITEGetMIPIModeAPI(&mut mode) | ITESetFA2(1) };
+    info!("ITEGetMIPIModeAPI({}): {}", mode, ret);
+
+    MipiMode::from(mode)
+}
 
 /// 软reset t1000
 fn tcon_software_reset(mipi_mode: MipiMode) {
-    unsafe {ITEResetTcon();}
+    unsafe {
+        ITEResetTcon();
+    }
 
     info!("ITEResetTcon");
 }

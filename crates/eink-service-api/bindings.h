@@ -30,6 +30,10 @@ uint32_t eink_refresh();
 /// 设置 Eink MIPI Mode
 uint32_t eink_set_mipi_mode(uint32_t mode);
 
+/// 获得当前 Eink MIPI Mode
+/// 返回值为 i32 带符号类型，<1 表示错误，>=0 表示正确
+int32_t eink_get_mipi_mode();
+
 /// 设置 Eink 显示关机壁纸
 uint32_t eink_show_shutdown_cover();
 
