@@ -19,6 +19,7 @@ mod keyboard_manager;
 mod ls_note_starter;
 mod mag_win;
 mod magnify;
+mod monitor;
 mod settings;
 mod specialized;
 mod tcon_api;
@@ -140,6 +141,11 @@ fn switch_to_eink_launcher_mode() {
             if oled_monitor_id.len() > 8 {
                 set_monitor_specialized(&oled_monitor_id, true).unwrap();
 
+                // 将 EINK 屏幕的 DPI 设置为 200
+                if let Err(err) = monitor::set_dpi_by_stable_monitor_id(&eink_monitor_id, 200) {
+                    log::error!("Cannot reset eink dpi to 200");
+                }
+
                 //切换到eink时，要软件启动一下
                 tcon_api::eink_software_reset_tcon();
 
@@ -162,7 +168,7 @@ fn switch_to_eink_launcher_mode() {
                 WMI_SERVICE.lock().set_display_working_status(2);
 
                 WMI_SERVICE.lock().get_display_working_status();
-                
+
                 IS_OLED.store(false, Ordering::Relaxed);
             }
         }
