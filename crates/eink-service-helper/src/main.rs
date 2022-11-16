@@ -141,11 +141,6 @@ fn switch_to_eink_launcher_mode() {
             if oled_monitor_id.len() > 8 {
                 set_monitor_specialized(&oled_monitor_id, true).unwrap();
 
-                // 将 EINK 屏幕的 DPI 设置为 200
-                if let Err(err) = monitor::set_dpi_by_stable_monitor_id(&eink_monitor_id, 200) {
-                    log::error!("Cannot reset eink dpi to 200");
-                }
-
                 //切换到eink时，要软件启动一下
                 tcon_api::eink_software_reset_tcon();
 
@@ -170,6 +165,16 @@ fn switch_to_eink_launcher_mode() {
                 WMI_SERVICE.lock().get_display_working_status();
 
                 IS_OLED.store(false, Ordering::Relaxed);
+
+                // 重置 DPI 作为保护性操作，可以在非关键上下文中运行
+                // 将 EINK 屏幕的 DPI 设置为 200，成功后再次重新尝试置顶 Launcher
+                std::thread::spawn(move || {
+                    if let Err(err) = monitor::set_dpi_by_stable_monitor_id(&eink_monitor_id, 200) {
+                        log::error!("Cannot reset eink dpi to 200: err: {err}");
+                    } else {
+                        find_launcher_and_set_topmost();
+                    }
+                });
             }
         }
     }

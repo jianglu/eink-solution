@@ -50,6 +50,8 @@ pub fn set_dpi_by_stable_monitor_id(
     monitor_id: &str,
     mut scale_to_set: u32,
 ) -> anyhow::Result<WIN32_ERROR> {
+    log::info!("set_dpi_by_stable_monitor_id({monitor_id}): scale_to_set: {scale_to_set}");
+
     // WinRT 显示管理器
     let display_manager = DisplayManager::Create(DisplayManagerOptions::None)?;
     let targets = display_manager.GetCurrentTargets()?;
