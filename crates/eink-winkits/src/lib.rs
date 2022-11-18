@@ -77,8 +77,9 @@ pub fn get_window_real_class(hwnd: HWND) -> anyhow::Result<String> {
 pub fn get_window_text(hwnd: HWND) -> anyhow::Result<String> {
     unsafe {
         let mut utf16 = vec![0x0u16; 1024];
-        GetWindowTextW(hwnd, &mut utf16);
-        let title = U16CString::from_vec_unchecked(utf16);
+        let num_chars = GetWindowTextW(hwnd, &mut utf16);
+        utf16.set_len(num_chars as usize);
+        let title = U16CString::from_vec(utf16).unwrap_or_default();
         Ok(title.to_string_lossy())
     }
 }
