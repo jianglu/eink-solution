@@ -24,6 +24,7 @@ use crate::keyboard_manager::KEYBOARD_MANAGER;
 use crate::service_helper::SERVICE_HELPER;
 use crate::tcon_service::TCON_SERVICE;
 use crate::topmost_manager::TOPMOST_MANAGER;
+use crate::win_utils::kill_process_by_name;
 
 /// 服务主入口
 /// 1. 初始化各种服务
@@ -208,6 +209,9 @@ pub fn run_service(_arguments: Vec<OsString>) -> anyhow::Result<()> {
         .expect("Error stop SERVICE_HELPER");
 
     TCON_SERVICE.lock().stop().expect("Error stop TCON_SERVICE");
+
+    // 如果 Launcher 已经启动，停止 Launcher
+    kill_process_by_name("LenovoGen4.Launcher.exe", 0);
 
     // 服务切换为停止状态
     status_handle.set_service_status(ServiceStatus {

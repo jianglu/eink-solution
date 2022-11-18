@@ -512,10 +512,13 @@ pub fn kill_process(hprocess: HANDLE, exit_code: u32) -> bool {
 /// 根据 NAME 杀进程
 pub fn kill_process_by_name(name: &str, exit_code: u32) -> bool {
     unsafe {
-        let pid = get_process_id_by_name(name).unwrap();
-        let hprocess = OpenProcess(PROCESS_TERMINATE, false, pid).unwrap();
-        kill_process(hprocess, exit_code)
+        if let Ok(pid) = get_process_id_by_name(name) {
+            if let Ok(hprocess) = OpenProcess(PROCESS_TERMINATE, false, pid) {
+                return kill_process(hprocess, exit_code);
+            }
+        }
     }
+    return false;
 }
 
 pub fn get_process_id_by_name(name: &str) -> anyhow::Result<u32> {
