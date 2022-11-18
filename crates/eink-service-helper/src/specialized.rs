@@ -43,6 +43,7 @@ fn hash_unicode_string(slice: &str) -> u32 {
 }
 
 pub fn set_monitor_specialized(monitor_id: &str, specialized: bool) -> Result<()> {
+    log::info!("set_monitor_specialized: monitor_id: {monitor_id}, specialized: {specialized}");
     let display_manager = DisplayManager::Create(DisplayManagerOptions::None)?;
     let display_targets = display_manager.GetCurrentTargets()?;
     for display_target in display_targets {
@@ -159,6 +160,8 @@ pub fn set_monitor_specialized(monitor_id: &str, specialized: bool) -> Result<()
 
 fn set_display_target_specialized(target: &DisplayTarget, removal: bool) -> Result<()> {
     let stable_monitor_id = target.StableMonitorId()?;
+
+    log::info!("set_display_target_specialized: stable_monitor_id: {stable_monitor_id}, specialized: {removal}");
 
     let guid_monitor_override_pseudo_specialized = "{f196c02f-f86f-4f9a-aa15-e9cebdfe3b96}";
 
