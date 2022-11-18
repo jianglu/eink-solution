@@ -10,30 +10,26 @@
 // All rights reserved.
 //
 
-use crate::{
-    find_window_by_classname, find_window_by_title,
-    utils::{
-        jsonrpc_error_internal_error, jsonrpc_error_invalid_params, jsonrpc_error_method_not_found,
-        jsonrpc_success_string,
-    },
-};
+use std::sync::Arc;
+
 use eink_pipe_io::server::Socket;
 use jsonrpc_lite::{Id, JsonRpc, Params};
 use log::info;
 use parking_lot::{Mutex, RwLock};
 use signals2::{Connect2, Emit2, Signal};
-use std::sync::Arc;
 use tokio::runtime::Runtime;
-use windows::{
-    s,
-    Win32::{
-        Foundation::{HWND, LPARAM, WPARAM},
-        UI::WindowsAndMessaging::{
-            GetForegroundWindow, SendMessageA, ShowWindow, SW_HIDE, SW_SHOW, SW_SHOWMINIMIZED,
-            WM_USER,
-        },
-    },
+use windows::s;
+use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetForegroundWindow, SendMessageA, ShowWindow, SW_HIDE, SW_SHOW, SW_SHOWMINIMIZED, WM_USER,
 };
+
+use crate::mode_manager::set_window_topmost;
+use crate::utils::{
+    jsonrpc_error_internal_error, jsonrpc_error_invalid_params, jsonrpc_error_method_not_found,
+    jsonrpc_success_string,
+};
+use crate::win_utils::{find_window_by_classname, find_window_by_title};
 
 const PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\topmost";
 
@@ -98,7 +94,7 @@ impl TopmostManager {
                     }
                     Some("clear_all_windows_topmost") => {
                         this2.lock().clear_current_topmost_window();
-                        clear_all_windows_topmost();
+                        crate::mode_manager::clear_all_windows_topmost();
                         jsonrpc_success_string(id, "true")
                     }
                     Some("adjust_topmost_on_app_launched") => {
@@ -135,7 +131,7 @@ impl TopmostManager {
         self.rt.spawn(async move {
             if let Some(hwnd) = curr_hwnd.lock().take() {
                 unset_window_topmost(hwnd);
-                crate::set_window_minimize(hwnd);
+                crate::win_utils::set_window_minimize(hwnd);
             }
 
             // 2s 后
@@ -156,7 +152,7 @@ impl TopmostManager {
             }
 
             // 重新置顶悬浮球
-            crate::find_floating_button_and_set_topmost();
+            crate::mode_manager::find_floating_button_and_set_topmost();
         });
     }
 
@@ -216,28 +212,6 @@ pub fn unset_window_topmost(hwnd: HWND) {
         log::error!("Send Unset Topmost Message To AlwaysOnTopWindow");
         unsafe {
             SendMessageA(api_hwnd, WM_USER + 1, WPARAM::default(), LPARAM(hwnd.0));
-        }
-    }
-}
-
-/// 设置窗口置顶
-/// 1. 通知 Topmost Service
-pub fn set_window_topmost(hwnd: HWND) {
-    if let Ok(api_hwnd) = find_window_by_classname(s!("AlwaysOnTopWindow")) {
-        log::error!("Send Topmost Message To AlwaysOnTopWindow");
-        unsafe {
-            SendMessageA(api_hwnd, WM_USER, WPARAM::default(), LPARAM(hwnd.0));
-        }
-    }
-}
-
-/// 设置窗口置顶
-/// 1. 通知 Topmost Service
-pub fn clear_all_windows_topmost() {
-    if let Ok(api_hwnd) = find_window_by_classname(s!("AlwaysOnTopWindow")) {
-        log::error!("Send Clear Topmost Message To AlwaysOnTopWindow");
-        unsafe {
-            SendMessageA(api_hwnd, WM_USER + 2, WPARAM::default(), LPARAM::default());
         }
     }
 }

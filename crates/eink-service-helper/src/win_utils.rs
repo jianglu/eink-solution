@@ -17,7 +17,7 @@ use libc::c_void;
 use log::Level;
 use log::{debug, info};
 use widestring::{U16CStr, U16CString};
-use windows::core::{PCWSTR, PWSTR};
+use windows::core::{PCSTR, PCWSTR, PWSTR};
 use windows::w;
 use windows::Win32::Foundation::{
     CloseHandle, GetLastError, BOOL, HANDLE, HWND, INVALID_HANDLE_VALUE, LPARAM, NO_ERROR,
@@ -49,7 +49,10 @@ use windows::Win32::UI::Shell::{
     SHAppBarMessage, SHGetFileInfoW, StrStrW, ABM_SETSTATE, ABS_ALWAYSONTOP, ABS_AUTOHIDE,
     SHFILEINFOW, SHGFI_ICON, SHGFI_SMALLICON,
 };
-use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetDesktopWindow};
+use windows::Win32::UI::WindowsAndMessaging::{
+    FindWindowA, FindWindowW, GetDesktopWindow, ShowWindow, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE,
+    SW_SHOW,
+};
 
 /// 通过进程名获取进程 PID
 pub fn get_process_pid(name: &str) -> Result<u32> {
@@ -289,7 +292,6 @@ pub unsafe fn run_system_privilege_unsafe(
 
 #[test]
 fn test_get_current_user_token() {
-    eink_logger::init();
     log::set_max_level(log::LevelFilter::Trace);
     let token = unsafe { get_current_user_token().unwrap() };
     info!("get_current_user_token: {:?}", token);
@@ -495,4 +497,66 @@ pub fn get_process_id_by_name(name: &str) -> anyhow::Result<u32> {
 
 pub fn reparent_window_to_desktop(hwnd: HWND) {
     let desktop_hwnd = unsafe { GetDesktopWindow() };
+}
+
+/// 查找窗口
+pub fn find_window_by_title<P>(name: P) -> anyhow::Result<HWND>
+where
+    P: Into<PCSTR>,
+{
+    let hwnd = unsafe { FindWindowA(None, name) };
+    if hwnd == HWND(0) {
+        bail!("Cannot find window");
+    } else {
+        Ok(hwnd)
+    }
+}
+
+/// 查找窗口
+pub fn find_window_by_classname<P>(name: P) -> anyhow::Result<HWND>
+where
+    P: Into<PCSTR>,
+{
+    let hwnd = unsafe { FindWindowA(name, None) };
+    if hwnd == HWND(0) {
+        bail!("Cannot find window");
+    } else {
+        Ok(hwnd)
+    }
+}
+
+/// 设置窗口最大化
+pub fn set_window_maximize(hwnd: HWND) {
+    if unsafe { ShowWindow(hwnd, SW_MAXIMIZE).as_bool() } {
+        // ignore
+    } else {
+        log::error!("Cannot maximize window {hwnd:?}");
+    }
+}
+
+// 设置窗口隐藏
+pub fn set_window_hidden(hwnd: HWND) {
+    if unsafe { ShowWindow(hwnd, SW_HIDE).as_bool() } {
+        // ignore
+    } else {
+        log::error!("Cannot hide window {hwnd:?}");
+    }
+}
+
+/// 设置窗口显示
+pub fn set_window_shown(hwnd: HWND) {
+    if unsafe { ShowWindow(hwnd, SW_SHOW).as_bool() } {
+        // ignore
+    } else {
+        log::error!("Cannot hide window {hwnd:?}");
+    }
+}
+
+/// 设置窗口最小化
+pub fn set_window_minimize(hwnd: HWND) {
+    if unsafe { ShowWindow(hwnd, SW_MINIMIZE).as_bool() } {
+        // ignore
+    } else {
+        log::error!("Cannot hide launcher window");
+    }
 }
