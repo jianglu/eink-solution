@@ -10,15 +10,14 @@
 // All rights reserved.
 //
 
+use std::ffi::c_void;
+
 use eink_pipe_io::blocking::BlockingClient;
 use log::{error, info};
 use parking_lot::Mutex;
 use serde_json::json;
-use std::ffi::c_void;
-use windows::Win32::{
-    Foundation::{GetLastError, HINSTANCE},
-    System::SystemServices::DLL_PROCESS_ATTACH,
-};
+use windows::Win32::Foundation::{GetLastError, HINSTANCE};
+use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 const TCON_PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\tcon";
 
@@ -88,10 +87,11 @@ pub fn eink_show_shutdown_cover() -> u32 {
     ensure_tcon_client();
     let mut guard = TCON_CLIENT.lock();
     if let Some(client) = guard.as_mut() {
-        let reply = client
-            .call_with_params("show_shutdown_cover", json!({}))
-            .expect("Cannot invoke remote method to tcon service");
-        info!("eink_show_shutdown_cover: result: {:?}", reply.get_result());
+        if let Ok(reply) = client.call_with_params("show_shutdown_cover", json!({})) {
+            info!("eink_show_shutdown_cover: result: {:?}", reply.get_result());
+        } else {
+            log::error!("Cannot invoke remote method to tcon service");
+        }
     }
     0
 }
