@@ -14,7 +14,7 @@ use std::path::PathBuf;
 
 use anyhow;
 use flexi_logger::writers::LogWriter;
-use flexi_logger::{Cleanup, Criterion, Level, Naming};
+use flexi_logger::{Cleanup, Criterion, Level, LevelFilter, Naming};
 use windows::core::PCWSTR;
 use windows::Win32::System::Diagnostics::Debug::OutputDebugStringW;
 
@@ -44,7 +44,7 @@ impl LogWriter for DebugViewLogWriter {
         _now: &mut flexi_logger::DeferredNow,
         record: &flexi_logger::Record,
     ) -> std::io::Result<()> {
-        output_debug_string(&format!("{}", &record.args()));
+        output_debug_string(&format!("{}\n", &record.args()));
         Ok(())
     }
 
