@@ -31,7 +31,7 @@ mod window;
 mod wmi_service;
 
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering, AtomicI32, AtomicU32};
 use std::sync::Arc;
 
 use always_on_top::{AlwaysOnTop, ALWAYS_ON_TOP};
@@ -233,6 +233,8 @@ fn init_panic_output() {
     }));
 }
 
+static LAST_MODE: AtomicU32 = AtomicU32::new(u32::MAX);
+
 fn main() -> AnyResult<()> {
     // 设置当前的活动日志系统为 OutputDebugString 输出
     eink_logger::init_with_level(log::Level::Trace)?;
@@ -263,16 +265,28 @@ fn main() -> AnyResult<()> {
     WMI_SERVICE.lock().on_mode_switch_event(|mode| {
         info!("Received OnModeSwitchEvent: {:?}", mode);
 
+        let last_mode = LAST_MODE.load(Ordering::Relaxed);
+
         match mode {
             // OLED
-            1 | 2 | 9 => {
+            1 | 2 => {
+                if last_mode == 10 || last_mode == 11 {
+                    MODE_MANAGER.lock().request_to_oled_windows_desktop_mode();
+                }
+            }
+            9 => {
                 // ignore
             }
             3 | 7 => {
                 MODE_MANAGER.lock().request_to_oled_windows_desktop_mode();
             }
             // EINK
-            5 | 6 | 10 => {
+            5 | 6 => {
+                if last_mode == 10 || last_mode == 11 {
+                    MODE_MANAGER.lock().request_to_eink_launcher_mode();
+                }
+            }
+            10 => {
                 // ignore
             }
             4 | 8 => {
@@ -282,6 +296,9 @@ fn main() -> AnyResult<()> {
                 info!("Unused mode : {mode}")
             }
         }
+
+        // 存储当前模式
+        LAST_MODE.store(mode, Ordering::Relaxed);
     });
     wmi_service::start_service(&WMI_SERVICE).expect("Error start WMI_SERVICE");
 
