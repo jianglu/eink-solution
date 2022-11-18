@@ -139,11 +139,26 @@ impl ModeManager {
 
         set_monitor_specialized(oled_monitor_id, true).unwrap();
 
+        let launcher_title = s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59");
+
+        // 如果 Launcher 不存在，启动
+        if let Err(_err) = find_window_by_title(launcher_title) {
+            start_launcher();
+        }
+
         // Sleep 200ms 等待 TCON 稳定后才重置
         std::thread::sleep(std::time::Duration::from_millis(200));
 
         // 切换到eink时，要软件启动一下
         tcon_api::eink_software_reset_tcon();
+
+        // 等待 10s Launcher 启动
+        for _i in 0..100 {
+            if let Ok(_hwnd) = find_window_by_title(launcher_title) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
 
         // 置顶 Launcher
         find_launcher_and_set_topmost();
