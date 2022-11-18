@@ -1,10 +1,14 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::bail;
 use jsonrpc_lite::{JsonRpc, Params};
 use remoc::rch;
-use signals2::{connect::ConnectionImpl, Connect2, Connection, Emit2, Signal};
-use tokio::{net::windows::named_pipe::ClientOptions, sync::Mutex, time};
+use signals2::connect::ConnectionImpl;
+use signals2::{Connect2, Connection, Emit2, Signal};
+use tokio::net::windows::named_pipe::ClientOptions;
+use tokio::sync::Mutex;
+use tokio::time;
 use windows::Win32::Foundation::ERROR_PIPE_BUSY;
 
 use crate::msg::IpcMsg;
@@ -45,7 +49,8 @@ impl Client {
     ) -> anyhow::Result<JsonRpc> {
         let id = uuid::Uuid::new_v4().to_string();
         let (reply_tx, mut reply_rx) = rch::mpsc::channel(1);
-        self.tx
+        match self
+            .tx
             .as_mut()
             .expect("Cannot find tx link")
             .send(IpcMsg {
@@ -53,9 +58,12 @@ impl Client {
                 reply_tx: Some(reply_tx),
             })
             .await
-            .unwrap();
-        match reply_rx.recv().await {
-            Ok(reply) => return Ok(reply.unwrap()),
+        {
+            Ok(_) => match reply_rx.recv().await {
+                Ok(Some(reply)) => return Ok(reply),
+                Ok(None) => bail!("Reply is empty"),
+                Err(err) => bail!(err),
+            },
             Err(err) => bail!(err),
         }
     }
