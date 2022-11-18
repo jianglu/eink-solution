@@ -131,7 +131,12 @@ impl TconService {
                     }
                 }
                 Some("show_shutdown_cover") => {
-                    tcon_device.write().show_cover_image();
+                    // show_cover_image 有异常可能，异步化调用
+                    let tcon_device = tcon_device.clone();
+                    let thr = std::thread::spawn(move || {
+                        tcon_device.write().show_cover_image();
+                    });
+                    let _ = thr.join();
                     jsonrpc_success_string(id, "true")
                 }
                 Some("set_shutdown_cover") => {
