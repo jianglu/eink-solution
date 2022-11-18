@@ -21,7 +21,8 @@ use tokio::runtime::Runtime;
 use windows::s;
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, SendMessageA, ShowWindow, SW_HIDE, SW_SHOW, SW_SHOWMINIMIZED, WM_USER,
+    GetForegroundWindow, SendMessageA, SetWindowPos, ShowWindow, HWND_TOPMOST, SWP_NOMOVE,
+    SWP_NOSIZE, SWP_SHOWWINDOW, SW_HIDE, SW_SHOW, SW_SHOWMINIMIZED, WM_USER,
 };
 
 use crate::mode_manager::set_window_topmost;
@@ -75,6 +76,20 @@ impl TopmostManager {
                             if let Some(hwnd) = map.get("hwnd") {
                                 if let Some(hwnd) = hwnd.as_i64() {
                                     set_window_topmost(HWND(hwnd as isize));
+
+                                    // 调用 Windows 的置顶方法，需要在异步上下文进行，因为同步 RPC 会造成消息死锁
+                                    std::thread::spawn(move || unsafe {
+                                        SetWindowPos(
+                                            HWND(hwnd as isize),
+                                            HWND_TOPMOST,
+                                            0,
+                                            0,
+                                            0,
+                                            0,
+                                            SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE,
+                                        );
+                                    });
+
                                     return jsonrpc_success_string(id, "true");
                                 }
                             }
