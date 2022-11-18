@@ -15,6 +15,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
 
 use anyhow::Result;
+use eink_winkits::get_window_text;
 use log::info;
 use parking_lot::Mutex;
 use windows::s;
@@ -47,6 +48,7 @@ pub struct ModeManager {
     tx: Sender<LaptopMode>,
 }
 
+#[derive(Debug)]
 enum LaptopMode {
     OledWindowsDesktopMode,
     EinkLauncherMode,
@@ -78,14 +80,17 @@ impl ModeManager {
         loop {
             // 读取通道中的首个 Mode
             if let Ok(mut req_mode) = rx.recv() {
+                log::info!("switching_thread_routine: get request mode: {req_mode:?}");
+
                 // 此时队列中可能还有其它 Mode 等待切换，因为如果切换事件请求的太频繁，队列中就会出现事件堆积
-                loop {
+                'inner: loop {
                     match rx.try_recv() {
                         Ok(more_mode) => {
+                            log::info!("switching_thread_routine: find more mode: {more_mode:?}");
                             req_mode = more_mode;
                         }
                         Err(_) => {
-                            break;
+                            break 'inner;
                         }
                     }
                 }
@@ -155,8 +160,10 @@ impl ModeManager {
         // 等待 10s Launcher 启动
         for _i in 0..100 {
             if let Ok(_hwnd) = find_window_by_title(launcher_title) {
+                log::info!("Found launcher, go next");
                 break;
             }
+            log::info!("Cannot found launcher, wait 100ms");
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
@@ -189,6 +196,9 @@ impl ModeManager {
         // GI_MIPI_BROWSER = 0x02;
         // GI_MIPI_HYBRID = 0xF0;
         tcon_api::eink_set_mipi_mode(0xF0);
+
+        log::info!("switch_to_eink_launcher_mode completed");
+
     }
 
     // 切换搭配 OLED Windows 桌面模式
@@ -226,6 +236,8 @@ impl ModeManager {
 
         // 显示壁纸
         tcon_api::eink_show_shutdown_cover();
+
+        log::info!("switch_to_oled_windows_desktop_mode completed");
     }
 }
 
@@ -236,7 +248,7 @@ impl ModeManager {
 pub static MODE_MANAGER: Arc<Mutex<ModeManager>> = {
     info!("Create ModeManager");
 
-    let mut this = Arc::new(Mutex::new(
+    let this = Arc::new(Mutex::new(
         ModeManager::new().expect("Cannot instantiate ModeManager"),
     ));
 
@@ -245,6 +257,8 @@ pub static MODE_MANAGER: Arc<Mutex<ModeManager>> = {
 
 /// 查找 Launcher 并且设置为置顶模式
 fn find_launcher_and_set_topmost() {
+    info!("find_launcher_and_set_topmost");
+
     if let Ok(hwnd) =
         find_window_by_title(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59"))
     {
@@ -282,6 +296,8 @@ fn find_launcher_and_set_topmost() {
 
 /// 查找悬浮球并且设置为置顶模式
 pub fn find_floating_button_and_set_topmost() {
+    info!("find_floating_button_and_set_topmost");
+
     if let Ok(hwnd) = find_window_by_title(s!("86948044-41D9-464B-B533-15FE92A0BA26")) {
         // 使用 AlwaysOnTop 动态置顶
         set_window_topmost(hwnd);
@@ -315,11 +331,15 @@ fn start_launcher() {
     let exe_dir = get_current_exe_dir();
     let topmost_manager_exe = exe_dir.join("LenovoGen4.Launcher.exe");
 
-    let _pid = run_as_admin(
+    let _pid = match run_as_admin(
         exe_dir.to_str().unwrap(),
         topmost_manager_exe.to_str().unwrap(),
-    )
-    .unwrap();
+    ) {
+        Ok(_) => (),
+        Err(_err) => {
+            log::error!("Cannot run Launcher");
+        }
+    };
 }
 
 /// 查找 Launcher 并且设置为隐藏
@@ -337,7 +357,10 @@ fn find_launcher_and_set_hidden() {
 /// 1. 通知 Topmost Service
 pub fn set_window_topmost(hwnd: HWND) {
     if let Ok(api_hwnd) = find_window_by_classname(s!("AlwaysOnTopWindow")) {
-        log::error!("Send Topmost Message To AlwaysOnTopWindow");
+        let win_text = get_window_text(hwnd).unwrap_or("unknown window".to_string());
+
+        log::info!("Send ({win_text}) Topmost Message To AlwaysOnTopWindow");
+
         unsafe {
             SendMessageA(api_hwnd, WM_USER, WPARAM::default(), LPARAM(hwnd.0));
         }
