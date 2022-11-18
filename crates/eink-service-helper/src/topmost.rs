@@ -13,6 +13,7 @@
 use std::sync::Arc;
 
 use eink_pipe_io::server::Socket;
+use if_chain::if_chain;
 use jsonrpc_lite::{Id, JsonRpc, Params};
 use log::info;
 use parking_lot::{Mutex, RwLock};
@@ -71,38 +72,39 @@ impl TopmostManager {
             .connect(move |id, req| -> JsonRpc {
                 info!("TopmostManager: On request");
                 match req.get_method() {
-                    Some("set_window_topmost") => {
-                        if let Some(Params::Map(map)) = req.get_params() {
-                            if let Some(hwnd) = map.get("hwnd") {
-                                if let Some(hwnd) = hwnd.as_i64() {
-                                    set_window_topmost(HWND(hwnd as isize));
+                    Some("set_window_topmost") => if_chain! {
+                        if let Some(Params::Map(map)) = req.get_params();
+                        if let Some(hwnd) = map.get("hwnd");
+                        if let Some(hwnd) = hwnd.as_i64();
+                        then {
+                            set_window_topmost(HWND(hwnd as isize));
 
-                                    // 调用 Windows 的置顶方法，需要在异步上下文进行，因为同步 RPC 会造成消息死锁
-                                    std::thread::spawn(move || unsafe {
-                                        SetWindowPos(
-                                            HWND(hwnd as isize),
-                                            HWND_TOPMOST,
-                                            0,
-                                            0,
-                                            0,
-                                            0,
-                                            SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE,
-                                        );
-                                    });
+                            // 调用 Windows 的置顶方法，需要在异步上下文进行，因为同步 RPC 会造成消息死锁
+                            std::thread::spawn(move || unsafe {
+                                SetWindowPos(
+                                    HWND(hwnd as isize),
+                                    HWND_TOPMOST,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE,
+                                );
+                            });
 
-                                    return jsonrpc_success_string(id, "true");
-                                }
-                            }
+                            return jsonrpc_success_string(id, "true");
+                        } else {
+                            jsonrpc_error_invalid_params(id)
                         }
-                        jsonrpc_error_invalid_params(id)
-                    }
+                    },
                     Some("unset_window_topmost") => {
-                        if let Some(Params::Map(map)) = req.get_params() {
-                            if let Some(hwnd) = map.get("hwnd") {
-                                if let Some(hwnd) = hwnd.as_u64() {
-                                    unset_window_topmost(HWND(hwnd as isize));
-                                    return jsonrpc_success_string(id, "true");
-                                }
+                        if_chain! {
+                            if let Some(Params::Map(map)) = req.get_params();
+                            if let Some(hwnd) = map.get("hwnd");
+                            if let Some(hwnd) = hwnd.as_u64();
+                            then {
+                                unset_window_topmost(HWND(hwnd as isize));
+                                return jsonrpc_success_string(id, "true");
                             }
                         }
                         jsonrpc_success_string(id, "true")
