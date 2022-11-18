@@ -135,9 +135,9 @@ pub fn run_service(_arguments: Vec<OsString>) -> anyhow::Result<()> {
 
     // 从这里开始，服务处于 START_PENDING 状态
 
-    // 启动服务助手
-    if let Err(_err) = SERVICE_HELPER.lock().start() {
-        log::error!("Error start SERVICE_HELPER")
+    // 启动 TCON 管理器
+    if let Err(_err) = TCON_SERVICE.lock().start() {
+        log::error!("Error start TCON_SERVICE")
     }
 
     // 启动键盘管理器
@@ -150,9 +150,9 @@ pub fn run_service(_arguments: Vec<OsString>) -> anyhow::Result<()> {
         log::error!("Error start TOPMOST_MANAGER")
     }
 
-    // 启动 TCON 管理器
-    if let Err(_err) = TCON_SERVICE.lock().start() {
-        log::error!("Error start TCON_SERVICE")
+    // 启动服务助手
+    if let Err(_err) = SERVICE_HELPER.lock().start() {
+        log::error!("Error start SERVICE_HELPER")
     }
 
     // 服务完整初始化，将服务切换为 RUNNING 状态

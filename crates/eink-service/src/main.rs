@@ -74,6 +74,8 @@ fn service_main(arguments: Vec<OsString>) -> anyhow::Result<()> {
     // 初始化日志系统
     eink_logger::init_with_level(log::Level::Trace)?;
 
+    log::info!("\n\nEinkService Start !\n\n");
+
     // 设置 PANIC 错误输出
     init_panic_output();
     init_working_dir().expect("Error reset working dir");
