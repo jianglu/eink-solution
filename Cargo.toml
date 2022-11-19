@@ -32,7 +32,7 @@ members = [
     "crates/eink-service",
     "crates/eink-service-api",
     "crates/eink-service-helper",
-    "crates/eink-service-runner",
+    # "crates/eink-service-runner",
 
     # 合成器 Composer 
     # "crates/eink-composer-lib",
