@@ -13,6 +13,7 @@
 use std::sync::Arc;
 
 use eink_pipe_io::server::Socket;
+use eink_winkits::get_window_text;
 use if_chain::if_chain;
 use jsonrpc_lite::{Id, JsonRpc, Params};
 use log::info;
@@ -77,10 +78,10 @@ impl TopmostManager {
                         if let Some(hwnd) = map.get("hwnd");
                         if let Some(hwnd) = hwnd.as_i64();
                         then {
-                            set_window_topmost(HWND(hwnd as isize));
-
-                            // 调用 Windows 的置顶方法，需要在异步上下文进行，因为同步 RPC 会造成消息死锁
                             std::thread::spawn(move || unsafe {
+                                set_window_topmost(HWND(hwnd as isize));
+
+                                // 调用 Windows 的置顶方法，需要在异步上下文进行，因为同步 RPC 会造成消息死锁
                                 SetWindowPos(
                                     HWND(hwnd as isize),
                                     HWND_TOPMOST,
@@ -91,7 +92,6 @@ impl TopmostManager {
                                     SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE,
                                 );
                             });
-
                             return jsonrpc_success_string(id, "true");
                         } else {
                             jsonrpc_error_invalid_params(id)
@@ -110,20 +110,28 @@ impl TopmostManager {
                         jsonrpc_success_string(id, "true")
                     }
                     Some("clear_all_windows_topmost") => {
+                        // let this2 = this2.clone();
+                        // // std::thread::spawn(move || {
                         this2.lock().clear_current_topmost_window();
-                        crate::mode_manager::clear_all_windows_topmost();
+                        // crate::mode_manager::clear_all_windows_topmost();
+                        // });
                         jsonrpc_success_string(id, "true")
                     }
                     Some("adjust_topmost_on_app_launched") => {
-                        if let Some(Params::Map(map)) = req.get_params() {
-                            if let Some(pid) = map.get("pid") {
-                                if let Some(_pid) = pid.as_u64() {
+                        if_chain! {
+                            if let Some(Params::Map(map)) = req.get_params();
+                            if let Some(pid) = map.get("pid");
+                            if let Some(_pid) = pid.as_u64();
+                            then {
+                                let this2 = this2.clone();
+                                std::thread::spawn(move || {
                                     this2.lock().adjust_topmost_on_app_launched();
-                                    return jsonrpc_success_string(id, "true");
-                                }
+                                });
+                                jsonrpc_success_string(id, "true")
+                            } else {
+                                jsonrpc_error_invalid_params(id)
                             }
                         }
-                        jsonrpc_success_string(id, "true")
                     }
                     // 临时
                     Some("switch_eink_oled_display") => {
@@ -145,16 +153,28 @@ impl TopmostManager {
     /// 2. 将当前前台应用设为置顶窗口
     fn adjust_topmost_on_app_launched(&mut self) {
         let curr_hwnd = self.curr_topmost_hwnd.clone();
+
         self.rt.spawn(async move {
             if let Some(hwnd) = curr_hwnd.lock().take() {
+                log::info!(
+                    "unset topmost and hide 'curr_topmost_hwnd': {:?}",
+                    get_window_text(hwnd)
+                );
+
                 unset_window_topmost(hwnd);
-                crate::win_utils::set_window_minimize(hwnd);
+                // 将最小化调整为隐藏
+                crate::win_utils::set_window_hidden(hwnd);
             }
 
             // 2s 后
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
             let hwnd_in_2s = unsafe { GetForegroundWindow() };
+
+            log::info!(
+                "After 2s, foreground window is : {:?}",
+                get_window_text(hwnd_in_2s)
+            );
 
             if hwnd_in_2s != HWND(0) {
                 if let Ok(launcher_hwnd) = find_window_by_title(s!(
@@ -164,11 +184,17 @@ impl TopmostManager {
                     if hwnd_in_2s != launcher_hwnd {
                         set_window_topmost(hwnd_in_2s);
                         curr_hwnd.lock().replace(hwnd_in_2s);
+
+                        log::info!(
+                            "Set foreground window '{:?}' to curr_topmost_hwnd",
+                            get_window_text(hwnd_in_2s)
+                        );
                     }
                 }
             }
 
             // 重新置顶悬浮球
+            log::info!("find_floating_button_and_set_topmost");
             crate::mode_manager::find_floating_button_and_set_topmost();
         });
     }
