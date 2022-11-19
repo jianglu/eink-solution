@@ -74,10 +74,11 @@ pub fn eink_software_reset_tcon() -> u32 {
     ensure_tcon_client();
     let mut guard = TCON_CLIENT.lock();
     if let Some(client) = guard.as_mut() {
-        let reply = client
-            .call_with_params("software_reset_api", json!({}))
-            .expect("Cannot invoke remote method to tcon service");
-        info!("eink_software_reset_tcon: result: {:?}", reply.get_result());
+        if let Ok(reply) = client.call_with_params("software_reset_api", json!({})) {
+            log::info!("eink_software_reset_tcon: result: {:?}", reply.get_result());
+        } else {
+            log::error!("Cannot invoke remote method to tcon service")
+        }
     }
     0
 }
