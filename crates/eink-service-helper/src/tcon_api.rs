@@ -16,7 +16,7 @@ use eink_pipe_io::blocking::BlockingClient;
 use log::{error, info};
 use parking_lot::Mutex;
 use serde_json::json;
-use windows::Win32::Foundation::{GetLastError, HINSTANCE};
+use windows::Win32::Foundation::{GetLastError, SetLastError, HINSTANCE, NO_ERROR};
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 const TCON_PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\tcon";
@@ -27,8 +27,10 @@ const TCON_PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\tcon";
 pub static TCON_CLIENT: Mutex<Option<BlockingClient>> = Mutex::new(None);
 
 /// 检查链接状态
-fn ensure_tcon_client() {
+fn connect_tcon_client() {
     let mut guard = TCON_CLIENT.lock();
+
+    unsafe { SetLastError(NO_ERROR) };
 
     if guard.is_none() {
         let client = eink_pipe_io::blocking::connect(TCON_PIPE_NAME);
@@ -43,41 +45,79 @@ fn ensure_tcon_client() {
     }
 }
 
+pub fn disconnect_tcon_client() {
+    let mut guard = TCON_CLIENT.lock();
+    let _client = guard.take();
+}
+
 /// 设置 Eink 刷新
 pub fn eink_refresh() -> u32 {
-    ensure_tcon_client();
-    let mut guard = TCON_CLIENT.lock();
-    if let Some(client) = guard.as_mut() {
-        let reply = client
-            .call_with_params("refresh", json!({}))
-            .expect("Cannot invoke remote method to tcon service");
-        info!("eink_refresh: result: {:?}", reply.get_result());
+    for _ in 0..2 {
+        connect_tcon_client();
+        let mut guard = TCON_CLIENT.lock();
+        if let Some(client) = guard.as_mut() {
+            match client.call_with_params("refresh", json!({})) {
+                Ok(reply) => {
+                    log::info!("eink_refresh: result: {:?}", reply.get_result());
+                    break;
+                }
+                Err(err) => {
+                    log::error!("Cannot invoke remote method to tcon service: err: {err:?}");
+
+                    // 发生错误，断开链接, 再次尝试
+                    disconnect_tcon_client();
+                    continue;
+                }
+            }
+        }
     }
     0
 }
 
 /// 设置 Eink MIPI Mode
 pub fn eink_set_mipi_mode(mode: u32) -> u32 {
-    ensure_tcon_client();
-    let mut guard = TCON_CLIENT.lock();
-    if let Some(client) = guard.as_mut() {
-        let reply = client
-            .call_with_params("set_mipi_mode", json!({ "mode": mode }))
-            .expect("Cannot invoke remote method to tcon service");
-        info!("eink_set_mipi_mode: result: {:?}", reply.get_result());
+    for _ in 0..2 {
+        connect_tcon_client();
+        let mut guard = TCON_CLIENT.lock();
+        if let Some(client) = guard.as_mut() {
+            match client.call_with_params("set_mipi_mode", json!({ "mode": mode })) {
+                Ok(reply) => {
+                    log::info!("eink_set_mipi_mode: result: {:?}", reply.get_result());
+                    break;
+                }
+                Err(err) => {
+                    log::error!("Cannot invoke remote method to tcon service: err: {err:?}");
+
+                    // 发生错误，断开链接, 再次尝试
+                    disconnect_tcon_client();
+                    continue;
+                }
+            }
+        }
     }
     0
 }
 
-/// 软件启动tcon
+/// 软件启动 TCON
+/// 重试 2 次
 pub fn eink_software_reset_tcon() -> u32 {
-    ensure_tcon_client();
-    let mut guard = TCON_CLIENT.lock();
-    if let Some(client) = guard.as_mut() {
-        if let Ok(reply) = client.call_with_params("software_reset_api", json!({})) {
-            log::info!("eink_software_reset_tcon: result: {:?}", reply.get_result());
-        } else {
-            log::error!("Cannot invoke remote method to tcon service")
+    for _ in 0..2 {
+        connect_tcon_client();
+        let mut guard = TCON_CLIENT.lock();
+        if let Some(client) = guard.as_mut() {
+            match client.call_with_params("software_reset_api", json!({})) {
+                Ok(reply) => {
+                    log::info!("eink_software_reset_tcon: result: {:?}", reply.get_result());
+                    break;
+                }
+                Err(err) => {
+                    log::error!("Cannot invoke remote method to tcon service: err: {err:?}");
+
+                    // 发生错误，断开链接, 再次尝试
+                    disconnect_tcon_client();
+                    continue;
+                }
+            }
         }
     }
     0
@@ -85,13 +125,23 @@ pub fn eink_software_reset_tcon() -> u32 {
 
 /// 设置 Eink 显示关机壁纸
 pub fn eink_show_shutdown_cover() -> u32 {
-    ensure_tcon_client();
-    let mut guard = TCON_CLIENT.lock();
-    if let Some(client) = guard.as_mut() {
-        if let Ok(reply) = client.call_with_params("show_shutdown_cover", json!({})) {
-            info!("eink_show_shutdown_cover: result: {:?}", reply.get_result());
-        } else {
-            log::error!("Cannot invoke remote method to tcon service");
+    for _ in 0..2 {
+        connect_tcon_client();
+        let mut guard = TCON_CLIENT.lock();
+        if let Some(client) = guard.as_mut() {
+            match client.call_with_params("show_shutdown_cover", json!({})) {
+                Ok(reply) => {
+                    log::info!("eink_show_shutdown_cover: result: {:?}", reply.get_result());
+                    break;
+                }
+                Err(err) => {
+                    log::error!("Cannot invoke remote method to tcon service: err: {err:?}");
+
+                    // 发生错误，断开链接, 再次尝试
+                    disconnect_tcon_client();
+                    continue;
+                }
+            }
         }
     }
     0
@@ -107,20 +157,30 @@ pub fn eink_set_shutdown_cover(path: *const u16, disp_type: u32) -> u32 {
         &path, disp_type
     );
 
-    ensure_tcon_client();
-    let mut guard = TCON_CLIENT.lock();
-    if let Some(client) = guard.as_mut() {
-        let reply = client
-            .call_with_params(
+    for _ in 0..2 {
+        connect_tcon_client();
+        let mut guard = TCON_CLIENT.lock();
+        if let Some(client) = guard.as_mut() {
+            match client.call_with_params(
                 "set_shutdown_cover",
                 json!({
                     "path": path,
                     "type": disp_type
                 }),
-            )
-            .expect("Cannot invoke remote method to tcon service");
+            ) {
+                Ok(reply) => {
+                    log::info!("eink_set_shutdown_cover: result: {:?}", reply.get_result());
+                    break;
+                }
+                Err(err) => {
+                    log::error!("Cannot invoke remote method to tcon service: err: {err:?}");
 
-        info!("eink_set_shutdown_cover: result: {:?}", reply.get_result());
+                    // 发生错误，断开链接, 再次尝试
+                    disconnect_tcon_client();
+                    continue;
+                }
+            }
+        }
     }
 
     0
@@ -128,13 +188,24 @@ pub fn eink_set_shutdown_cover(path: *const u16, disp_type: u32) -> u32 {
 
 /// 设置 Eink 显示关机壁纸
 pub fn eink_start_lockscreen_note() -> u32 {
-    ensure_tcon_client();
-    let mut guard = TCON_CLIENT.lock();
-    if let Some(client) = guard.as_mut() {
-        let reply = client
-            .call_with_params("start_lockscreen_note", json!({}))
-            .expect("Cannot invoke remote method to tcon service");
-        info!("start_lockscreen_note: result: {:?}", reply.get_result());
+    for _ in 0..2 {
+        connect_tcon_client();
+        let mut guard = TCON_CLIENT.lock();
+        if let Some(client) = guard.as_mut() {
+            match client.call_with_params("start_lockscreen_note", json!({})) {
+                Ok(reply) => {
+                    log::info!("start_lockscreen_note: result: {:?}", reply.get_result());
+                    break;
+                }
+                Err(err) => {
+                    log::error!("Cannot invoke remote method to tcon service: err: {err:?}");
+
+                    // 发生错误，断开链接, 再次尝试
+                    disconnect_tcon_client();
+                    continue;
+                }
+            }
+        }
     }
     0
 }
@@ -153,23 +224,33 @@ pub fn eink_set_tp_mask_area(
     y1: u32,
     y2: u32,
 ) -> u32 {
-    ensure_tcon_client();
-    let mut guard = TCON_CLIENT.lock();
-    if let Some(client) = guard.as_mut() {
-        if let Ok(reply) = client.call_with_params(
-            "set_tp_mask_area",
-            json!({
-                "pen_style": pen_style,
-                "area_id": area_id,
-                "x1": x1,
-                "x2": x2,
-                "y1": y1,
-                "y2": y2,
-            }),
-        ) {
-            log::info!("eink_set_tp_mask_area: result: {:?}", reply.get_result());
-        } else {
-            log::error!("Cannot invoke remote method to tcon service");
+    for _ in 0..2 {
+        connect_tcon_client();
+        let mut guard = TCON_CLIENT.lock();
+        if let Some(client) = guard.as_mut() {
+            match client.call_with_params(
+                "set_tp_mask_area",
+                json!({
+                    "pen_style": pen_style,
+                    "area_id": area_id,
+                    "x1": x1,
+                    "x2": x2,
+                    "y1": y1,
+                    "y2": y2,
+                }),
+            ) {
+                Ok(reply) => {
+                    log::info!("eink_set_tp_mask_area: result: {:?}", reply.get_result());
+                    break;
+                }
+                Err(err) => {
+                    log::error!("Cannot invoke remote method to tcon service: err: {err:?}");
+
+                    // 发生错误，断开链接, 再次尝试
+                    disconnect_tcon_client();
+                    continue;
+                }
+            }
         }
     }
     0
