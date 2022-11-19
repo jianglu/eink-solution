@@ -553,14 +553,15 @@ pub fn get_process_id_by_name(name: &str) -> anyhow::Result<u32> {
                 SHGFI_ICON | SHGFI_SMALLICON,
             );
 
-            info!("pinfo.szExeFile: {:?}", pinfo.szExeFile);
-            info!("name16: {:?}", name16);
+            // info!("pinfo.szExeFile: {:?}", pinfo.szExeFile);
+            // info!("name16: {:?}", name16);
 
             if 0 == libc::memcmp(
                 pinfo.szExeFile.as_ptr() as *const c_void,
                 name16.as_ptr() as *const c_void,
                 name16.len() * size_of::<u16>(),
             ) {
+                info!("Found Process: {:?}", name16);
                 return Ok(pinfo.th32ProcessID);
             }
 
