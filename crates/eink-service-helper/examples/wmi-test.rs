@@ -13,13 +13,21 @@
 use anyhow::Result;
 use std::mem::zeroed;
 use windows::{
-    core::{IUnknown, PCWSTR},
+    core::{IUnknown, InParam, BSTR, PCWSTR},
     s, w,
     Win32::{
         Foundation::{COLORREF, HWND},
-        System::Com::{
-            self, CLSIDFromString, CoCreateInstance, CoCreateInstanceEx, CoInitializeEx,
-            CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED,
+        Security::PSECURITY_DESCRIPTOR,
+        System::{
+            Com::{
+                self, CLSIDFromString, CoCreateInstance, CoCreateInstanceEx, CoInitializeEx,
+                CoInitializeSecurity, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, EOAC_NONE,
+                RPC_C_AUTHN_LEVEL_DEFAULT, RPC_C_IMP_LEVEL_IMPERSONATE,
+            },
+            Wmi::{
+                IWbemCallResult, IWbemClassObject, IWbemLocator, WbemLocator,
+                WBEM_FLAG_RETURN_WBEM_COMPLETE,
+            },
         },
         UI::{
             Shell::{ITaskbarList, ITaskbarList2, ITaskbarList3, ITaskbarList4},
@@ -32,42 +40,62 @@ use windows::{
     },
 };
 
-pub fn make_window_invisable(hwnd: HWND) -> Result<()> {
-    unsafe {
-        let clsid_taskbar_list = CLSIDFromString(w!("{56FDF344-FD6D-11d0-958A-006097C9A090}"))?;
-
-        let taskbar_list: ITaskbarList4 =
-            CoCreateInstance(&clsid_taskbar_list, None, CLSCTX_INPROC_SERVER)?;
-
-        // 设置窗口风格 WS_EX_LAYERED + WS_EX_TRANSPARENT
-        let exstyle = WINDOW_EX_STYLE(GetWindowLongW(hwnd, GWL_EXSTYLE) as u32);
-        SetWindowLongW(
-            hwnd,
-            GWL_EXSTYLE,
-            (exstyle.0 | WS_EX_LAYERED.0 | WS_EX_TRANSPARENT.0) as i32,
-        );
-
-        // 设置透明度w
-        SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_ALPHA);
-
-        // 从任务栏上删除 Icon
-        taskbar_list.DeleteTab(hwnd);
-    }
-
-    Ok(())
-}
-
 /// 服务助手程序
 fn main() -> Result<()> {
     unsafe {
-        CoInitializeEx(None, COINIT_MULTITHREADED);
-        let magui_hwnd = FindWindowA(s!("MagUIClass"), None);
-        make_window_invisable(magui_hwnd);
+        CoInitializeEx(None, COINIT_MULTITHREADED)?;
+
+        CoInitializeSecurity(
+            PSECURITY_DESCRIPTOR::default(),
+            -1,
+            None,
+            None,
+            RPC_C_AUTHN_LEVEL_DEFAULT,
+            RPC_C_IMP_LEVEL_IMPERSONATE,
+            None,
+            EOAC_NONE,
+            None,
+        )?;
+
+        let locator: IWbemLocator = CoCreateInstance(&WbemLocator, None, CLSCTX_INPROC_SERVER)?;
+
+        let server = locator.ConnectServer(
+            &BSTR::from("root\\wmi"),
+            &BSTR::new(),
+            &BSTR::new(),
+            &BSTR::new(),
+            0,
+            &BSTR::new(),
+            None,
+        )?;
+
+        let mut class: Option<IWbemClassObject> = None;
+
+        // Get the class object for the method definition.
+        let _hr = server.GetObject(
+            &BSTR::from("LENOVO_TB_G4_CTRL"),
+            0,
+            None,
+            Some(&mut class),
+            None,
+        )?;
+
+        let inst = class.unwrap().SpawnInstance(0)?;
+
+        let mut result: Option<IWbemClassObject> = None;
+
+        let _hr = server.ExecMethod(
+            &BSTR::from("LENOVO_TB_G4_CTRL"),
+            &BSTR::from("GetEinkLightLevel"),
+            0,
+            None,
+            Some(&inst),
+            Some(&mut result),
+            None,
+        )?;
+
+        println!("LENOVO_TB_G4_CTRL.GetEinkLightLevel: {result:?}");
     }
 
     Ok(())
 }
-
-// CLSID_TaskbarList:TGUID='{56FDF344-FD6D-11d0-958A-006097C9A090}';
-
-// IID_ITaskbarList:TGUID='{602D4995-B13A-429b-A66E-1935E44F4317}';
