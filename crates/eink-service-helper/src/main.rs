@@ -229,7 +229,8 @@ pub fn switch_eink_oled_display() {
 /// 初始化 Panic 的输出为 OutputDebugString
 fn init_panic_output() {
     std::panic::set_hook(Box::new(|info| {
-        log::error!("PANIC: {:?}", info);
+        let backtrace = std::backtrace::Backtrace::capture();
+        log::error!("PANIC: {:?}\nBACKTRACE: {:?}", info, backtrace);
     }));
 }
 
