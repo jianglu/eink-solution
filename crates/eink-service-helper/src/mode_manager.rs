@@ -21,7 +21,7 @@ use parking_lot::Mutex;
 use windows::s;
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    SendMessageA, SetWindowPos, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE,
+    PostMessageA, SendMessageA, SetWindowPos, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE,
     SWP_SHOWWINDOW, WM_USER,
 };
 
@@ -367,7 +367,7 @@ pub fn set_window_topmost(hwnd: HWND) {
         log::info!("Send ({win_text}) Topmost Message To AlwaysOnTopWindow");
 
         unsafe {
-            SendMessageA(api_hwnd, WM_USER, WPARAM::default(), LPARAM(hwnd.0));
+            PostMessageA(api_hwnd, WM_USER, WPARAM::default(), LPARAM(hwnd.0));
         }
     }
 }
@@ -378,7 +378,7 @@ pub fn clear_all_windows_topmost() {
     if let Ok(api_hwnd) = find_window_by_classname(s!("AlwaysOnTopWindow")) {
         log::error!("Send Clear Topmost Message To AlwaysOnTopWindow");
         unsafe {
-            SendMessageA(api_hwnd, WM_USER + 2, WPARAM::default(), LPARAM::default());
+            PostMessageA(api_hwnd, WM_USER + 2, WPARAM::default(), LPARAM::default());
         }
     }
 }
