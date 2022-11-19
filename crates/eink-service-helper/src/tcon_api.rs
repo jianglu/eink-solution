@@ -137,3 +137,39 @@ pub fn eink_start_lockscreen_note() -> u32 {
     }
     0
 }
+
+pub const TOUCH_EVENT_NO_REPORT: u32 = 0x70;
+pub const TOUCH_EVENT_PEN_ONLY: u32 = 0x60;
+pub const TOUCH_EVENT_TOUCH_ONLY: u32 = 0x50;
+pub const TOUCH_EVENT_BOTH: u32 = 0x40;
+
+/// 设置 Eink 触摸区域
+pub fn eink_set_tp_mask_area(
+    pen_style: u32,
+    area_id: u32,
+    x1: u32,
+    x2: u32,
+    y1: u32,
+    y2: u32,
+) -> u32 {
+    ensure_tcon_client();
+    let mut guard = TCON_CLIENT.lock();
+    if let Some(client) = guard.as_mut() {
+        if let Ok(reply) = client.call_with_params(
+            "set_tp_mask_area",
+            json!({
+                "pen_style": pen_style,
+                "area_id": area_id,
+                "x1": x1,
+                "x2": x2,
+                "y1": y1,
+                "y2": y2,
+            }),
+        ) {
+            log::info!("eink_set_tp_mask_area: result: {:?}", reply.get_result());
+        } else {
+            log::error!("Cannot invoke remote method to tcon service");
+        }
+    }
+    0
+}

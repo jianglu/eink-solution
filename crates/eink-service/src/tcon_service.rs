@@ -167,6 +167,47 @@ impl TconService {
                     unsafe { ITEResetTcon() };
                     jsonrpc_success_string(id, "true")
                 }
+                Some("set_tp_mask_area") => {
+                    info!("TconService: set_tp_mask_area");
+
+                    if !tcon_avail {
+                        return jsonrpc_error_internal_error(id);
+                    }
+
+                    if_chain! {
+                        if let Some(Params::Map(map)) = req.get_params();
+                        if let Some(pen_style) = map.get("pen_style");
+                        if let Some(pen_style) = pen_style.as_u64();
+                        if let Some(area_id) = map.get("area_id");
+                        if let Some(area_id) = area_id.as_u64();
+                        if let Some(x1) = map.get("x1");
+                        if let Some(x1) = x1.as_u64();
+                        if let Some(x2) = map.get("x2");
+                        if let Some(x2) = x2.as_u64();
+                        if let Some(y1) = map.get("y1");
+                        if let Some(y1) = y1.as_u64();
+                        if let Some(y2) = map.get("y2");
+                        if let Some(y2) = y2.as_u64();
+                        then {
+                            let tcon_device = tcon_device.clone();
+                            let thr = std::thread::spawn(move || {
+                                tcon_device
+                                    .write()
+                                    .set_tp_mask_area(
+                                        pen_style as u32,
+                                        area_id as u32,
+                                        x1 as u32,
+                                        x2 as u32,
+                                        y1 as u32,
+                                        y2 as u32)
+                            });
+                            let _ = thr.join();
+                            return jsonrpc_success_string(id, "true");
+                        } else {
+                            return jsonrpc_error_invalid_params(id);
+                        }
+                    }
+                }
                 Some(&_) => jsonrpc_error_method_not_found(id),
                 None => jsonrpc_error_internal_error(id),
             }

@@ -197,8 +197,10 @@ impl ModeManager {
         // GI_MIPI_HYBRID = 0xF0;
         tcon_api::eink_set_mipi_mode(0xF0);
 
-        log::info!("switch_to_eink_launcher_mode completed");
+        // 设置 EINK 触摸区域
+        tcon_api::eink_set_tp_mask_area(tcon_api::TOUCH_EVENT_BOTH, 1, 0, 2560, 0, 1600);
 
+        log::info!("switch_to_eink_launcher_mode completed");
     }
 
     // 切换搭配 OLED Windows 桌面模式
@@ -211,6 +213,9 @@ impl ModeManager {
         std::thread::sleep(std::time::Duration::from_millis(100));
 
         set_monitor_specialized(&eink_monitor_id, true).unwrap();
+
+        // 设置 EINK 触摸区域
+        tcon_api::eink_set_tp_mask_area(tcon_api::TOUCH_EVENT_NO_REPORT, 1, 0, 2560, 0, 1600);
 
         // OLED 桌面模式采用 Hybrid Browser 模式
 

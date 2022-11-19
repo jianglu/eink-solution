@@ -21,8 +21,9 @@ use crate::{
     DisableLoadImg, EiTurn180, EicConvertToT1000Format, EicLoadImage, EicReleaseImage,
     EnableLoadImg, ITECleanUpEInkAPI, ITECloseDeviceAPI, ITEDisplayAreaAPI,
     ITEGetBufferAddrInfoAPI, ITEGetDriveNo, ITEGetSystemInfoAPI, ITELoadImage, ITEOpenDeviceAPI,
-    ITESetMIPIModeAPI, RecoveryLoadImg, StopLoadImg, EIMC_GRAY16, EIMC_IMG_FILL, GI_MIPI_BROWSER,
-    GI_MIPI_FAST_READER, GI_MIPI_HYBRID, GI_MIPI_READER, TRSP_SYSTEM_INFO_DATA,ITEResetTcon,
+    ITEResetTcon, ITESetMIPIModeAPI, ITESetTPMaskArea, RecoveryLoadImg, StopLoadImg, EIMC_GRAY16,
+    EIMC_IMG_FILL, GI_MIPI_BROWSER, GI_MIPI_FAST_READER, GI_MIPI_HYBRID, GI_MIPI_READER,
+    TRSP_SYSTEM_INFO_DATA,
 };
 
 pub struct IteTconDevice {
@@ -257,5 +258,20 @@ impl IteTconDevice {
             self.set_gybrid_mode();
             unsafe { EicReleaseImage(img_buf) };
         }
+    }
+
+    /// 设置 Eink TP 区域
+    pub fn set_tp_mask_area(
+        &self,
+        pen_style: u32,
+        area_id: u32,
+        x1: u32,
+        x2: u32,
+        y1: u32,
+        y2: u32,
+    ) -> u32 {
+        info!("set_tp_mask_area {pen_style} {area_id} {x1} {x2} {y1} {y2}");
+
+        unsafe { ITESetTPMaskArea(pen_style, area_id, x1, x2, y1, y2) }
     }
 }

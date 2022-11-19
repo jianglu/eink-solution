@@ -85,6 +85,14 @@ extern "system" {
         mem_addr: u32,
         wait_ready: u32,
     ) -> u32;
+    pub fn ITESetTPMaskArea(
+        dwPenStyle: u32,
+        dwAreaID: u32,
+        dwX1: u32,
+        dwX2: u32,
+        dwY1: u32,
+        dwY2: u32,
+    ) -> u32;
 }
 
 #[test]
