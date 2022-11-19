@@ -16,17 +16,19 @@
 // 使用 windows subsystem 子系统
 // #![cfg_attr(not(test), windows_subsystem = "windows")]
 
+#![recursion_limit = "1024"]
+
 ///////////////////////////////////////////////////////////////////////////////
 /// Mods
 ///
 mod keyboard_manager;
 mod service_helper;
+mod service_main;
 mod settings;
 mod tcon_service;
 mod topmost_manager;
 mod utils;
 mod win_utils;
-mod service_main;
 
 use std::ffi::OsString;
 
@@ -48,7 +50,8 @@ use crate::topmost_manager::TOPMOST_MANAGER;
 /// 初始化 Panic 的输出为 OutputDebugString
 fn init_panic_output() {
     std::panic::set_hook(Box::new(|info| {
-        log::error!("PANIC: {:?}", info);
+        let backtrace = std::backtrace::Backtrace::capture();
+        log::error!("PANIC: {:?}\nBACKTRACE: {:?}", info, backtrace);
     }));
 }
 
