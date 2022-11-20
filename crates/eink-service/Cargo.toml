@@ -5,6 +5,12 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+
+# [[bin]]
+# name = "EinkService"
+# path = "src/main.rs"
+
+
 [dependencies]
 anyhow = "1.0"
 log = { version = "0.4", features = ["kv_unstable"] }
@@ -72,6 +78,9 @@ hidapi = "1.4.2"
 ntapi = "0.4.0"
 ctrlc = { version = "3.2", features = ["termination"] }
 
+# A build-time information stored in your rust project
+shadow-rs = "0.16.3"
+
 [dependencies.winapi]
 version = "0.3"
 features = [
@@ -137,3 +146,4 @@ features = [
 
 [build-dependencies]
 embed-resource = "1.7"
+shadow-rs = "0.16.3"

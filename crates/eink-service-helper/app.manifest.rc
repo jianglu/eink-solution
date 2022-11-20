@@ -13,7 +13,7 @@ BEGIN
             VALUE "CompanyName", "Lenovo"
             VALUE "FileDescription", "Lenovo ThinkBook Eink Service Helper"
             VALUE "FileVersion", "6000"
-            VALUE "InternalName", "eink-service"
+            VALUE "InternalName", "eink-service-helper"
             VALUE "LegalCopyright", "Lenovo Copyright"
             VALUE "LegalTrademarks", "Lenovo ThinkBook"
             VALUE "OriginalFilename", "eink-service-helper.exe"

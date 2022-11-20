@@ -22,11 +22,11 @@ fn main() {
     // shadow_rs::tag();
     // shadow_rs::build_channel().to_string();
 
-    println!("cargo:warning={}", shadow_rs::is_debug());
+    // println!("cargo:warning={}", shadow_rs::is_debug());
 
-    for (k, v) in shadow.map.iter() {
-        println!("cargo:warning=[{k}] : {:?}", &v);
-    }
+    // for (k, v) in shadow.map.iter() {
+    //     println!("cargo:warning=[{k}] : {:?}", &v);
+    // }
 
     let out_dir = std::env::var_os("OUT_DIR").unwrap();
 
@@ -52,12 +52,13 @@ fn main() {
 
     // "2022-11-19T10:38:20Z" ->  "2022,11,19,103820"
     let commit_date = shadow.map.get("COMMIT_DATE_3339").unwrap();
-    let file_version = commit_date
+    let mut file_version = commit_date
         .v
         .replace("-", ",")
         .replace("T", ",")
         .replace(":", "")
         .replace("Z", "");
+    file_version.truncate(15);
 
     // FILEVERSION    0,1,0,16384
     // PRODUCTVERSION 1,0,0,0
