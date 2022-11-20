@@ -106,21 +106,13 @@ pub fn switch_eink_oled_display() {
     // });
 }
 
-/// 初始化 Panic 的输出为 OutputDebugString
-fn init_panic_output() {
-    std::panic::set_hook(Box::new(|info| {
-        let backtrace = std::backtrace::Backtrace::capture();
-        log::error!("PANIC: {:?}\nBACKTRACE: {:?}", info, backtrace);
-    }));
-}
-
 static LAST_MODE: AtomicU32 = AtomicU32::new(u32::MAX);
 
 fn main() -> AnyResult<()> {
     // 设置当前的活动日志系统为 OutputDebugString 输出
     eink_logger::init_with_level(log::Level::Trace)?;
 
-    init_panic_output();
+    eink_logger::init_panic_output();
 
     let mut opt = Opt::from_args();
 
