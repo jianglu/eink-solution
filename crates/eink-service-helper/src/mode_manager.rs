@@ -24,6 +24,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     PostMessageA, SendMessageA, SetWindowPos, HWND_NOTOPMOST, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE,
     SWP_SHOWWINDOW, WM_USER,
 };
+use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_ALL_ACCESS};
+use winreg::RegKey;
 
 use crate::settings::SETTINGS;
 use crate::specialized::set_monitor_specialized;
@@ -93,6 +95,13 @@ impl ModeManager {
                             break 'inner;
                         }
                     }
+                }
+
+                // 切屏幕之前，保存当前 Foreground Window
+                if let Ok(fg_hwnd) = crate::win_utils::get_foreground_window() {
+                    save_foreground_window_to_registry(fg_hwnd);
+                } else {
+                    save_foreground_window_to_registry(HWND(0));
                 }
 
                 // 此时拿到了队列中最新的 Mode，进入这个模式
@@ -381,4 +390,28 @@ pub fn clear_all_windows_topmost() {
             PostMessageA(api_hwnd, WM_USER + 2, WPARAM::default(), LPARAM::default());
         }
     }
+}
+
+/// 将当前显示模式保存到注册表
+pub fn save_foreground_window_to_registry(hwnd: HWND) {
+    let key_path = r#"SOFTWARE\Lenovo\ThinkBookEinkPlus"#;
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+
+    let mut key = hklm.open_subkey_with_flags(key_path, KEY_ALL_ACCESS);
+
+    if key.is_err() {
+        // Maybe notfound, ignore any error
+        let _ = hklm.create_subkey(key_path);
+
+        key = hklm.open_subkey(key_path);
+        if key.is_err() {
+            // 多次错误，只能退出，输出到日志
+            log::error!("Cannot open '{}' registry subkey", key_path);
+            return;
+        }
+    }
+
+    let key = key.unwrap();
+    key.set_value("LastForegroundWindow", &(hwnd.0 as u32))
+        .expect("Cannot save 'LastForegroundWindow' to registry");
 }

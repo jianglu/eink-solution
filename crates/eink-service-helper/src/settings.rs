@@ -51,7 +51,7 @@ pub static SETTINGS: RwLock<Config> = {
 fn test_settings() {
     use std::collections::HashMap;
 
-    let settings = SETTINGS.read().unwrap().clone();
+    let settings = SETTINGS.read().clone();
     // Print out our settings (as a HashMap)
     println!(
         "{:?}",

@@ -1,3 +1,4 @@
+use std::ffi::CStr;
 //
 // Copyright (C) Lenovo ThinkBook Gen4 Project.
 //
@@ -23,6 +24,7 @@ use windows::Win32::Foundation::{
     CloseHandle, GetLastError, BOOL, HANDLE, HWND, INVALID_HANDLE_VALUE, LPARAM, NO_ERROR,
     WIN32_ERROR,
 };
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWM_CLOAKED_SHELL};
 use windows::Win32::Security::{
     DuplicateTokenEx, GetTokenInformation, SecurityIdentification, SecurityImpersonation,
     SetTokenInformation, TokenLinkedToken, TokenPrimary, TokenSessionId, TOKEN_ADJUST_PRIVILEGES,
@@ -50,8 +52,9 @@ use windows::Win32::UI::Shell::{
     SHFILEINFOW, SHGFI_ICON, SHGFI_SMALLICON,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    FindWindowA, FindWindowW, GetDesktopWindow, ShowWindow, SW_HIDE, SW_MAXIMIZE, SW_MINIMIZE,
-    SW_SHOW,
+    FindWindowA, FindWindowW, GetAncestor, GetClassNameA, GetClassNameW, GetDesktopWindow,
+    GetForegroundWindow, GetWindowLongW, ShowWindow, GA_ROOT, GWL_EXSTYLE, GWL_STYLE, SW_HIDE,
+    SW_MAXIMIZE, SW_MINIMIZE, SW_SHOW, WS_DISABLED, WS_EX_TOOLWINDOW,
 };
 
 /// 通过进程名获取进程 PID
@@ -558,5 +561,82 @@ pub fn set_window_minimize(hwnd: HWND) {
         // ignore
     } else {
         log::error!("Cannot hide launcher window");
+    }
+}
+
+/// 查找当前前端窗口
+pub fn get_foreground_window() -> anyhow::Result<HWND> {
+    // Retrieves a handle to the foreground window
+    // The return value is a handle to the foreground window.
+    // The foreground window can be NULL in certain circumstances,
+    // such as when a window is losing activation.
+    let hwnd = unsafe { GetForegroundWindow() };
+
+    let style = unsafe { GetWindowLongW(hwnd, GWL_STYLE) };
+    if style & (WS_DISABLED.0 as i32) == 1 {
+        bail!("Foreground window is WS_DISABLED");
+    }
+
+    // No tooltips
+    let ex_style = unsafe { GetWindowLongW(hwnd, GWL_EXSTYLE) };
+    if ex_style & (WS_EX_TOOLWINDOW.0 as i32) == 1 {
+        bail!("Foreground window is WS_EX_TOOLWINDOW");
+    }
+
+    let ancestor = unsafe { GetAncestor(hwnd, GA_ROOT) };
+    if ancestor != hwnd {
+        let mut ancestor_class: [u8; 256] = unsafe { std::mem::zeroed() };
+        unsafe { GetClassNameA(ancestor, &mut ancestor_class) };
+
+        let class_name = unsafe { CStr::from_ptr(ancestor_class.as_ptr() as *const _) };
+
+        // println!("class_name.to_bytes(): {:?}", class_name.to_bytes());
+
+        if class_name.to_bytes() != "ApplicationFrameWindow".as_bytes() {
+            bail!("Ancestor classname is not ApplicationFrameWindow");
+        }
+    }
+
+    let mut class_name = [0u16; 512];
+    unsafe { GetClassNameW(hwnd, &mut class_name) };
+    let mut class_name = String::from_utf16_lossy(&class_name);
+
+    // Truncate to first null char
+    if let Some(index) = class_name.find('\0') {
+        class_name.truncate(index);
+    }
+
+    // Check to see if the self is cloaked if it's a UWP
+    if class_name == "Windows.UI.Core.CoreWindow" || class_name == "ApplicationFrameWindow" {
+        let mut cloaked: u32 = 0;
+        let ret = unsafe {
+            DwmGetWindowAttribute(
+                hwnd,
+                DWMWA_CLOAKED,
+                &mut cloaked as *mut _ as *mut _,
+                std::mem::size_of::<u32>() as u32,
+            )
+        };
+        if ret.is_ok() && cloaked == DWM_CLOAKED_SHELL {
+            bail!("UWP window is not DWM_CLOAKED_SHELL");
+        }
+    }
+
+    Ok(hwnd)
+}
+
+#[cfg(test)]
+mod test {
+    use eink_winkits::get_window_text;
+
+    use crate::win_utils::get_foreground_window;
+
+    #[test]
+    fn test_get_foreground_window() {
+        if let Ok(hwnd) = get_foreground_window() {
+            println!("get_foreground_window: {:?}", hwnd);
+            let title = get_window_text(hwnd);
+            println!("window title: {:?}", title);
+        }
     }
 }
