@@ -13,9 +13,10 @@
 use std::path::PathBuf;
 
 use anyhow;
-use flexi_logger::writers::LogWriter;
-use flexi_logger::{Cleanup, Criterion, Level, LevelFilter, Naming};
+use fast_log::appender::{Command, FastLogRecord, RecordFormat};
+use fast_log::{FastLogFormat, FastLogFormatJson};
 use windows::core::PCWSTR;
+use windows::w;
 use windows::Win32::System::Diagnostics::Debug::OutputDebugStringW;
 
 /// Calls the `OutputDebugString` API to log a string.
@@ -36,29 +37,73 @@ pub fn output_debug_string(s: &str) {
     }
 }
 
-struct DebugViewLogWriter;
+pub struct DebugViewLog {}
 
-impl LogWriter for DebugViewLogWriter {
-    fn write(
-        &self,
-        _now: &mut flexi_logger::DeferredNow,
-        record: &flexi_logger::Record,
-    ) -> std::io::Result<()> {
-        output_debug_string(&format!("{}\n", &record.args()));
-        Ok(())
-    }
+impl fast_log::appender::LogAppender for DebugViewLog {
+    fn do_logs(&self, record: &[fast_log::appender::FastLogRecord]) {
+        for line in record.iter() {
+            if line.command != fast_log::appender::Command::CommandRecord {
+                continue;
+            }
 
-    fn flush(&self) -> std::io::Result<()> {
-        // ignore
-        Ok(())
+            // let now = fastdate::DateTime::from(line.now);
+            let msg = format!(
+                "[{}][{}][{}][{}] {}",
+                // &now,
+                line.target,
+                line.file,
+                line.line.unwrap_or_default(),
+                line.level,
+                &line.args
+            );
+
+            if let Ok(msg_u16) = widestring::U16CString::from_str(&msg) {
+                unsafe {
+                    OutputDebugStringW(PCWSTR::from_raw(msg_u16.as_ptr()));
+                }
+            } else {
+                // ignore
+            }
+        }
     }
+}
+
+pub struct CustomLogFormat {}
+
+impl RecordFormat for CustomLogFormat {
+    fn do_format(&self, arg: &mut FastLogRecord) {
+        match &arg.command {
+            Command::CommandRecord => {
+                let now = fastdate::DateTime::from(arg.now);
+                arg.formated = format!(
+                    "{} [{}][{}][{}][{}] {}\n",
+                    &now,
+                    arg.target,
+                    arg.file,
+                    arg.line.unwrap_or_default(),
+                    arg.level,
+                    arg.args,
+                );
+            }
+            Command::CommandExit => {}
+            Command::CommandFlush(_) => {}
+        }
+    }
+}
+
+pub fn init() -> anyhow::Result<()> {
+    init_with_level(log::Level::Trace)
 }
 
 /// Initialise the logger with a specific log level.
 ///
 /// Log messages below the given [`Level`] will be filtered.
 /// The `RUST_LOG` environment variable is not used.
-pub fn init_with_level(level: Level) -> anyhow::Result<()> {
+pub fn init_with_level(_level: log::Level) -> anyhow::Result<()> {
+    unsafe {
+        OutputDebugStringW(w!("eink-logger::init_with_level"));
+    }
+
     // Get logging dir for different account
     // >> C:\Windows\system32\config\systemprofile\AppData\Local\Lenovo\ThinkBookEinkPlus\logging
     // >> %localappdata%\Lenovo\ThinkBookEinkPlus\logging
@@ -68,35 +113,37 @@ pub fn init_with_level(level: Level) -> anyhow::Result<()> {
             dir.push(&"Lenovo\\ThinkBookEinkPlus\\logging");
             dir
         }
-        None => PathBuf::from("C:\\Lenovo-Fallback-Log\\"),
+        None => PathBuf::from("C:\\Lenovo-Fallback-Log"),
     };
 
     // Just unwrap
     let local_dir = local_dir.to_str().unwrap();
 
-    // Write all error, warn, and info messages
-    flexi_logger::Logger::try_with_str(level.as_str())?
-        .log_to_file_and_writer(
-            flexi_logger::FileSpec::default().directory(local_dir),
-            Box::new(DebugViewLogWriter {}),
-        )
-        // do not truncate the log file when the program is restarted
-        .append()
-        .rotate(
-            Criterion::Size(1024 * 1024 * 2),
-            Naming::Timestamps,
-            Cleanup::KeepLogFiles(16),
-        )
-        .format_for_files(|w, now, record| {
-            write!(
-                w,
-                "{} [{}] {}",
-                now.now().format("%Y-%m-%d %H:%M:%S"),
-                record.level(),
-                &record.args()
-            )
-        })
-        .start()?;
+    // Get current exe filename without extersion name for logging
+    let current_exe = std::env::current_exe().unwrap();
+    let file_name = current_exe.file_name().unwrap();
+    let file_name = file_name.to_str().unwrap().trim_end_matches(".exe");
+
+    let file_path = format!("{local_dir}\\{file_name}.log").replace("\\", "/");
+
+    output_debug_string(&file_path);
+
+    if let Err(_) = fast_log::init(
+        fast_log::Config::new()
+            .custom(DebugViewLog {})
+            .format(CustomLogFormat {})
+            // .console()
+            .file_split(
+                &file_path,
+                fast_log::consts::LogSize::MB(1),
+                fast_log::plugin::file_split::RollingType::KeepNum(128),
+                fast_log::plugin::packer::LogPacker {},
+            ),
+    ) {
+        unsafe {
+            OutputDebugStringW(w!("Cannot initialize fast_log"));
+        }
+    }
 
     Ok(())
 }
