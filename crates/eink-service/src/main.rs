@@ -50,8 +50,8 @@ use crate::topmost_manager::TOPMOST_MANAGER;
 /// 初始化 Panic 的输出为 OutputDebugString
 fn init_panic_output() {
     std::panic::set_hook(Box::new(|info| {
-        let backtrace = std::backtrace::Backtrace::capture();
-        log::error!("PANIC: {:?}\nBACKTRACE: {:?}", info, backtrace);
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        log::error!("PANIC: {:?}, BACKTRACE: {:?}", info, backtrace);
     }));
 }
 
@@ -73,15 +73,7 @@ fn init_working_dir() -> anyhow::Result<()> {
 windows_service::define_windows_service!(ffi_service_main, service_main);
 
 fn service_main(arguments: Vec<OsString>) -> anyhow::Result<()> {
-    //
-    // 初始化日志系统
-    eink_logger::init_with_level(log::Level::Trace)?;
-
-    log::info!("\n\nEinkService Start !\n\n");
-
-    // 设置 PANIC 错误输出
-    init_panic_output();
-    init_working_dir().expect("Error reset working dir");
+    log::info!("\n\nEinkService Start !\n");
 
     // 服务正常启动的前置检查
     // explorer.exe 必须已经启动
@@ -107,6 +99,14 @@ fn service_main(arguments: Vec<OsString>) -> anyhow::Result<()> {
 }
 
 fn main() -> anyhow::Result<()> {
+    //
+    // 初始化日志系统
+    eink_logger::init_with_level(log::Level::Trace)?;
+
+    // 设置 PANIC 错误输出
+    init_panic_output();
+    init_working_dir().expect("Error reset working dir");
+
     // 根据启动参数，判断功能
     // --install 安装服务
     // --uninstall 卸载服务
