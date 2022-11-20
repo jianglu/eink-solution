@@ -31,7 +31,7 @@ mod window;
 mod wmi_service;
 
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering, AtomicI32, AtomicU32};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicIsize, AtomicU32, Ordering};
 use std::sync::Arc;
 
 use always_on_top::{AlwaysOnTop, ALWAYS_ON_TOP};
@@ -81,6 +81,8 @@ use crate::specialized::set_monitor_specialized;
 use crate::window::{enumerate_all_windows, enumerate_capturable_windows};
 
 type AnyResult<T> = anyhow::Result<T>;
+
+shadow_rs::shadow!(build);
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -262,7 +264,7 @@ fn main() -> AnyResult<()> {
         info!("Received LidEvent: {:?}", evt);
     });
 
-    // State: 4 -> 11 -> 3
+    // Cases: 4 -> 11 -> 3
     WMI_SERVICE.lock().on_mode_switch_event(|mode| {
         info!("Received OnModeSwitchEvent: {:?}", mode);
 
@@ -306,7 +308,7 @@ fn main() -> AnyResult<()> {
     // Give BIOS a trigger，disable default Lid Event processing
     WMI_SERVICE.lock().get_display_working_status();
 
-    // 开启锁屏笔记启动管理器
+    // Start LockScreenNoteManager in detached thread
     let _deteched = std::thread::spawn(move || {
         let lsn_starter = Arc::new(Mutex::new(
             LockScreenNoteManager::new().expect("Cannot instantiate LOCKSCREEN_NOTE_STARTER"),
@@ -325,7 +327,8 @@ fn main() -> AnyResult<()> {
         lsn_starter.lock().event_loop();
     });
 
-    // 线程开启热键响应
+    // Start HotkeyManager
+    // TODO: it should be in another detached thread
     let mut hkm = HotkeyManager::new();
 
     // CTRL-ALT-Q 退出

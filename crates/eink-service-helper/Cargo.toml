@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 
+[[bin]]
+name = "EinkServiceHelper"
+path = "src/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -50,11 +54,13 @@ if_chain = "1.0.2"
 
 winreg = "0.10.1"
 
+# A build-time information stored in your rust project
+shadow-rs = "0.16.3"
+
 # 部分使用了 tokio 异步运行时
 futures = "0.3"
 tokio = { version = "1.21", features = ["full"] }
 tokio-util = { version = "0.7", features = ["full"] }
-
 
 # eink stuff
 eink-logger = { path = "../eink-logger" }
@@ -103,3 +109,4 @@ features = [
 
 [build-dependencies]
 embed-resource = "1.7"
+shadow-rs = "0.16.3"
