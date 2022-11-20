@@ -47,14 +47,6 @@ use crate::topmost_manager::TOPMOST_MANAGER;
 /// Functions
 ///
 
-/// 初始化 Panic 的输出为 OutputDebugString
-fn init_panic_output() {
-    std::panic::set_hook(Box::new(|info| {
-        let backtrace = std::backtrace::Backtrace::force_capture();
-        log::error!("PANIC: {:?}, BACKTRACE: {:?}", info, backtrace);
-    }));
-}
-
 /// 重置当前工作目录为 exe 所在目录
 fn init_working_dir() -> anyhow::Result<()> {
     info!("current_dir: {:?}", std::env::current_dir());
@@ -104,7 +96,8 @@ fn main() -> anyhow::Result<()> {
     eink_logger::init_with_level(log::Level::Trace)?;
 
     // 设置 PANIC 错误输出
-    init_panic_output();
+    eink_logger::init_panic_output();
+
     init_working_dir().expect("Error reset working dir");
 
     // 根据启动参数，判断功能
