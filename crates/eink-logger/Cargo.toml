@@ -8,9 +8,10 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.66"
 dirs = { version = "4.0.0" }
-log = "0.4.17"
-fastdate = "0.1.27"
 fast_log = "1.5.36"
+fastdate = "0.1.27"
+log = "0.4.17"
+regex = "1.6.0"
 widestring = "1.0.2"
 
 [dependencies.windows]
