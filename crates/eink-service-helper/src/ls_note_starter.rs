@@ -17,6 +17,8 @@ use std::sync::Arc;
 
 use anyhow::bail;
 use bitfield_struct::bitfield;
+use parking_lot::RwLock;
+use windows::s;
 use windows::Win32::Devices::HumanInterfaceDevice::{
     HidP_GetCaps, HidP_GetUsageValue, HidP_GetValueCaps, HidP_Input, HIDP_CAPS, HIDP_VALUE_CAPS,
     HID_USAGE_GENERIC_X, HID_USAGE_GENERIC_Y, HID_USAGE_PAGE_GENERIC,
@@ -31,7 +33,9 @@ use windows::Win32::UI::Input::{
     RAWINPUTDEVICE, RAWINPUTHEADER, RIDEV_INPUTSINK, RIDI_DEVICENAME, RIDI_PREPARSEDDATA,
     RID_DEVICE_INFO_TYPE, RID_INPUT, RIM_TYPEHID,
 };
-use windows::Win32::UI::WindowsAndMessaging::{DestroyWindow, GetMessageW, MSG, WM_INPUT, WM_NULL};
+use windows::Win32::UI::WindowsAndMessaging::{
+    DestroyWindow, FindWindowA, GetMessageW, RealGetWindowClassA, MSG, WM_INPUT, WM_NULL,
+};
 
 struct HwndDropper(HWND);
 
@@ -50,7 +54,7 @@ pub struct LockScreenNoteManager {
 
     first_point: Option<[u32; 2]>,
 
-    lsn_launched: bool,
+    lsn_launched: Arc<RwLock<bool>>,
 
     /// Make sure that `HotkeyManager` is not Send / Sync. This prevents it from being moved
     /// between threads, which would prevent hotkey-events from being received.
@@ -72,7 +76,7 @@ impl LockScreenNoteManager {
         Ok(Self {
             hwnd,
             first_point: None,
-            lsn_launched: false,
+            lsn_launched: Arc::new(RwLock::new(false)),
             _unimpl_send_sync: PhantomData,
         })
     }
@@ -148,12 +152,12 @@ impl LockScreenNoteManager {
         // 如果不在锁屏界面，清除首个锁屏落笔点的数据
         if !is_in_lockscreen() {
             self.first_point = None;
-            self.lsn_launched = false;
+            *self.lsn_launched.write() = false;
             return;
         }
 
         // 如果在锁屏界面，并且锁屏笔记已经启动，忽略剩下的触笔事件
-        if self.lsn_launched {
+        if *self.lsn_launched.read() {
             return;
         }
 
@@ -339,7 +343,23 @@ impl LockScreenNoteManager {
                 {
                     log::error!("XXXXX Launch LockScreen Note");
                     start_lockscreen_note();
-                    self.lsn_launched = true;
+                    *self.lsn_launched.write() = true;
+
+                    // 开始笔记应用检测线程
+                    // 5s 后开始检测，然后每隔 1s 检查一次，如果没有发现锁屏笔记窗口，将启动标识设置为 false
+                    let lsn_launched = self.lsn_launched.clone();
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_secs(5));
+                        loop {
+                            let title = s!("EInkLockSNoteMainWindow");
+                            if HWND(0) == unsafe { FindWindowA(None, title) } {
+                                *lsn_launched.write() = false;
+                                break;
+                            } else {
+                                std::thread::sleep(std::time::Duration::from_secs(1));
+                            }
+                        }
+                    });
                 }
             }
         }
