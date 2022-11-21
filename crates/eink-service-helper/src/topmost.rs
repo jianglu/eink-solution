@@ -23,8 +23,8 @@ use tokio::runtime::Runtime;
 use windows::s;
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, SendMessageA, SetWindowPos, ShowWindow, HWND_TOPMOST, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_SHOWWINDOW, SW_HIDE, SW_SHOW, SW_SHOWMINIMIZED, WM_USER,
+    GetForegroundWindow, PostMessageA, SendMessageA, SetWindowPos, ShowWindow, HWND_TOPMOST,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_HIDE, SW_SHOW, SW_SHOWMINIMIZED, WM_USER,
 };
 
 use crate::mode_manager::set_window_topmost;
@@ -254,7 +254,7 @@ pub fn unset_window_topmost(hwnd: HWND) {
     if let Ok(api_hwnd) = find_window_by_classname(s!("AlwaysOnTopWindow")) {
         log::error!("Send Unset Topmost Message To AlwaysOnTopWindow");
         unsafe {
-            SendMessageA(api_hwnd, WM_USER + 1, WPARAM::default(), LPARAM(hwnd.0));
+            PostMessageA(api_hwnd, WM_USER + 1, WPARAM::default(), LPARAM(hwnd.0));
         }
     }
 }
