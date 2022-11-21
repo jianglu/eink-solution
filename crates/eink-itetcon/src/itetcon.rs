@@ -133,6 +133,12 @@ extern "system" {
         xnpHeightR: &mut u32, // 返回转换后高度
     ) -> *mut u8;
 
+    pub fn EicLoadCeinkImage(
+        npPathName: *const u16, // 文件名
+        npWidthR: &mut u32, // 返回转换后宽度
+        xnpHeightR: &mut u32, // 返回转换后高度
+    ) -> *mut u8;
+    
     //	when nuFormat == EIMC_GRAY16, nuFlag can be set to EIMC_FLAG_NONE or EIMC_ENHANCING_5R1
     //		 nuFormat == EIMC_BLACKWHITE, nuFlag can be set to  EIMC_FLAG_NONE or EIMC_DITHER_RIGHTDOWN
 

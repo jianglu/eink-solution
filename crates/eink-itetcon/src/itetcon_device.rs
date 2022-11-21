@@ -87,7 +87,8 @@ impl IteTconDevice {
         self.sysinfo = sysinfo;
         self.is_open = true;
 
-        self.set_cover_image("C:\\Program Files\\Lenovo\\ThinkbookEinkPlus\\default_cover.jpg");
+        self.set_cover_image("C:\\Program Files\\Lenovo\\ThinkbookEinkPlus\\default_cover.bmp");
+        //self.set_cover_image("C:\\ProgramData\\Lenovo\\ThinkbookEinkPlus\\ColorCover.bmp");
         Ok(())
     }
 
@@ -202,7 +203,7 @@ impl IteTconDevice {
 
         self.set_speed_mode();
 
-        info!("EicLoadImage");
+        info!("EicLoadImage: {img_path}");
         let img_path_cstring = U16CString::from_str(img_path).unwrap();
         let mut img_width: u32 = 0;
         let mut img_height: u32 = 0;
@@ -221,7 +222,7 @@ impl IteTconDevice {
         if !img_buf.is_null() {
             unsafe {
                 info!("EicConvertToT1000Format");
-                EicConvertToT1000Format(img_buf, img_width, img_height);
+                //EicConvertToT1000Format(img_buf, img_width, img_height);
 
                 info!("EiTurn180");
                 //EiTurn180(img_buf, img_width, img_height);

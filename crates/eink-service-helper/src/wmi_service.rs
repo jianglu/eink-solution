@@ -112,7 +112,7 @@ impl WmiService {
 
         if_chain::if_chain! {
             if let Ok(ret) = ret;
-            if let Ok(ret) = ret.parse::<u32>();
+            if let Ok(ret) = ret.trim().parse::<u32>();
             then {
                 ret
             } else {
