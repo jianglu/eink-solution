@@ -75,6 +75,8 @@ impl RecordFormat for CustomLogFormat {
         match &arg.command {
             Command::CommandRecord => {
                 let now = fastdate::DateTime::from(arg.now);
+                // utc -> localtime
+                let now = now.set_offset(fastdate::offset_sec());
                 arg.formated = format!(
                     "{} [{}][{}][{}][{}] {}\n",
                     &now,
