@@ -10,10 +10,8 @@
 // All rights reserved.
 //
 
-use std::{
-    process::{Child, Command},
-    sync::Arc,
-};
+use std::process::{Child, Command};
+use std::sync::Arc;
 
 use anyhow::Result;
 use cmd_lib::run_cmd;
@@ -25,14 +23,12 @@ use signals2::{Connect2, Emit2, Signal};
 use tokio::runtime::Runtime;
 use windows::Win32::System::Threading::GetCurrentProcessId;
 
-use crate::{
-    settings::SETTINGS,
-    utils::{
-        get_current_data_dir, get_current_exe_dir, jsonrpc_error_internal_error,
-        jsonrpc_error_method_not_found, jsonrpc_success_string,
-    },
-    win_utils::{kill_process_by_pid, run_as_admin},
+use crate::settings::SETTINGS;
+use crate::utils::{
+    get_current_data_dir, get_current_exe_dir, jsonrpc_error_internal_error,
+    jsonrpc_error_method_not_found, jsonrpc_success_string,
 };
+use crate::win_utils::{kill_process_by_pid, run_as_admin};
 
 const PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\keyboard";
 
@@ -51,6 +47,19 @@ impl KeyboardManager {
     ///
     pub fn new() -> Result<Self> {
         let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(3)
+            .on_thread_start(|| {
+                log::info!(
+                    "KeyboardManager thread [{:?}] started",
+                    std::thread::current().id()
+                );
+            })
+            .on_thread_stop(|| {
+                log::info!(
+                    "KeyboardManager thread [{:?}] stopping",
+                    std::thread::current().id()
+                );
+            })
             .enable_all()
             .build()
             .expect("Cannot create tokio runtime for KeyboardManager");
@@ -195,3 +204,10 @@ pub static KEYBOARD_MANAGER: Arc<Mutex<KeyboardManager>> = {
 
     this
 };
+
+#[test]
+fn test_win_key() {
+    KEYBOARD_MANAGER.lock().disable_win_key().unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(5));
+    KEYBOARD_MANAGER.lock().enable_win_key().unwrap();
+}

@@ -54,6 +54,19 @@ const PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\wmi";
 impl WmiService {
     pub fn new() -> anyhow::Result<Self> {
         let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(3)
+            .on_thread_start(|| {
+                log::info!(
+                    "WmiService thread [{:?}] started",
+                    std::thread::current().id()
+                );
+            })
+            .on_thread_stop(|| {
+                log::info!(
+                    "WmiService thread [{:?}] stopping",
+                    std::thread::current().id()
+                );
+            })
             .enable_all()
             .build()
             .expect("Cannot create tokio runtime for TconService");
@@ -251,8 +264,8 @@ pub fn start_service(this: &Arc<Mutex<WmiService>>) -> anyhow::Result<()> {
             }
         };
 
-        let iterator =
-            wmi_con.raw_notification::<HashMap<String, Variant>>("SELECT * FROM LENOVO_LID_CHANGE_EVENT");
+        let iterator = wmi_con
+            .raw_notification::<HashMap<String, Variant>>("SELECT * FROM LENOVO_LID_CHANGE_EVENT");
 
         let iterator = match iterator {
             Ok(v) => v,

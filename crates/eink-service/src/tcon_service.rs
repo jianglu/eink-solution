@@ -10,11 +10,9 @@
 // All rights reserved.
 //
 
-use std::{
-    mem::zeroed,
-    ops::DerefMut,
-    sync::{Arc, Weak},
-};
+use std::mem::zeroed;
+use std::ops::DerefMut;
+use std::sync::{Arc, Weak};
 
 use anyhow::{bail, Result};
 use eink_itetcon::{
@@ -23,14 +21,14 @@ use eink_itetcon::{
     ITESetFA2, ITESetMIPIModeAPI, IteTconDevice, RecoveryLoadImg, StopLoadImg, GI_MIPI_FAST_READER,
     GI_MIPI_HYBRID, GI_MIPI_READER,
 };
-
 use eink_pipe_io::server::Socket;
 use if_chain::if_chain;
 use jsonrpc_lite::{Id, JsonRpc, Params};
 use log::{error, info};
 use parking_lot::{Mutex, RwLock};
 use serde_json::json;
-use signals2::{connect::ConnectionImpl, Connect2, Emit2, Signal};
+use signals2::connect::ConnectionImpl;
+use signals2::{Connect2, Emit2, Signal};
 use tokio::runtime::Runtime;
 use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
 
@@ -54,6 +52,19 @@ pub struct TconService {
 impl TconService {
     pub fn new() -> Result<Self> {
         let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(3)
+            .on_thread_start(|| {
+                log::info!(
+                    "TconService thread [{:?}] started",
+                    std::thread::current().id()
+                );
+            })
+            .on_thread_stop(|| {
+                log::info!(
+                    "TconService thread [{:?}] stopping",
+                    std::thread::current().id()
+                );
+            })
             .enable_all()
             .build()
             .expect("Cannot create tokio runtime for TconService");

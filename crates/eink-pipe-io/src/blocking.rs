@@ -56,6 +56,19 @@ impl BlockingClient {
 // /// ```
 pub fn connect(pipe_name: &str) -> anyhow::Result<BlockingClient> {
     let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(3)
+        .on_thread_start(|| {
+            log::info!(
+                "PipeIo::BlockingClient thread [{:?}] started",
+                std::thread::current().id()
+            );
+        })
+        .on_thread_stop(|| {
+            log::info!(
+                "PipeIo::BlockingClient thread [{:?}] stopping",
+                std::thread::current().id()
+            );
+        })
         .enable_all()
         .build()?;
 

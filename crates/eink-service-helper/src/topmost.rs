@@ -23,8 +23,8 @@ use tokio::runtime::Runtime;
 use windows::s;
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetForegroundWindow, PostMessageA, SendMessageA, SetWindowPos, ShowWindow, HWND_TOPMOST,
-    SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_HIDE, SW_SHOW, SW_SHOWMINIMIZED, WM_USER,
+    GetForegroundWindow, PostMessageA, SetWindowPos, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE,
+    SWP_SHOWWINDOW, WM_USER,
 };
 
 use crate::mode_manager::set_window_topmost;
@@ -51,6 +51,19 @@ impl TopmostManager {
     ///
     pub fn new() -> anyhow::Result<Self> {
         let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(3)
+            .on_thread_start(|| {
+                log::info!(
+                    "TopmostManager: thread [{:?}] started",
+                    std::thread::current().id()
+                );
+            })
+            .on_thread_stop(|| {
+                log::info!(
+                    "TopmostManager: thread [{:?}] stopping",
+                    std::thread::current().id()
+                );
+            })
             .enable_all()
             .build()
             .expect("Cannot create tokio runtime for TopmostManager");
