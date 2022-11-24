@@ -309,34 +309,35 @@ fn find_launcher_and_set_topmost() {
 }
 
 /// 查找悬浮球并且设置为置顶模式
+/// 悬浮球已经不需要置顶了
 pub fn find_floating_button_and_set_topmost() {
     info!("find_floating_button_and_set_topmost");
 
-    if let Ok(hwnd) = find_window_by_title(s!("86948044-41D9-464B-B533-15FE92A0BA26")) {
-        // 使用 AlwaysOnTop 动态置顶
-        set_window_topmost(hwnd);
+    // if let Ok(hwnd) = find_window_by_title(s!("86948044-41D9-464B-B533-15FE92A0BA26")) {
+    //     // 使用 AlwaysOnTop 动态置顶
+    //     set_window_topmost(hwnd);
 
-        // 使用动态置顶后， 等待 250ms 再通过 Windows HWND_TOPMOST 避免其他动态置顶窗口遮蔽悬浮球
-        std::thread::spawn(move || {
-            //
-            std::thread::sleep(std::time::Duration::from_millis(250));
+    //     // 使用动态置顶后， 等待 250ms 再通过 Windows HWND_TOPMOST 避免其他动态置顶窗口遮蔽悬浮球
+    //     std::thread::spawn(move || {
+    //         //
+    //         std::thread::sleep(std::time::Duration::from_millis(250));
 
-            // 调用 Windows 的置顶方法
-            unsafe {
-                SetWindowPos(
-                    hwnd,
-                    HWND_TOPMOST,
-                    0,
-                    0,
-                    0,
-                    0,
-                    SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE,
-                );
-            }
-        });
-    } else {
-        log::error!("Cannot find ThinkBook Eink Plus Floating Button");
-    }
+    //         // 调用 Windows 的置顶方法
+    //         unsafe {
+    //             SetWindowPos(
+    //                 hwnd,
+    //                 HWND_TOPMOST,
+    //                 0,
+    //                 0,
+    //                 0,
+    //                 0,
+    //                 SWP_NOMOVE | SWP_SHOWWINDOW | SWP_NOSIZE,
+    //             );
+    //         }
+    //     });
+    // } else {
+    //     log::error!("Cannot find ThinkBook Eink Plus Floating Button");
+    // }
 }
 
 /// 启动 Launcher
