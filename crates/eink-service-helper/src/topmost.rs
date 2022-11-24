@@ -125,7 +125,17 @@ impl TopmostManager {
                     Some("clear_all_windows_topmost") => {
                         // let this2 = this2.clone();
                         // // std::thread::spawn(move || {
+                        info!(
+                            "clear_all_windows_topmost 1: this2.is_locked(): {}",
+                            this2.is_locked()
+                        );
                         this2.lock().clear_current_topmost_window();
+
+                        info!(
+                            "clear_all_windows_topmost 2: this2.is_locked(): {}",
+                            this2.is_locked()
+                        );
+
                         // crate::mode_manager::clear_all_windows_topmost();
                         // });
                         jsonrpc_success_string(id, "true")

@@ -10,7 +10,8 @@
 // All rights reserved.
 //
 
-use std::{ffi::CString, mem::zeroed};
+use std::ffi::CString;
+use std::mem::zeroed;
 
 use anyhow::{bail, Result};
 use log::info;
@@ -100,10 +101,11 @@ impl IteTconDevice {
     }
 
     pub fn refresh(&self) {
-        info!("tcon_refresh");
+        info!("tcon_refresh 1");
         unsafe { StopLoadImg() };
         unsafe { ITECleanUpEInkAPI() };
         unsafe { RecoveryLoadImg() };
+        info!("tcon_refresh 2");
     }
 
     /// 设置为静态刷新模式

@@ -294,8 +294,9 @@ enum MipiMode {
 // }
 
 fn tcon_refresh() {
-    info!("tcon_refresh");
+    info!("tcon_refresh 1");
     unsafe { ITECleanUpEInkAPI() };
+    info!("tcon_refresh 2");
 }
 
 /// 设置 MIPI 模式

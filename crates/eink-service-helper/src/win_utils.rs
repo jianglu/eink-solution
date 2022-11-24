@@ -27,9 +27,9 @@ use windows::Win32::Foundation::{
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED, DWM_CLOAKED_SHELL};
 use windows::Win32::Security::{
     DuplicateTokenEx, GetTokenInformation, SecurityIdentification, SecurityImpersonation,
-    SetTokenInformation, TokenLinkedToken, TokenPrimary, TokenSessionId, TOKEN_ADJUST_PRIVILEGES,
-    TOKEN_ADJUST_SESSIONID, TOKEN_ALL_ACCESS, TOKEN_ASSIGN_PRIMARY, TOKEN_DUPLICATE, TOKEN_QUERY,
-    TOKEN_READ, TOKEN_WRITE,
+    SetTokenInformation, TokenLinkedToken, TokenPrimary, TokenSessionId, TokenUIAccess,
+    TOKEN_ADJUST_PRIVILEGES, TOKEN_ADJUST_SESSIONID, TOKEN_ALL_ACCESS, TOKEN_ASSIGN_PRIMARY,
+    TOKEN_DUPLICATE, TOKEN_QUERY, TOKEN_READ, TOKEN_WRITE,
 };
 use windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES;
 use windows::Win32::System::Diagnostics::ToolHelp::{
@@ -383,6 +383,74 @@ pub unsafe fn run_admin_privilege_unsafe(proc_dir: &str, proc_cmd: &str) -> Resu
 
     let creation_flags =
         CREATE_NEW_CONSOLE | NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW; //
+
+    let ret = CreateProcessAsUserW(
+        unfiltered_token,
+        None,
+        PWSTR::from_raw(proc_cmd16.as_mut_ptr()),
+        None,
+        None,
+        false,
+        creation_flags.0,
+        Some(environment),
+        PCWSTR::from_raw(proc_dir16.as_ptr()),
+        &mut si,
+        &mut pi,
+    );
+    info!("CreateProcessAsUserW: ret: {:?}", ret);
+
+    if !environment.is_null() {
+        DestroyEnvironmentBlock(environment);
+    }
+
+    if !primary_token.is_invalid() {
+        CloseHandle(primary_token);
+    }
+
+    Ok(pi.dwProcessId)
+}
+
+pub fn run_with_ui_access(proc_dir: &str, proc_cmd: &str) -> Result<u32> {
+    unsafe { run_with_ui_access_unsafe(proc_dir, proc_cmd) }
+}
+
+pub unsafe fn run_with_ui_access_unsafe(proc_dir: &str, proc_cmd: &str) -> Result<u32> {
+    let primary_token = get_current_user_token().unwrap_or(HANDLE::default());
+
+    let mut unfiltered_token: HANDLE = HANDLE::default();
+    let mut size: u32 = 0;
+
+    let ret = GetTokenInformation(
+        primary_token,
+        TokenLinkedToken,
+        Some(&mut unfiltered_token as *const HANDLE as *mut c_void),
+        size_of::<HANDLE>() as u32,
+        &mut size,
+    );
+    info!("GetTokenInformation: ret: {:?}", ret);
+
+    let ui_access: u32 = 1;
+    let ret = SetTokenInformation(
+        unfiltered_token,
+        TokenUIAccess,
+        &ui_access as *const u32 as *const c_void,
+        size_of::<u32>() as u32,
+    );
+    info!("SetTokenInformation(TokenUIAccess): ret: {:?}", ret);
+
+    let mut environment: *mut c_void = zeroed();
+    let ret = CreateEnvironmentBlock(&mut environment, unfiltered_token, false);
+    info!("CreateEnvironmentBlock: ret: {:?}", ret);
+
+    let mut si: STARTUPINFOW = zeroed();
+    let mut pi: PROCESS_INFORMATION = zeroed();
+
+    // let proc_name16 = U16CString::from_str(proc_name)?;
+    let proc_dir16 = U16CString::from_str(proc_dir)?;
+    let mut proc_cmd16 = U16CString::from_str(proc_cmd)?;
+
+    let mut creation_flags =
+        CREATE_NEW_CONSOLE | NORMAL_PRIORITY_CLASS | CREATE_UNICODE_ENVIRONMENT; // CREATE_NO_WINDOW; //
 
     let ret = CreateProcessAsUserW(
         unfiltered_token,
