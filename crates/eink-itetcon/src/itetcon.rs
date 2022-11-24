@@ -59,23 +59,56 @@ pub const GI_MIPI_HYBRID: u32 = 0xF0u32;
 
 #[windows_dll::dll(EInkTcon)]
 extern "system" {
+    #[allow(non_snake_case)]
     pub fn ITEGetSystemInfoAPI(system_info: *mut TRSP_SYSTEM_INFO_DATA) -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITEGetDriveNo(drive_no: &mut u8) -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITEOpenDeviceAPI(dev_path: &CStr) -> HANDLE;
+
+    #[allow(non_snake_case)]
     pub fn ITECloseDeviceAPI() -> ();
+
+    #[allow(non_snake_case)]
     pub fn ITESet8951KeepAlive(enable: u32) -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITECleanUpEInkAPI() -> u32;
+
+    #[allow(non_snake_case)]
     pub fn StopLoadImg() -> ();
+
+    #[allow(non_snake_case)]
     pub fn RecoveryLoadImg() -> ();
+
+    #[allow(non_snake_case)]
     pub fn EnableLoadImg() -> ();
+
+    #[allow(non_snake_case)]
     pub fn DisableLoadImg() -> ();
+
+    #[allow(non_snake_case)]
     pub fn ITESetFA2(enable: u32) -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITESetMIPIModeAPI(mode: &mut u32) -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITEGetMIPIModeAPI(mode: &mut u32) -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITEResetTcon() -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITEGetBufferAddrInfoAPI(addrs: &mut [u32; 3]) -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITELoadImage(img_buf: *mut u8, img_buf_addr: u32, x: u32, y: u32, w: u32, h: u32)
         -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITEDisplayAreaAPI(
         x: u32,
         y: u32,
@@ -85,6 +118,8 @@ extern "system" {
         mem_addr: u32,
         wait_ready: u32,
     ) -> u32;
+
+    #[allow(non_snake_case)]
     pub fn ITESetTPMaskArea(
         dwPenStyle: u32,
         dwAreaID: u32,
@@ -97,9 +132,9 @@ extern "system" {
 
 #[test]
 fn test_get_buffer_addr_info() {
-    let mut addrs: u32 = 0;
+    let mut addrs: [u32; 3] = [0, 0, 0];
     unsafe { ITEGetBufferAddrInfoAPI(&mut addrs) };
-    println!("ITEGetBufferAddrInfoAPI: addrs: {addrs}");
+    println!("ITEGetBufferAddrInfoAPI: addrs: {addrs:?}");
 }
 
 pub const EIMC_GRAY16: u32 = 1; // 16色灰度，0x00,0x10 ... 0xF0
@@ -119,10 +154,12 @@ pub const EIMC_IMG_TILE: u32 = 3;
 extern "system" {
 
     // 释放本Wic对象，暂时解决一个wic失效的未知bug，ax Dec.19,2017
+    #[allow(non_snake_case)]
     pub fn EiReleaseWic() -> ();
 
     // 读取文件，并且转换为指定的格式
     // 返回的指针，不用时，调用EicReleaseImage释放
+    #[allow(non_snake_case)]
     pub fn EicLoadImage(
         npPathName: *const u16, // 文件名
         nuFormat: u32,          // EIMC_GRAY16 or EIMC_BLACKWHITE
@@ -133,17 +170,19 @@ extern "system" {
         xnpHeightR: &mut u32, // 返回转换后高度
     ) -> *mut u8;
 
+    #[allow(non_snake_case)]
     pub fn EicLoadCeinkImage(
         npPathName: *const u16, // 文件名
-        npWidthR: &mut u32, // 返回转换后宽度
-        xnpHeightR: &mut u32, // 返回转换后高度
+        npWidthR: &mut u32,     // 返回转换后宽度
+        xnpHeightR: &mut u32,   // 返回转换后高度
     ) -> *mut u8;
-    
+
     //	when nuFormat == EIMC_GRAY16, nuFlag can be set to EIMC_FLAG_NONE or EIMC_ENHANCING_5R1
     //		 nuFormat == EIMC_BLACKWHITE, nuFlag can be set to  EIMC_FLAG_NONE or EIMC_DITHER_RIGHTDOWN
 
     // 将ARGB图像转化为Gray H16图像
     // 返回转换后的数据，不使用时，调用EicReleaseImage释放
+    #[allow(non_snake_case)]
     pub fn EicConvertToGray16(
         npArgb: *mut u8,
         nuLayout: u32,
@@ -156,6 +195,7 @@ extern "system" {
 
     // 将ARGB图像转化为Black&White图像
     // 返回转换后的数据，不使用时，调用EicReleaseImage释放
+    #[allow(non_snake_case)]
     pub fn EicConvertToBlackWhite(
         npArgb: *mut u8,
         nuWidth: u32,
@@ -164,16 +204,20 @@ extern "system" {
     ) -> *mut u8;
 
     // 将普通的灰度值转换为T1000支持的灰度值
+    #[allow(non_snake_case)]
     pub fn EicConvertToT1000Format(mpBufImage: *mut u8, nuWidth: u32, nuHeight: u32);
 
     // 抖动Black&White图像
     // 返回转换后的数据，不使用时，调用EicReleaseImage释放
+    #[allow(non_snake_case)]
     pub fn EicDither(npGrayH16: *mut u8, nuWidth: u32, nuHeight: u32) -> *mut u8;
 
     // 将H16数据旋转180度
+    #[allow(non_snake_case)]
     pub fn EiTurn180(npGrayH16: *mut u8, nuWidth: u32, nuHeight: u32);
 
     // 将H16数据顺时针旋转90、180、270度，旋转90和270度将导致图像的宽度和高度产生交换而改变
+    #[allow(non_snake_case)]
     pub fn EiTurn(
         npGrayH16: *mut u8,
         npNewH16: *mut u8,
@@ -182,6 +226,7 @@ extern "system" {
         nuAngle: u32, // 90,180,270
     );
 
+    #[allow(non_snake_case)]
     pub fn EicSaveToImageFile(
         npPathName: *const u16, // 文件名
         npArgb: *mut u8,        // 图像缓冲区
@@ -190,6 +235,7 @@ extern "system" {
     ) -> bool;
 
     // 将输入图像缩放到指定大小后保存为新文件
+    #[allow(non_snake_case)]
     pub fn EicResizeImage(
         npFileInput: *const u16,  // 输入文件名
         npFileOutput: *const u16, // 输出文件名
@@ -198,5 +244,6 @@ extern "system" {
         nuColor: u32, // 用于填充空白的像素值
     ) -> bool;
 
+    #[allow(non_snake_case)]
     pub fn EicReleaseImage(npImage: *mut u8);
 }
