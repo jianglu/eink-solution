@@ -33,7 +33,7 @@ use crate::topmost::TOPMOST_MANAGER;
 use crate::utils::get_current_exe_dir;
 use crate::win_utils::{
     find_window_by_classname, find_window_by_title, run_as_admin, set_window_hidden,
-    set_window_maximize, set_window_shown,
+    set_window_maximize, set_window_minimize, set_window_shown,
 };
 use crate::wmi_service::WMI_SERVICE;
 use crate::{monitor, save_display_mode_to_registry, tcon_api};
@@ -345,7 +345,7 @@ fn start_launcher() {
     let exe_dir = get_current_exe_dir();
     let topmost_manager_exe = exe_dir.join("LenovoGen4.Launcher.exe");
 
-    let _pid = match run_as_admin(
+    let _pid = match crate::win_utils::run_with_ui_access(
         exe_dir.to_str().unwrap(),
         topmost_manager_exe.to_str().unwrap(),
     ) {
@@ -361,7 +361,9 @@ fn find_launcher_and_set_hidden() {
     if let Ok(hwnd) =
         find_window_by_title(s!("ThinkbookEinkPlus2A7678FA-39DD-4C1D-8981-34A451919F59"))
     {
+        // Maybe: 用最小化窗口代替隐藏窗口
         set_window_hidden(hwnd);
+        // set_window_minimize(hwnd);
     } else {
         log::error!("Cannot find ThinkBook Eink Plus Launcher");
     }
