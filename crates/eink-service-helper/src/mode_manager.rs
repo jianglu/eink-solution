@@ -341,19 +341,22 @@ pub fn find_floating_button_and_set_topmost() {
 
 /// 启动 Launcher
 fn start_launcher() {
-    // topmost manager 可执行程序和 eink-service 在同一目录
-    let exe_dir = get_current_exe_dir();
-    let topmost_manager_exe = exe_dir.join("LenovoGen4.Launcher.exe");
+    // TODO：临时通过 eink-service 来启动 launcher，类似锁屏笔记的方式
+    tcon_api::eink_start_launcher();
 
-    let _pid = match crate::win_utils::run_with_ui_access(
-        exe_dir.to_str().unwrap(),
-        topmost_manager_exe.to_str().unwrap(),
-    ) {
-        Ok(_) => (),
-        Err(_err) => {
-            log::error!("Cannot run Launcher");
-        }
-    };
+    // // topmost manager 可执行程序和 eink-service 在同一目录
+    // let exe_dir = get_current_exe_dir();
+    // let launcher_exe = exe_dir.join("LenovoGen4.Launcher.exe");
+
+    // let _pid = match crate::win_utils::run_with_ui_access(
+    //     exe_dir.to_str().unwrap(),
+    //     launcher_exe.to_str().unwrap(),
+    // ) {
+    //     Ok(_) => (),
+    //     Err(_err) => {
+    //         log::error!("Cannot run Launcher");
+    //     }
+    // };
 }
 
 /// 查找 Launcher 并且设置为隐藏

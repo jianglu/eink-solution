@@ -173,6 +173,17 @@ impl TconService {
                     });
                     jsonrpc_success_string(id, "true")
                 }
+                Some("start_launcher") => {
+                    // 临时借这个地方
+                    // 启动锁屏笔记
+                    std::thread::spawn(|| {
+                        let dir = r"C:\Program Files\Lenovo\ThinkBookEinkPlus";
+                        let exe =
+                            r"C:\Program Files\Lenovo\ThinkBookEinkPlus\LenovoGen4.Launcher.exe";
+                        let _ = crate::win_utils::run_with_ui_access(dir, exe);
+                    });
+                    jsonrpc_success_string(id, "true")
+                }
                 Some("software_reset_api") => {
                     info!("TconService: software_reset_api");
                     unsafe { ITEResetTcon() };

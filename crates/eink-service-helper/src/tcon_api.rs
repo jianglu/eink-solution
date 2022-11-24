@@ -210,6 +210,30 @@ pub fn eink_start_lockscreen_note() -> u32 {
     0
 }
 
+/// TODO: 临时借用宝地
+pub fn eink_start_launcher() -> u32 {
+    for _ in 0..2 {
+        connect_tcon_client();
+        let mut guard = TCON_CLIENT.lock();
+        if let Some(client) = guard.as_mut() {
+            match client.call_with_params("start_launcher", json!({})) {
+                Ok(reply) => {
+                    log::info!("start_launcher: result: {:?}", reply.get_result());
+                    break;
+                }
+                Err(err) => {
+                    log::error!("Cannot invoke remote method to tcon service: err: {err:?}");
+
+                    // 发生错误，断开链接, 再次尝试
+                    disconnect_tcon_client();
+                    continue;
+                }
+            }
+        }
+    }
+    0
+}
+
 pub const TOUCH_EVENT_NO_REPORT: u32 = 0x70;
 pub const TOUCH_EVENT_PEN_ONLY: u32 = 0x60;
 pub const TOUCH_EVENT_TOUCH_ONLY: u32 = 0x50;
