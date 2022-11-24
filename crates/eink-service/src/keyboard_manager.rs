@@ -28,7 +28,7 @@ use crate::utils::{
     get_current_data_dir, get_current_exe_dir, jsonrpc_error_internal_error,
     jsonrpc_error_method_not_found, jsonrpc_success_string,
 };
-use crate::win_utils::{kill_process_by_pid, run_as_admin};
+use crate::win_utils::{kill_process_by_pid, kill_process_by_name, run_as_admin};
 
 const PIPE_NAME: &str = r"\\.\pipe\lenovo\eink-service\keyboard";
 
@@ -179,9 +179,10 @@ impl KeyboardManager {
     /// 启用 Win / AltTab 按键
     pub fn enable_win_key(&mut self) -> Result<()> {
         info!("enable_win_key: self.pid: {:?}", self.pid);
-        if let Some(pid) = self.pid.take() {
-            kill_process_by_pid(pid, 0);
-        }
+        // if let Some(pid) = self.pid.take() {
+        //     kill_process_by_pid(pid, 0);
+        // }
+        kill_process_by_name("eink-keyboard-manager", 0);
         Ok(())
     }
 
